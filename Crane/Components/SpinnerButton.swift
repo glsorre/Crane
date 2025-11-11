@@ -7,9 +7,6 @@
 
 import SwiftUI
 
-// Generic SpinnerButton view to handle loading state with a spinner.
-// Supports any custom label via @ViewBuilder, making it reusable across views.
-// Apply your desired ButtonStyle when using this view (e.g., .buttonStyle(.plain)).
 struct SpinnerButton<Label: View>: View {
     let isLoading: Bool
     let action: () -> Void
