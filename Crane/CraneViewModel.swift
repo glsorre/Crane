@@ -73,19 +73,20 @@ class ContainerCreation {
 }
 
 @Observable
-class ViewModel {
+class CraneViewModel {
     var containers: [String: ClientContainer]? = [:]
     var containersMetadata: [ContainerMetadata]? = []
-    var networks: Set<Attachment>?
+    var networks: Set<String>?
+    var containersForNetwork: [String: [ClientContainer]] = [:]
     
     var containerToCreate: ContainerCreation = .init()
     var currentContainerId: String?
-    var currentContainer: ClientContainer {
+    var currentContainer: ClientContainer? {
         get {
             if let id = currentContainerId, let container = containers?[id] {
                 return container
             } else {
-                fatalError("No container selected")
+                return nil
             }
         }
     }
@@ -109,8 +110,10 @@ class ViewModel {
                 containers?[container.id] = container
             }
             
-            networks = Set(containers!.values.flatMap { $0.networks })
-            
+            networks = Set(containers!.values.flatMap { $0.configuration.networks.map { $0.network } })
+            containersForNetwork = Dictionary(grouping: containers!.values.flatMap { container in
+                container.configuration.networks.map { ($0.network, container) }
+            }, by: \.0).mapValues { $0.map(\.1) }
         } catch {
             self.error = error
         }

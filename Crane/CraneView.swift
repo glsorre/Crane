@@ -16,15 +16,18 @@ import SwiftUI
 
 
 struct CraneView: View {
-    @State private var viewModel = ViewModel()
+    @State private var viewModel = CraneViewModel()
     
     var body: some View {
         NavigationSplitView {
-            ContainerSidebarView(viewModel: viewModel)
+            if !viewModel.containers!.isEmpty, !viewModel.networks!.isEmpty {
+                ContainerSidebarView(viewModel: viewModel)
+            } else {
+                EmptyView()
+            }
         } detail: {
-            if let currentId = viewModel.currentContainerId,
-               let currentContainer = viewModel.containers?[currentId] {
-                ContainerDetailsView(viewModel: $viewModel, container: currentContainer)
+            if viewModel.currentContainerId != nil {
+                ContainerDetailsView(viewModel: $viewModel)
             } else {
                 EmptyView()
             }

@@ -10,12 +10,11 @@ import ContainerNetworkService
 import SwiftUI
 
 struct ContainerDetailsView: View {
-    @Binding var viewModel: ViewModel
-    let container: ClientContainer
+    @Binding var viewModel: CraneViewModel
     
     var body: some View {
-        let metadata = viewModel.containersMetadata?.fromIndex(container.id)
-          
+        let container = viewModel.currentContainer
+        let metadata = viewModel.containersMetadata?.fromIndex(container?.id ?? "") ?? nil
 
         if metadata?.loadingLogs ?? true {
                 ProgressView("Loading logs...")
@@ -32,7 +31,7 @@ struct ContainerDetailsView: View {
                 TabView(selection: $viewModel.selectedLogHandleIndex) {
                     ForEach(Array(metadata.logHandles.enumerated()), id: \.offset) { index, handleMetadata in
                         HStack (spacing: 16) {
-                            ContainerDetailsInfoView(viewModel: $viewModel, container: container)
+                            ContainerDetailsInfoView(viewModel: $viewModel)
                             ContainerLogsView(handleMetadata: handleMetadata, containerMetadata: metadata, handleIndex: index)
                         }
                         .tabItem {
@@ -57,14 +56,14 @@ struct ContainerDetailsView: View {
                         ToolbarItem {
                             SpinnerButton(isLoading: metadata.transiting) {
                                 Task {
-                                    if viewModel.currentContainer.status == .stopped {
+                                    if container!.status == .stopped {
                                         await viewModel.startContainer(id: viewModel.currentContainerId!)
-                                    } else if viewModel.currentContainer.status == .running {
+                                    } else if container!.status == .running {
                                         await viewModel.stopContainer(id: viewModel.currentContainerId!)
                                     }
                                 }
                             } label: {
-                                if (viewModel.currentContainer.status == .running) {
+                                if (container!.status == .running) {
                                     Label("", systemImage: "stop.fill")
                                 } else {
                                     Label("", systemImage: "play.fill")
@@ -72,7 +71,7 @@ struct ContainerDetailsView: View {
                             }
                             .buttonStyle(.bordered)
                         }
-                        if viewModel.currentContainer.status == .stopped {
+                        if container!.status == .stopped {
                             ToolbarItem {
                                 SpinnerButton(isLoading: metadata.removing) {
                                     Task {

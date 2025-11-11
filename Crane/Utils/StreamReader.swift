@@ -32,7 +32,6 @@ class StreamReader {
         close()
     }
     
-    /// Return next line, or nil on EOF.
     func nextLine() -> String? {
         precondition(fileHandle != nil, "Attempt to read from closed file")
         
@@ -40,7 +39,6 @@ class StreamReader {
             return nil
         }
         
-        // Read data chunks from file until a line delimiter is found:
         var range = buffer.range(of: delimData, in: 0..<buffer.count)
         while range == nil {
             let tmpData = fileHandle.readData(ofLength: chunkSize)
@@ -63,7 +61,6 @@ class StreamReader {
         
         guard let range = range else { return nil }
         
-        // Convert complete line (excluding the delimiter) to a string:
         if let line = String(data: buffer[0..<range.lowerBound], encoding: encoding) {
             // Remove line (and the delimiter) from the buffer:
             buffer.replaceSubrange(0..<range.upperBound, with: [])
@@ -73,7 +70,6 @@ class StreamReader {
         return nil
     }
     
-    /// Start reading from the beginning of file.
     func rewind() {
         fileHandle.seek(toFileOffset: 0)
         buffer.removeAll()
@@ -88,7 +84,6 @@ class StreamReader {
         }
     }
     
-    /// Close the underlying file. No reading must be done after calling this method.
     func close() {
         fileHandle?.closeFile()
         fileHandle = nil

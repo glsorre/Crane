@@ -24,15 +24,15 @@ struct SpinnerButton<Label: View>: View {
         Button(action: action) {
             HStack {
                 if isLoading {
-                    AnyView(ProgressView()  // Spinner/indicator for loading state
+                    AnyView(ProgressView()
                         .progressViewStyle(.circular)
-                        .controlSize(.small))  // Keeps it compact on macOS
+                        .controlSize(.small))
                 } else {
-                    AnyView(label())  // Ensures consistent View conformance
+                    AnyView(label())
                 }
             }
         }
-        .disabled(isLoading)  // Prevents interaction during loading
+        .disabled(isLoading)
         .frame(minWidth: minWidth)
     }
 }

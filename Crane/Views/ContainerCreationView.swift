@@ -9,7 +9,7 @@ import ContainerClient
 import SwiftUI
 
 struct ContainerCreationView: View {
-    @Binding var viewModel: ViewModel
+    @Binding var viewModel: CraneViewModel
     
     private let cpuFormatter: NumberFormatter = {
         let formatter = NumberFormatter()

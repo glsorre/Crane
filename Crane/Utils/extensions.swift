@@ -15,15 +15,27 @@ import SwiftUI
 extension ClientContainer: @retroactive Identifiable {}
 
 extension Attachment: @retroactive Hashable {
-    // Manual implementation required for @retroactive conformance outside the declaring file.
-    // Adjust based on Attachment's actual properties (e.g., assuming an 'id' field exists).
     public static func == (lhs: Attachment, rhs: Attachment) -> Bool {
-        return lhs.network == rhs.network  // Replace with actual equality logic if Attachment has different fields.
+        return lhs.network == rhs.network &&
+               lhs.hostname == rhs.hostname &&
+               lhs.address == rhs.address &&
+               lhs.gateway == rhs.gateway
+    }
+    
+    public static func ~= (lhs: AttachmentConfiguration, rhs: Attachment) -> Bool {
+        return lhs.network == rhs.network
     }
     
     public func hash(into hasher: inout Hasher) {
-        hasher.combine(network)  // Replace with actual properties that uniquely identify Attachment.
+        hasher.combine(network)
+        hasher.combine(hostname)
+        hasher.combine(address)
+        hasher.combine(gateway)
     }
+}
+
+extension Attachment: @retroactive Identifiable {
+    public var id: String { network }
 }
 
 extension RandomAccessCollection where Element: Identifiable, Element.ID == String {
