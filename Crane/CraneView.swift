@@ -7,13 +7,12 @@
 
 import ContainerClient
 import ContainerNetworkService
+import ContainerPlugin
 import Containerization
 import ContainerizationOS
 import Combine
 import Observation
 import SwiftUI
-
-
 
 struct CraneView: View {
     @State private var viewModel = CraneViewModel()
@@ -32,30 +31,42 @@ struct CraneView: View {
                 EmptyView()
             }
         }
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Button {
-                    viewModel.showCreateSheet = true
-                } label: {
-                    Label("New Container", systemImage: "plus")
-                }
-                .buttonStyle(.borderedProminent)
-            }
-        }
         .sheet(isPresented: Binding(get: { viewModel.showCreateSheet }, set: { viewModel.showCreateSheet = $0 })) {
             ContainerCreationView(viewModel: $viewModel)
+        }
+        .toolbar {
+            if viewModel.currentContainerId != nil {
+                ToolbarItem(placement: .primaryAction) {
+                    Text(viewModel.currentContainerId ?? "")
+                        .font(.title.bold())
+                        .padding()
+                }
+            }
+        }
+        .onAppear {
+            Task {
+                do {
+                    let _ = try await ClientHealthCheck.ping(timeout: .seconds(10))
+                } catch {
+                    let alert = NSAlert()
+                    alert.messageText = "No Apple container service is running"
+                    alert.informativeText = "Please run the Apple container service to use this tool."
+                    alert.runModal()
+                    exit(1)
+                }
+            }
+        }
+        .onChange(of: viewModel.currentContainerId) { oldValue, newValue in
+            viewModel.currentLogHandle = 0
         }
         .task {
             await viewModel.initState()
             Task {
                 while !Task.isCancelled {
-                    try? await Task.sleep(for: .seconds(5))
+                    try? await Task.sleep(for: .seconds(UserDefaults().integer(forKey: "refreshInterval")))
                     await viewModel.listContainers()
                 }
             }
-        }
-        .onChange(of: viewModel.currentContainerId) { oldValue, newValue in
-            viewModel.selectedLogHandleIndex = 0
         }
     }
 }

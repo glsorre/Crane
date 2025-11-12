@@ -75,7 +75,7 @@ class ContainerCreation {
 @Observable
 class CraneViewModel {
     var containers: [String: ClientContainer]? = [:]
-    var containersMetadata: [ContainerMetadata]? = []
+    var containersMetadata: [String: ContainerMetadata]? = [:]
     var networks: Set<String>?
     var containersForNetwork: [String: [ClientContainer]] = [:]
     
@@ -92,22 +92,43 @@ class CraneViewModel {
     }
     var error: Error?
     var showCreateSheet = false
-    var selectedLogHandleIndex: Int = 0
+    var currentLogHandle: Int = 0
     
     func initState() async {
         await listContainers()
-        containersMetadata = containers?.values.map(ContainerMetadata.init)
     }
     
     func listContainers() async {
         do {
             let newContainers = try await ClientContainer.list()
             
+            let containersToRemove: [String] = containers!.keys.filter { key in !newContainers.contains(where: { $0.id == key }) }
+            
+            if containersToRemove.contains(currentContainerId ?? "") {
+                currentContainerId = nil
+                currentLogHandle = 0
+            }
+            
+            for id in containersToRemove {
+                containers?.removeValue(forKey: id)
+                containersMetadata?.removeValue(forKey: id)
+            }
+            
             if containers == nil {
                 containers = [:]
             }
+            if containersMetadata == nil {
+                containersMetadata = [:]
+            }
+            
             for container in newContainers {
-                containers?[container.id] = container
+                if !containers!.keys.contains(container.id) {
+                    containers?[container.id] = container
+                    let metadata = ContainerMetadata(container)
+                    containersMetadata?[container.id] = metadata
+                } else {
+                    containers![container.id] = container
+                }
             }
             
             networks = Set(containers!.values.flatMap { $0.configuration.networks.map { $0.network } })
@@ -120,18 +141,18 @@ class CraneViewModel {
     }
     
     func stopContainer(id: String) async {
-        containersMetadata?.fromIndex(id)?.transiting = true
+        containersMetadata?[id]?.transiting = true
         do {
-            try await ClientContainer.get(id: id).stop()
+            try await ClientContainer.get(id: id).stop(opts: .default)
         } catch {
             self.error = error
         }
-        containersMetadata?.fromIndex(id)?.transiting = false
+        containersMetadata?[id]?.transiting = false
         await listContainers()
     }
     
     func startContainer(id: String) async {
-        containersMetadata?.fromIndex(id)?.transiting = true
+        containersMetadata?[id]?.transiting = true
         do {
             let io = try ProcessIO.create(
                 tty: false,
@@ -147,12 +168,12 @@ class CraneViewModel {
             self.error = error
         }
         await initContainerLogs(for: id)
-        containersMetadata?.fromIndex(id)?.transiting = false
+        containersMetadata?[id]?.transiting = false
         await listContainers()
     }
     
     func initContainerLogs(for id: String) async {
-      guard let metadata = containersMetadata?.fromIndex(id) else { 
+      guard let metadata = containersMetadata?[id] else {
           print("DEBUG: No metadata for container \(id)")
           return 
       }
@@ -192,7 +213,7 @@ class CraneViewModel {
   }
     
     func watchContainerLogs(for id: String, handle: Int) async {
-        guard let metadata = containersMetadata?.fromIndex(id), handle < metadata.logHandles.count else { return }
+        guard let metadata = containersMetadata?[id], handle < metadata.logHandles.count else { return }
         
         do {
             let container = try await ClientContainer.get(id: id)
@@ -223,9 +244,9 @@ class CraneViewModel {
     
     // Added: Start polling only for the selected handle, respecting followLogs and userScrolled
     private func startPollingForSelectedHandle(for containerId: String) async {
-        guard let metadata = containersMetadata?.fromIndex(containerId),
-              selectedLogHandleIndex < metadata.logHandles.count else { return }
-        let logMetadata = metadata.logHandles[selectedLogHandleIndex]
+        guard let metadata = containersMetadata?[containerId],
+              currentLogHandle < metadata.logHandles.count else { return }
+        let logMetadata = metadata.logHandles[currentLogHandle]
         
         // Cancel any existing polling task before starting a new one
         metadata.currentPollingTask?.cancel()
@@ -233,31 +254,33 @@ class CraneViewModel {
         metadata.currentPollingTask = Task {
             while !Task.isCancelled {
                 if logMetadata.followLogs && !logMetadata.userScrolled {
-                    await self.watchContainerLogs(for: containerId, handle: selectedLogHandleIndex)
+                    await self.watchContainerLogs(for: containerId, handle: currentLogHandle)
                 }
-                try? await Task.sleep(for: .seconds(1))  // Poll every 1 second; adjust as needed
+                try? await Task.sleep(for: .seconds(UserDefaults().integer(forKey: "logsInterval")))  // Poll every 1 second; adjust as needed
             }
         }
     }
     
     // Added: Method to select a new log handle and restart polling for it
     func selectLogHandle(for containerId: String, handle: Int) {
-        selectedLogHandleIndex = handle  // Update the global selected index
+        currentLogHandle = handle  // Update the global selected index
         Task { await startPollingForSelectedHandle(for: containerId) }  // Restart polling for the new handle
     }
     
     func removeContainer(id: String) async {
         // Cancel polling task before removal
-        containersMetadata?.fromIndex(id)?.currentPollingTask?.cancel()
+        containersMetadata?[id]?.currentPollingTask?.cancel()
         
-        containersMetadata?.fromIndex(id)?.removing = true
+        containersMetadata?[id]?.removing = true
         do {
             try await ClientContainer.get(id: id).delete()
         } catch {
             self.error = error
         }
-        containersMetadata?.fromIndex(id)?.removing = false
-        containers?[id] = nil
+        currentContainerId = nil
+        currentLogHandle = 0
+        containersMetadata?[id]?.removing = false
+        containers?.removeValue(forKey: id)
         await listContainers()
     }
     
@@ -265,7 +288,7 @@ class CraneViewModel {
         do {
             let id = Utility.createContainerID(name: name)
             try Utility.validEntityName(id)
-            
+
             let ck = try await Utility.containerConfigFromFlags(
                 id: id,
                 image: image,

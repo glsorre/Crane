@@ -8,7 +8,7 @@
 import AppKit
 import SwiftUI
 
-struct SelectableLogTextView: NSViewRepresentable {
+struct SelectableLogText: NSViewRepresentable {
     @Binding var logs: [String]
     @Binding var userScrolled: Bool
     @Binding var shouldFollow: Bool
@@ -34,13 +34,6 @@ struct SelectableLogTextView: NSViewRepresentable {
         
         scrollView.contentView.postsBoundsChangedNotifications = true
         NotificationCenter.default.addObserver(context.coordinator, selector: #selector(Coordinator.boundsDidChange(_:)), name: NSView.boundsDidChangeNotification, object: scrollView.contentView)
-        
-        if shouldFollow {
-            DispatchQueue.main.async {
-                textView.scrollToEndOfDocument(nil)
-            }
-            userScrolled = false  // Reset, as we just auto-scrolled
-        }
         
         return scrollView
     }
@@ -83,10 +76,10 @@ struct SelectableLogTextView: NSViewRepresentable {
     }
     
     class Coordinator: NSObject {
-        var parent: SelectableLogTextView
+        var parent: SelectableLogText
         var isUpdating = false
         
-        init(_ parent: SelectableLogTextView) {
+        init(_ parent: SelectableLogText) {
             self.parent = parent
             super.init()
         }

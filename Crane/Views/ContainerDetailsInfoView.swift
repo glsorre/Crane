@@ -17,7 +17,7 @@ struct ContainerDetailsInfoView: View {
         
         if container != nil {
             VStack(spacing: 20) {
-                VStack(spacing: 10) {
+                HStack(spacing: 10) {
                     Label("CPUs", systemImage: "cpu.fill")
                         .frame(maxWidth: .infinity, alignment: .topLeading)
                         .foregroundStyle(Color.accentColor)
@@ -25,11 +25,11 @@ struct ContainerDetailsInfoView: View {
                         .frame(maxWidth: .infinity, alignment: .topLeading)
                 }
                 
-                VStack(spacing: 10) {
+                HStack(spacing: 10) {
                     Label("Memory", systemImage: "memorychip.fill")
                         .frame(maxWidth: .infinity, alignment: .topLeading)
                         .foregroundStyle(Color.accentColor)
-                    Text("\(container!.configuration.resources.memoryInBytes / 1024 / 1024) MB")
+                    Text("\(container!.configuration.resources.memoryInBytes / 1024 / 1024 / 1024) GiB")
                         .frame(maxWidth: .infinity, alignment: .topLeading)
                 }
                 
@@ -75,7 +75,7 @@ struct ContainerDetailsInfoView: View {
                 }
                 Spacer()
             }
-            .fixedSize(horizontal: true, vertical: false)
+            .frame(maxWidth: 175, alignment: .topLeading) 
             .padding()
         } else {
             EmptyView()

@@ -14,80 +14,80 @@ struct ContainerDetailsView: View {
     
     var body: some View {
         let container = viewModel.currentContainer
-        let metadata = viewModel.containersMetadata?.fromIndex(container?.id ?? "") ?? nil
-
-        if metadata?.loadingLogs ?? true {
-                ProgressView("Loading logs...")
-                    .progressViewStyle(.circular)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-                    .onAppear {
-                        if let id = viewModel.currentContainerId {
+        let metadata = viewModel.containersMetadata?[viewModel.currentContainerId ?? ""] ?? nil
+        
+        if viewModel.currentContainerId != nil && metadata?.removing == false {
+            TabView(selection: $viewModel.currentLogHandle) {
+                ForEach(Array(metadata!.logHandles.enumerated()), id: \.offset) { index, handleMetadata in
+                    HStack (spacing: 16) {
+                        ContainerDetailsInfoView(viewModel: $viewModel)
+                        if !metadata!.logHandles.isEmpty {
+                            ContainerLogsView(handleMetadata: handleMetadata, containerMetadata: metadata!, handleIndex: index)
+                        } else {
+                            ProgressView("Loading logs...")
+                                .progressViewStyle(CircularProgressViewStyle())
+                                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                        }
+                    }
+                    .tabItem {
+                        Text(metadata!.getHandleName(handleIndex: index))
+                    }
+                    .tag(index)
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .tabViewStyle(.automatic)
+            .onAppear {
+                if let id = viewModel.currentContainerId, id == container!.id {
+                    Task {
+                        await viewModel.initContainerLogs(for: id)
+                    }
+                }
+            }
+            .onChange(of: viewModel.currentLogHandle) { oldValue, newValue in
+                // Force scroll to bottom when switching tabs if follow logs is enabled and no user scroll
+                if newValue < metadata!.logHandles.count,
+                   metadata!.logHandles[newValue].followLogs && !metadata!.logHandles[newValue].userScrolled {
+                    metadata!.logHandles[newValue].forceScroll = true
+                }
+            }
+            .padding()
+            .toolbar {
+                if viewModel.currentContainerId != nil {
+                    ToolbarItem {
+                        SpinnerButton(isLoading: metadata!.transiting) {
                             Task {
-                                await viewModel.initContainerLogs(for: id)
+                                if container!.status == .stopped {
+                                    await viewModel.startContainer(id: viewModel.currentContainerId!)
+                                } else if container!.status == .running {
+                                    await viewModel.stopContainer(id: viewModel.currentContainerId!)
+                                }
+                            }
+                        } label: {
+                            if (container!.status == .running) {
+                                Label("", systemImage: "stop.fill")
+                            } else {
+                                Label("", systemImage: "play.fill")
                             }
                         }
+                        .buttonStyle(.bordered)
                     }
-            } else if let metadata = metadata, !metadata.logHandles.isEmpty {
-                TabView(selection: $viewModel.selectedLogHandleIndex) {
-                    ForEach(Array(metadata.logHandles.enumerated()), id: \.offset) { index, handleMetadata in
-                        HStack (spacing: 16) {
-                            ContainerDetailsInfoView(viewModel: $viewModel)
-                            ContainerLogsView(handleMetadata: handleMetadata, containerMetadata: metadata, handleIndex: index)
-                        }
-                        .tabItem {
-                            Text(metadata.getHandleName(handleIndex: index))
-                        }
-                        .tag(index)
-                    }
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .tabViewStyle(.automatic)
-                .onChange(of: viewModel.selectedLogHandleIndex) { oldValue, newValue in
-                    // Force scroll to bottom when switching tabs if follow logs is enabled and no user scroll
-                    if newValue < metadata.logHandles.count,
-                       metadata.logHandles[newValue].followLogs && !metadata.logHandles[newValue].userScrolled {
-                        metadata.logHandles[newValue].forceScroll = true
-                    }
-                }
-                .padding()
-                .toolbar {
-                    if viewModel.currentContainerId != nil,
-                       let metadata = viewModel.containersMetadata?.fromIndex(viewModel.currentContainerId!) {
+                    if container!.status == .stopped {
                         ToolbarItem {
-                            SpinnerButton(isLoading: metadata.transiting) {
+                            SpinnerButton(isLoading: metadata!.removing) {
                                 Task {
-                                    if container!.status == .stopped {
-                                        await viewModel.startContainer(id: viewModel.currentContainerId!)
-                                    } else if container!.status == .running {
-                                        await viewModel.stopContainer(id: viewModel.currentContainerId!)
-                                    }
+                                    await viewModel.removeContainer(id: viewModel.currentContainerId!)
                                 }
                             } label: {
-                                if (container!.status == .running) {
-                                    Label("", systemImage: "stop.fill")
-                                } else {
-                                    Label("", systemImage: "play.fill")
-                                }
+                                Label("", systemImage: "trash")
                             }
                             .buttonStyle(.bordered)
                         }
-                        if container!.status == .stopped {
-                            ToolbarItem {
-                                SpinnerButton(isLoading: metadata.removing) {
-                                    Task {
-                                        await viewModel.removeContainer(id: viewModel.currentContainerId!)
-                                    }
-                                } label: {
-                                    Label("", systemImage: "trash")
-                                }
-                                .buttonStyle(.bordered)
-                            }
-                        }
                     }
                 }
-            } else {
-                Text("No logs available for this container.")
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             }
+        }  else {
+            EmptyView()
         }
+    }
 }

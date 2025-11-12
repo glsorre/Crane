@@ -7,12 +7,34 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		1A36E77B2EC504C00067D8B3 /* ContainerLog in Frameworks */ = {isa = PBXBuildFile; productRef = 1A36E77A2EC504C00067D8B3 /* ContainerLog */; };
+		1A36E77D2EC504C00067D8B3 /* ContainerNetworkService in Frameworks */ = {isa = PBXBuildFile; productRef = 1A36E77C2EC504C00067D8B3 /* ContainerNetworkService */; };
+		1A36E77F2EC504C00067D8B3 /* ContainerPersistence in Frameworks */ = {isa = PBXBuildFile; productRef = 1A36E77E2EC504C00067D8B3 /* ContainerPersistence */; };
+		1A36E7812EC504C00067D8B3 /* ContainerPlugin in Frameworks */ = {isa = PBXBuildFile; productRef = 1A36E7802EC504C00067D8B3 /* ContainerPlugin */; };
+		1A36E7832EC504C00067D8B3 /* ContainerSandboxService in Frameworks */ = {isa = PBXBuildFile; productRef = 1A36E7822EC504C00067D8B3 /* ContainerSandboxService */; };
+		1A36E7852EC504C00067D8B3 /* ContainerVersion in Frameworks */ = {isa = PBXBuildFile; productRef = 1A36E7842EC504C00067D8B3 /* ContainerVersion */; };
+		1A36E7872EC504C00067D8B3 /* ContainerXPC in Frameworks */ = {isa = PBXBuildFile; productRef = 1A36E7862EC504C00067D8B3 /* ContainerXPC */; };
+		1A36E7892EC504C00067D8B3 /* SocketForwarder in Frameworks */ = {isa = PBXBuildFile; productRef = 1A36E7882EC504C00067D8B3 /* SocketForwarder */; };
 		1AB8D2912EBE73DB00421B16 /* ContainerAPIService in Frameworks */ = {isa = PBXBuildFile; productRef = 1AB8D2902EBE73DB00421B16 /* ContainerAPIService */; };
 		1AB8D2932EBE73DB00421B16 /* ContainerBuild in Frameworks */ = {isa = PBXBuildFile; productRef = 1AB8D2922EBE73DB00421B16 /* ContainerBuild */; };
 		1AB8D2952EBE73DB00421B16 /* ContainerClient in Frameworks */ = {isa = PBXBuildFile; productRef = 1AB8D2942EBE73DB00421B16 /* ContainerClient */; };
 		1AB8D2972EBE73DB00421B16 /* ContainerCommands in Frameworks */ = {isa = PBXBuildFile; productRef = 1AB8D2962EBE73DB00421B16 /* ContainerCommands */; };
 		1AB8D2992EBE73DB00421B16 /* ContainerImagesService in Frameworks */ = {isa = PBXBuildFile; productRef = 1AB8D2982EBE73DB00421B16 /* ContainerImagesService */; };
+		1AF136B42EC4DE8800FDF4AC /* LaunchAtLogin in Frameworks */ = {isa = PBXBuildFile; productRef = 1AF136B32EC4DE8800FDF4AC /* LaunchAtLogin */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		1A36E75D2EC5021E0067D8B3 /* Embed Helper */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 6;
+			files = (
+			);
+			name = "Embed Helper";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		1AB8D2802EBE72D200421B16 /* Crane.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Crane.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -31,10 +53,19 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				1AF136B42EC4DE8800FDF4AC /* LaunchAtLogin in Frameworks */,
+				1A36E7852EC504C00067D8B3 /* ContainerVersion in Frameworks */,
+				1A36E7892EC504C00067D8B3 /* SocketForwarder in Frameworks */,
 				1AB8D2912EBE73DB00421B16 /* ContainerAPIService in Frameworks */,
+				1A36E7872EC504C00067D8B3 /* ContainerXPC in Frameworks */,
 				1AB8D2952EBE73DB00421B16 /* ContainerClient in Frameworks */,
+				1A36E77F2EC504C00067D8B3 /* ContainerPersistence in Frameworks */,
+				1A36E77B2EC504C00067D8B3 /* ContainerLog in Frameworks */,
+				1A36E7812EC504C00067D8B3 /* ContainerPlugin in Frameworks */,
 				1AB8D2972EBE73DB00421B16 /* ContainerCommands in Frameworks */,
+				1A36E77D2EC504C00067D8B3 /* ContainerNetworkService in Frameworks */,
 				1AB8D2932EBE73DB00421B16 /* ContainerBuild in Frameworks */,
+				1A36E7832EC504C00067D8B3 /* ContainerSandboxService in Frameworks */,
 				1AB8D2992EBE73DB00421B16 /* ContainerImagesService in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -68,6 +99,7 @@
 				1AB8D27C2EBE72D200421B16 /* Sources */,
 				1AB8D27D2EBE72D200421B16 /* Frameworks */,
 				1AB8D27E2EBE72D200421B16 /* Resources */,
+				1A36E75D2EC5021E0067D8B3 /* Embed Helper */,
 			);
 			buildRules = (
 			);
@@ -83,6 +115,15 @@
 				1AB8D2942EBE73DB00421B16 /* ContainerClient */,
 				1AB8D2962EBE73DB00421B16 /* ContainerCommands */,
 				1AB8D2982EBE73DB00421B16 /* ContainerImagesService */,
+				1AF136B32EC4DE8800FDF4AC /* LaunchAtLogin */,
+				1A36E77A2EC504C00067D8B3 /* ContainerLog */,
+				1A36E77C2EC504C00067D8B3 /* ContainerNetworkService */,
+				1A36E77E2EC504C00067D8B3 /* ContainerPersistence */,
+				1A36E7802EC504C00067D8B3 /* ContainerPlugin */,
+				1A36E7822EC504C00067D8B3 /* ContainerSandboxService */,
+				1A36E7842EC504C00067D8B3 /* ContainerVersion */,
+				1A36E7862EC504C00067D8B3 /* ContainerXPC */,
+				1A36E7882EC504C00067D8B3 /* SocketForwarder */,
 			);
 			productName = Crane;
 			productReference = 1AB8D2802EBE72D200421B16 /* Crane.app */;
@@ -95,8 +136,8 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 2600;
-				LastUpgradeCheck = 2600;
+				LastSwiftUpdateCheck = 2610;
+				LastUpgradeCheck = 2610;
 				TargetAttributes = {
 					1AB8D27F2EBE72D200421B16 = {
 						CreatedOnToolsVersion = 26.0.1;
@@ -114,6 +155,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				1AB8D28F2EBE73DB00421B16 /* XCRemoteSwiftPackageReference "container" */,
+				1AF136B22EC4DE8800FDF4AC /* XCRemoteSwiftPackageReference "LaunchAtLogin-Modern" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 1AB8D2812EBE72D200421B16 /* Products */;
@@ -180,6 +222,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = 5E27V92K58;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -195,7 +238,6 @@
 				);
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
-				GCC_WARN_UNDECLARED_SELECTOR = YES;
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
@@ -205,6 +247,7 @@
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 			};
@@ -244,6 +287,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = 5E27V92K58;
 				ENABLE_NS_ASSERTIONS = NO;
@@ -253,7 +297,6 @@
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
-				GCC_WARN_UNDECLARED_SELECTOR = YES;
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
@@ -262,6 +305,7 @@
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 			};
 			name = Release;
@@ -275,6 +319,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = 5E27V92K58;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -296,6 +341,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.rightright.Crane;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -318,6 +364,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = 5E27V92K58;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -339,6 +386,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.rightright.Crane;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -384,9 +432,57 @@
 				minimumVersion = 0.6.0;
 			};
 		};
+		1AF136B22EC4DE8800FDF4AC /* XCRemoteSwiftPackageReference "LaunchAtLogin-Modern" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sindresorhus/LaunchAtLogin-Modern";
+			requirement = {
+				branch = main;
+				kind = branch;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		1A36E77A2EC504C00067D8B3 /* ContainerLog */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1AB8D28F2EBE73DB00421B16 /* XCRemoteSwiftPackageReference "container" */;
+			productName = ContainerLog;
+		};
+		1A36E77C2EC504C00067D8B3 /* ContainerNetworkService */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1AB8D28F2EBE73DB00421B16 /* XCRemoteSwiftPackageReference "container" */;
+			productName = ContainerNetworkService;
+		};
+		1A36E77E2EC504C00067D8B3 /* ContainerPersistence */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1AB8D28F2EBE73DB00421B16 /* XCRemoteSwiftPackageReference "container" */;
+			productName = ContainerPersistence;
+		};
+		1A36E7802EC504C00067D8B3 /* ContainerPlugin */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1AB8D28F2EBE73DB00421B16 /* XCRemoteSwiftPackageReference "container" */;
+			productName = ContainerPlugin;
+		};
+		1A36E7822EC504C00067D8B3 /* ContainerSandboxService */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1AB8D28F2EBE73DB00421B16 /* XCRemoteSwiftPackageReference "container" */;
+			productName = ContainerSandboxService;
+		};
+		1A36E7842EC504C00067D8B3 /* ContainerVersion */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1AB8D28F2EBE73DB00421B16 /* XCRemoteSwiftPackageReference "container" */;
+			productName = ContainerVersion;
+		};
+		1A36E7862EC504C00067D8B3 /* ContainerXPC */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1AB8D28F2EBE73DB00421B16 /* XCRemoteSwiftPackageReference "container" */;
+			productName = ContainerXPC;
+		};
+		1A36E7882EC504C00067D8B3 /* SocketForwarder */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1AB8D28F2EBE73DB00421B16 /* XCRemoteSwiftPackageReference "container" */;
+			productName = SocketForwarder;
+		};
 		1AB8D2902EBE73DB00421B16 /* ContainerAPIService */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 1AB8D28F2EBE73DB00421B16 /* XCRemoteSwiftPackageReference "container" */;
@@ -411,6 +507,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 1AB8D28F2EBE73DB00421B16 /* XCRemoteSwiftPackageReference "container" */;
 			productName = ContainerImagesService;
+		};
+		1AF136B32EC4DE8800FDF4AC /* LaunchAtLogin */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1AF136B22EC4DE8800FDF4AC /* XCRemoteSwiftPackageReference "LaunchAtLogin-Modern" */;
+			productName = LaunchAtLogin;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

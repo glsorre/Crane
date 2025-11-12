@@ -14,7 +14,7 @@ struct ContainerLogsView: View {
     
     var body: some View {
         VStack(spacing: 10) {
-            SelectableLogTextView(
+            SelectableLogText(
                 logs: Binding(
                     get: { handleMetadata.logs.map { $0.message } },
                     set: { _ in /* Read-only; updates via VM */ }

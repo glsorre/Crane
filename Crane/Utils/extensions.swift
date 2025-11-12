@@ -38,12 +38,6 @@ extension Attachment: @retroactive Identifiable {
     public var id: String { network }
 }
 
-extension RandomAccessCollection where Element: Identifiable, Element.ID == String {
-    func fromIndex(_ id: String) -> Element? {
-        first { $0.id == id }
-    }
-}
-
 extension RuntimeStatus {
     func getDescription() -> String {
         switch self {
