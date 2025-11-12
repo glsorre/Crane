@@ -54,19 +54,15 @@ struct CraneView: View {
                     alert.runModal()
                     exit(1)
                 }
-            }
-        }
-        .onChange(of: viewModel.currentContainerId) { oldValue, newValue in
-            viewModel.currentLogHandle = 0
-        }
-        .task {
-            await viewModel.initState()
-            Task {
+                await viewModel.initState()
                 while !Task.isCancelled {
                     try? await Task.sleep(for: .seconds(UserDefaults().integer(forKey: "refreshInterval")))
                     await viewModel.listContainers()
                 }
             }
+        }
+        .onChange(of: viewModel.currentContainerId) { oldValue, newValue in
+            viewModel.currentLogHandle = 0
         }
     }
 }
