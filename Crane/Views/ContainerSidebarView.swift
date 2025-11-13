@@ -37,19 +37,8 @@ struct ContainerSidebarView: View {
         .listStyle(.automatic)
         .toolbar {
             ToolbarItem {
-                Button("Settings", systemImage: "gear") {
+                Button("settings", systemImage: "gear") {
                     openSettings()
-                }
-            }
-            ToolbarSpacer()
-            ToolbarItem {
-                HStack {
-                    Button("Network", systemImage: "cabinet") {
-                        
-                    }
-                    Button("Container", systemImage: "plus") {
-                        viewModel.showCreateSheet = true
-                    }
                 }
             }
         }

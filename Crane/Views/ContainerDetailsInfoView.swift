@@ -18,7 +18,7 @@ struct ContainerDetailsInfoView: View {
         if container != nil {
             VStack(spacing: 20) {
                 HStack(spacing: 10) {
-                    Label("CPUs", systemImage: "cpu.fill")
+                    Label("cpus", systemImage: "cpu.fill")
                         .frame(maxWidth: .infinity, alignment: .topLeading)
                         .foregroundStyle(Color.accentColor)
                     Text("\(container!.configuration.resources.cpus)")
@@ -26,7 +26,7 @@ struct ContainerDetailsInfoView: View {
                 }
                 
                 HStack(spacing: 10) {
-                    Label("Memory", systemImage: "memorychip.fill")
+                    Label("memory", systemImage: "memorychip.fill")
                         .frame(maxWidth: .infinity, alignment: .topLeading)
                         .foregroundStyle(Color.accentColor)
                     Text("\(container!.configuration.resources.memoryInBytes / 1024 / 1024 / 1024) GiB")
@@ -36,7 +36,7 @@ struct ContainerDetailsInfoView: View {
                 if container!.status == .running {
                     if !container!.networks.isEmpty {
                         VStack(spacing: 10) {
-                            Label("IPs", systemImage: "cabinet.fill")
+                            Label("ips", systemImage: "cabinet.fill")
                                 .frame(maxWidth: .infinity, alignment: .topLeading)
                                 .foregroundStyle(Color.accentColor)
                             ForEach(container!.networks, id: \.hostname) { network in
@@ -49,7 +49,7 @@ struct ContainerDetailsInfoView: View {
                     
                     if !container!.configuration.publishedPorts.isEmpty {
                         VStack(spacing: 10) {
-                            Label("Ports", systemImage: "arrow.down.left.topright.rectangle.fill")
+                            Label("ports", systemImage: "arrow.down.left.topright.rectangle.fill")
                                 .frame(maxWidth: .infinity, alignment: .topLeading)
                                 .foregroundStyle(Color.accentColor)
                             ForEach(container!.configuration.publishedPorts, id: \PublishPort.containerPort) { publishedPort in
@@ -62,7 +62,7 @@ struct ContainerDetailsInfoView: View {
                     
                     if !container!.configuration.publishedSockets.isEmpty {
                         VStack(spacing: 10) {
-                            Label("Sockets", systemImage: "arrow.down.left.topright.rectangle.fill")
+                            Label("sockets", systemImage: "arrow.down.left.topright.rectangle.fill")
                                 .frame(maxWidth: .infinity, alignment: .topLeading)
                                 .foregroundStyle(Color.accentColor)
                             ForEach(container!.configuration.publishedSockets, id: \.containerPath) { publishedSocket in

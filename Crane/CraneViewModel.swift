@@ -7,6 +7,7 @@
 
 import ContainerClient
 import ContainerNetworkService
+import ContainerizationOCI
 import Foundation
 import Combine
 import Observation
@@ -20,13 +21,12 @@ struct ContainerLogLine: Identifiable {
 @Observable
 class ContainerLogsMetadata: Identifiable {
     let id: Int
-    var logs: [ContainerLogLine] = []  // Changed: Now [LogLine] for stable IDs
+    var logs: [ContainerLogLine] = []
     var offset: Int64 = 0
     var reader: ScrollViewProxy? = nil
     var userScrolled: Bool = false
     var followLogs: Bool = true
-    var nextLogId: Int = 0  // Added: For assigning stable, incrementing IDs to log lines
-    // Removed individual logPollingTask; now managed per container
+    var nextLogId: Int = 0
     var forceScroll: Bool = false
     
     init(id: Int) {
@@ -41,7 +41,7 @@ class ContainerMetadata: Identifiable {
     var logHandles: [ContainerLogsMetadata] = []
     var removing: Bool = false
     var loadingLogs: Bool = true
-    var currentPollingTask: Task<Void, Never>? = nil  // Added: single task for selected handle
+    var currentPollingTask: Task<Void, Never>? = nil
     
     init (id: String) {
         self.id = id
@@ -53,6 +53,9 @@ class ContainerMetadata: Identifiable {
     
     func getHandleName(handleIndex: Int) -> String {
         if (handleIndex < logHandles.count - 1) {
+            if (handleIndex == 0) {
+                return "Process"
+            }
             return "Process \(handleIndex + 1)"
         } else {
             return "System"
@@ -70,6 +73,11 @@ class ContainerCreation {
     var publishPorts: [String] = []
     var networks: [String] = []
     var remove: Bool = false
+}
+
+struct ErrorWrapper: Identifiable {
+    var error: any Error
+    var id: UUID = UUID()
 }
 
 @Observable
@@ -90,8 +98,8 @@ class CraneViewModel {
             }
         }
     }
+    var showError: Bool = false
     var error: Error?
-    var showCreateSheet = false
     var currentLogHandle: Int = 0
     
     func initState() async {
@@ -137,6 +145,8 @@ class CraneViewModel {
             }, by: \.0).mapValues { $0.map(\.1) }
         } catch {
             self.error = error
+            self.showError = true
+            return
         }
     }
     
@@ -146,6 +156,8 @@ class CraneViewModel {
             try await ClientContainer.get(id: id).stop(opts: .default)
         } catch {
             self.error = error
+            self.showError = true
+            return
         }
         containersMetadata?[id]?.transiting = false
         await listContainers()
@@ -166,6 +178,7 @@ class CraneViewModel {
             try await process.start()
         } catch {
             self.error = error
+            self.showError = true
         }
         await initContainerLogs(for: id)
         containersMetadata?[id]?.transiting = false
@@ -174,21 +187,14 @@ class CraneViewModel {
     
     func initContainerLogs(for id: String) async {
       guard let metadata = containersMetadata?[id] else {
-          print("DEBUG: No metadata for container \(id)")
           return 
       }
       
-      // Ensure we always reset the loading state, even on failure or early exit
       defer { metadata.loadingLogs = false }
       
       do {
           let fileHandles = try await ClientContainer.get(id: id).logs()
-          print("DEBUG: Loaded \(fileHandles.count) log handles for \(id)")
-                    
-          // Initialize logHandles based on the number of file handles, with stable IDs starting at 0
           metadata.logHandles = (0..<fileHandles.count).map { ContainerLogsMetadata(id: $0) }
-          
-          // Load initial logs for each handle, assigning sequential IDs
           for (index, handle) in fileHandles.enumerated() {
               if let streamReader = StreamReader(fileHandle: handle) {
                   defer {
@@ -201,14 +207,12 @@ class CraneViewModel {
                   }
               }
               metadata.logHandles[index].offset = Int64(metadata.logHandles[index].logs.count)
-              print("DEBUG: Handle \(index) has \(metadata.logHandles[index].logs.count) logs")
           }
-          
-          // Start polling only for the selected handle after initial load
           await startPollingForSelectedHandle(for: id)
       } catch {
-          print("DEBUG: Error loading logs for \(id): \(error)")
           self.error = error
+          self.showError = true
+          return
       }
   }
     
@@ -233,22 +237,21 @@ class CraneViewModel {
             
             metadata.logHandles[handle].offset = Int64(metadata.logHandles[handle].logs.count)
             
-            // Added: Trigger scroll if following logs
             if metadata.logHandles[handle].followLogs && !metadata.logHandles[handle].userScrolled {
                 metadata.logHandles[handle].forceScroll = true
             }
         } catch {
             self.error = error
+            self.showError = true
+            return
         }
     }
     
-    // Added: Start polling only for the selected handle, respecting followLogs and userScrolled
     private func startPollingForSelectedHandle(for containerId: String) async {
         guard let metadata = containersMetadata?[containerId],
               currentLogHandle < metadata.logHandles.count else { return }
         let logMetadata = metadata.logHandles[currentLogHandle]
         
-        // Cancel any existing polling task before starting a new one
         metadata.currentPollingTask?.cancel()
         
         metadata.currentPollingTask = Task {
@@ -256,19 +259,17 @@ class CraneViewModel {
                 if logMetadata.followLogs && !logMetadata.userScrolled {
                     await self.watchContainerLogs(for: containerId, handle: currentLogHandle)
                 }
-                try? await Task.sleep(for: .seconds(UserDefaults().integer(forKey: "logsInterval")))  // Poll every 1 second; adjust as needed
+                try? await Task.sleep(for: .seconds(UserDefaults().integer(forKey: "logsInterval")))
             }
         }
     }
     
-    // Added: Method to select a new log handle and restart polling for it
     func selectLogHandle(for containerId: String, handle: Int) {
-        currentLogHandle = handle  // Update the global selected index
-        Task { await startPollingForSelectedHandle(for: containerId) }  // Restart polling for the new handle
+        currentLogHandle = handle
+        Task { await startPollingForSelectedHandle(for: containerId) }
     }
     
     func removeContainer(id: String) async {
-        // Cancel polling task before removal
         containersMetadata?[id]?.currentPollingTask?.cancel()
         
         containersMetadata?[id]?.removing = true
@@ -276,6 +277,8 @@ class CraneViewModel {
             try await ClientContainer.get(id: id).delete()
         } catch {
             self.error = error
+            self.showError = true
+            return
         }
         currentContainerId = nil
         currentLogHandle = 0
@@ -283,30 +286,5 @@ class CraneViewModel {
         containers?.removeValue(forKey: id)
         await listContainers()
     }
-    
-    func createContainer(name: String, image: String, processFlags: Flags.Process?, managementFlags: Flags.Management?, resourceFlags: Flags.Resource?, registryFlags: Flags.Registry?, remove: Bool) async {
-        do {
-            let id = Utility.createContainerID(name: name)
-            try Utility.validEntityName(id)
-
-            let ck = try await Utility.containerConfigFromFlags(
-                id: id,
-                image: image,
-                arguments: [],
-                process: processFlags ?? Flags.Process(),
-                management: managementFlags ?? Flags.Management(),
-                resource: resourceFlags ?? Flags.Resource(),
-                registry: Flags.Registry(),
-                progressUpdate: { message in
-                    print("Mock progress: \(message)")
-                }
-            )
-
-            let options = ContainerCreateOptions(autoRemove: remove)
-            _ = try await ClientContainer.create(configuration: ck.0, options: options, kernel: ck.1)
-            await listContainers()
-        } catch {
-            self.error = error
-        }
-    }
 }
+

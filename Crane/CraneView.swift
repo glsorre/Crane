@@ -6,6 +6,7 @@
 //
 
 import ContainerClient
+import ContainerizationError
 import ContainerNetworkService
 import ContainerPlugin
 import Containerization
@@ -16,6 +17,24 @@ import SwiftUI
 
 struct CraneView: View {
     @State private var viewModel = CraneViewModel()
+    
+    enum CraneError: LocalizedError {
+        case notRegistered(String)
+        case notRunning(String)
+        
+        var errorDescription: String? {
+            switch self {
+            case .notRegistered(let message):
+                return message
+            case .notRunning(let message):
+                return message
+            }
+        }
+    }
+    
+    func kill() {
+        exit(1)
+    }
     
     var body: some View {
         NavigationSplitView {
@@ -31,8 +50,15 @@ struct CraneView: View {
                 EmptyView()
             }
         }
-        .sheet(isPresented: Binding(get: { viewModel.showCreateSheet }, set: { viewModel.showCreateSheet = $0 })) {
-            ContainerCreationView(viewModel: $viewModel)
+        .alert(isPresented: $viewModel.showError) {
+            Alert(
+                title: Text("Crane fatal error"),
+                message: Text(viewModel.error!.localizedDescription),
+                dismissButton: .default(
+                    Text("Exit"),
+                    action: kill
+                )
+            )
         }
         .toolbar {
             if viewModel.currentContainerId != nil {
@@ -46,13 +72,23 @@ struct CraneView: View {
         .onAppear {
             Task {
                 do {
+                    let isRegistered = isServiceLoaded(label: "com.apple.container.apiserver", domain: "gui/\(getuid())")
+                    
+                    if !isRegistered {
+                        throw CraneError.notRegistered("Apple containers service is not registered")
+                    }
+                } catch {
+                    viewModel.error = error
+                    viewModel.showError = true
+                    return
+                }
+                 
+                do {
                     let _ = try await ClientHealthCheck.ping(timeout: .seconds(10))
                 } catch {
-                    let alert = NSAlert()
-                    alert.messageText = "No Apple container service is running"
-                    alert.informativeText = "Please run the Apple container service to use this tool."
-                    alert.runModal()
-                    exit(1)
+                    viewModel.error = CraneError.notRunning("Failed to ping the Apple containers service")
+                    viewModel.showError = true
+                    return
                 }
                 await viewModel.initState()
                 while !Task.isCancelled {
@@ -65,8 +101,16 @@ struct CraneView: View {
             viewModel.currentLogHandle = 0
         }
     }
+    
+    // Define these action methods as needed (examples below)
+    private func saveWorkoutData() {
+        // Implement retry logic for saving or re-pinging the container service
+        // e.g., await viewModel.retryConnection()
+    }
+    
+    private func deleteWorkoutData() {
+        // Implement deletion logic for clearing state or logs
+        // e.g., viewModel.clearError()
+    }
 }
 
-#Preview {
-    CraneView()
-}

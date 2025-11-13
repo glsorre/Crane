@@ -17,20 +17,17 @@ struct CraneSettingsView: View {
 
     var body: some View {
         Form {
-            Section("General") {
-                LaunchAtLogin.Toggle("Launch at login")
-                    .help("Automatically start the Crane container management app when you login")
+            Section("general") {
+                LaunchAtLogin.Toggle("launchAtLogin")
             }
-            Section("Automatism") {
-                Toggle("Auto-refresh containers", isOn: $autoRefresh)
-                    .help("Automatically refresh container list.")
+            Section("autoRefresh") {
+                Toggle("autoRefresh", isOn: $autoRefresh)
                 
                 GeometryReader { geometry in
                     HStack {
-                        Text("Refresh container list interval (in seconds)")
+                        Text("listInterval")
                             .frame(width: geometry.size.width * 0.8, alignment: .leading)
                         NumericField(value: $refreshInterval)
-                            .help("Interval (in seconds) for refreshing the container list.")
                             .frame(alignment: .trailing)
                     }
                     .frame(alignment: .center)
@@ -38,29 +35,18 @@ struct CraneSettingsView: View {
                 
                 GeometryReader { geometry in
                     HStack {
-                        Text("Log feeds update interval (in seconds)")
+                        Text("logsInterval")
                             .frame(width: geometry.size.width * 0.8, alignment: .leading)
                         NumericField(value: $logInterval)
-                            .help("Interval (in seconds) for refreshing the logs feeds.")
                             .frame(alignment: .trailing)
                     }
                     .frame(alignment: .center)
                 }
-            }
-            
-            Section("Appearance") {
-                Picker("Theme", selection: $themePreference) {
-                    Text("Light").tag("Light")
-                    Text("Dark").tag("Dark")
-                    Text("System").tag("System")
-                }
-                .pickerStyle(.menu)
-                .help("Choose the app's theme appearance.")
             }
         }
         .formStyle(.grouped)
         .padding()
-        .frame(minWidth: 400, minHeight: 440)  // Recommended minimum size for Settings windows
+        .frame(minWidth: 400, minHeight: 320)  // Recommended minimum size for Settings windows
     }
 }
 

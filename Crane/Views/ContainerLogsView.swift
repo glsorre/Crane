@@ -35,7 +35,7 @@ struct ContainerLogsView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .cornerRadius(8)
             
-            Toggle("Follow logs", isOn: Binding(
+            Toggle("followLogs", isOn: Binding(
                 get: { handleMetadata.followLogs },
                 set: { newValue in
                     handleMetadata.followLogs = newValue

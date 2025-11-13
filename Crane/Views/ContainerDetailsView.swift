@@ -24,7 +24,7 @@ struct ContainerDetailsView: View {
                         if !metadata!.logHandles.isEmpty {
                             ContainerLogsView(handleMetadata: handleMetadata, containerMetadata: metadata!, handleIndex: index)
                         } else {
-                            ProgressView("Loading logs...")
+                            ProgressView("loadingLogs")
                                 .progressViewStyle(CircularProgressViewStyle())
                                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                         }
