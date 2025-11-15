@@ -14,6 +14,15 @@ import ContainerizationOS
 import Combine
 import Observation
 import SwiftUI
+import os.log
+
+// Add a logger for debugging launch issues
+private let logger = Logger(subsystem: "com.example.Crane", category: "Launch")
+
+enum CraneRoute: Hashable {
+    case detail(id: String)
+    case list
+}
 
 struct CraneView: View {
     @State private var viewModel = CraneViewModel()
@@ -37,56 +46,78 @@ struct CraneView: View {
     }
     
     var body: some View {
-        NavigationSplitView {
-            if !viewModel.containers!.isEmpty, !viewModel.networks!.isEmpty {
-                ContainerSidebarView(viewModel: viewModel)
-            } else {
-                EmptyView()
+        NavigationStack(path: $viewModel.path) {
+            TabView {
+                CraneContainersListView(viewModel: viewModel)
+                    .tag(1)
+                    .tabItem {
+                        Text("containers")
+                    }
+                CraneNetworksListView(viewModel: viewModel)
+                    .tag(3)
+                    .tabItem {
+                        Text("networks")
+                    }
+//                CraneContainersListView(viewModel: viewModel)
+//                    .tag(2)
+//                    .tabItem {
+//                        Text("Images")
+//                    }
+//                CraneContainersListView(viewModel: viewModel)
+//                    .tag(4)
+//                    .tabItem {
+//                        Text("Volumes")
+//                    }
             }
-        } detail: {
-            if viewModel.currentContainerId != nil {
-                ContainerDetailsView(viewModel: $viewModel)
-            } else {
-                EmptyView()
+            .searchable(text: $viewModel.searchText, placement: .toolbar)
+            .tabViewStyle(.automatic)
+            .navigationDestination(for: CraneRoute.self) { route in
+                switch route {
+                case .detail(let id):
+                    ContainerDetailsView(viewModel: viewModel, id: id)
+                case .list:
+                    CraneContainersListView(viewModel: viewModel)
+                }
             }
+            .navigationTransition(.automatic)
         }
         .alert(isPresented: $viewModel.showError) {
             Alert(
-                title: Text("Crane fatal error"),
+                title: Text("craneFatalError"),
                 message: Text(viewModel.error!.localizedDescription),
                 dismissButton: .default(
-                    Text("Exit"),
+                    Text("exit"),
                     action: kill
                 )
             )
         }
-        .toolbar {
-            if viewModel.currentContainerId != nil {
-                ToolbarItem(placement: .primaryAction) {
-                    Text(viewModel.currentContainerId ?? "")
-                        .font(.title.bold())
-                        .padding()
-                }
-            }
-        }
         .onAppear {
             Task {
+                // Log start of checks
+                logger.info("Starting Crane launch checks...")
+                
                 do {
                     let isRegistered = isServiceLoaded(label: "com.apple.container.apiserver", domain: "gui/\(getuid())")
+                    logger.info("Service registration check: \(isRegistered)")
                     
                     if !isRegistered {
-                        throw CraneError.notRegistered("Apple containers service is not registered")
+                        logger.error("Service not registered")
+                        throw CraneError.notRegistered(String(localized: "infoNotRegistered"))
                     }
                 } catch {
+                    logger.error("Registration check failed: \(error.localizedDescription)")
                     viewModel.error = error
                     viewModel.showError = true
                     return
                 }
                  
                 do {
+                    logger.info("Performing health check ping...")
                     let _ = try await ClientHealthCheck.ping(timeout: .seconds(10))
+                    logger.info("Health check successful")
                 } catch {
-                    viewModel.error = CraneError.notRunning("Failed to ping the Apple containers service")
+                    logger.error("Health check failed: \(error.localizedDescription)")
+                    viewModel.error = CraneError.notRunning(String(localized: "infoNotRunning"))
                     viewModel.showError = true
                     return
                 }
@@ -97,20 +128,6 @@ struct CraneView: View {
                 }
             }
         }
-        .onChange(of: viewModel.currentContainerId) { oldValue, newValue in
-            viewModel.currentLogHandle = 0
-        }
-    }
-    
-    // Define these action methods as needed (examples below)
-    private func saveWorkoutData() {
-        // Implement retry logic for saving or re-pinging the container service
-        // e.g., await viewModel.retryConnection()
-    }
-    
-    private func deleteWorkoutData() {
-        // Implement deletion logic for clearing state or logs
-        // e.g., viewModel.clearError()
     }
 }
 

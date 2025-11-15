@@ -10,18 +10,22 @@ import ContainerNetworkService
 import SwiftUI
 
 struct ContainerDetailsInfoView: View {
-    @Binding var viewModel: CraneViewModel
+    @Bindable var viewModel: CraneViewModel
+    var id: String
     
     var body: some View {
-        let container = viewModel.currentContainer
-        
+        let container = viewModel.containers![id]
+                
         if container != nil {
             VStack(spacing: 20) {
+                Text(id)
+                    .font(.headline)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 HStack(spacing: 10) {
                     Label("cpus", systemImage: "cpu.fill")
                         .frame(maxWidth: .infinity, alignment: .topLeading)
                         .foregroundStyle(Color.accentColor)
-                    Text("\(container!.configuration.resources.cpus)")
+                    Text("\(container!.configuration.resources.cpus) cores")
                         .frame(maxWidth: .infinity, alignment: .topLeading)
                 }
                 
@@ -43,6 +47,7 @@ struct ContainerDetailsInfoView: View {
                                 Text("\(network.address)")
                                     .textSelection(.enabled)
                                     .frame(maxWidth: .infinity, alignment: .topLeading)
+                                    .monospaced()
                             }
                         }
                     }
@@ -56,6 +61,7 @@ struct ContainerDetailsInfoView: View {
                                 Text("\(String(Int(publishedPort.hostPort))):\(String(Int(publishedPort.containerPort)))")
                                     .textSelection(.enabled)
                                     .frame(maxWidth: .infinity, alignment: .topLeading)
+                                    .monospaced()
                             }
                         }
                     }
@@ -69,13 +75,28 @@ struct ContainerDetailsInfoView: View {
                                 Text("\(publishedSocket.hostPath):\(publishedSocket.containerPath)")
                                     .textSelection(.enabled)
                                     .frame(maxWidth: .infinity, alignment: .topLeading)
+                                    .monospaced()
+                            }
+                        }
+                    }
+                    
+                    if !container!.configuration.mounts.isEmpty {
+                        VStack(spacing: 10) {
+                            Label("mounts", systemImage: "internaldrive.fill")
+                                .frame(maxWidth: .infinity, alignment: .topLeading)
+                                .foregroundStyle(Color.accentColor)
+                            ForEach(container!.configuration.mounts, id: \.destination) { mount in
+                                Text("\(mount.source):\(mount.destination)")
+                                    .textSelection(.enabled)
+                                    .frame(maxWidth: .infinity, alignment: .topLeading)
+                                    .monospaced()
                             }
                         }
                     }
                 }
                 Spacer()
             }
-            .frame(maxWidth: 175, alignment: .topLeading) 
+            .frame(maxWidth: 200, alignment: .topLeading) 
             .padding()
         } else {
             EmptyView()

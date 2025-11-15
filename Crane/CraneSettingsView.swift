@@ -18,7 +18,7 @@ struct CraneSettingsView: View {
     var body: some View {
         Form {
             Section("general") {
-                LaunchAtLogin.Toggle("launchAtLogin")
+                LaunchAtLogin.Toggle(String(localized: "launchAtLogin"))
             }
             Section("autoRefresh") {
                 Toggle("autoRefresh", isOn: $autoRefresh)
@@ -46,7 +46,7 @@ struct CraneSettingsView: View {
         }
         .formStyle(.grouped)
         .padding()
-        .frame(minWidth: 400, minHeight: 320)  // Recommended minimum size for Settings windows
+        .frame(minWidth: 400, minHeight: 320)
     }
 }
 

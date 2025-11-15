@@ -8,11 +8,13 @@
 import SwiftUI
 
 struct ContainerLogsView: View {
-    let handleMetadata: ContainerLogsMetadata
-    let containerMetadata: ContainerMetadata
-    let handleIndex: Int
+    @Bindable var viewModel: CraneViewModel
+    let id: String
     
     var body: some View {
+        let handleIndex = viewModel.currentHandle
+        let metadata = viewModel.containersMetadata![id]!
+        let handleMetadata = metadata.logHandles[handleIndex]!
         VStack(spacing: 10) {
             SelectableLogText(
                 logs: Binding(
@@ -21,15 +23,15 @@ struct ContainerLogsView: View {
                 ),
                 userScrolled: Binding(
                     get: { handleMetadata.userScrolled },
-                    set: { containerMetadata.logHandles[handleIndex].userScrolled = $0 }
+                    set: { metadata.logHandles[handleIndex]!.userScrolled = $0 }
                 ),
                 shouldFollow: Binding(
                     get: { handleMetadata.followLogs },
-                    set: { containerMetadata.logHandles[handleIndex].followLogs = $0 }
+                    set: { metadata.logHandles[handleIndex]!.followLogs = $0 }
                 ),
                 forceScroll: Binding(
                     get: { handleMetadata.forceScroll },
-                    set: { containerMetadata.logHandles[handleIndex].forceScroll = $0 }
+                    set: { metadata.logHandles[handleIndex]!.forceScroll = $0 }
                 )
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -48,6 +50,21 @@ struct ContainerLogsView: View {
             .controlSize(.small)
             .toggleStyle(.switch)
             .frame(maxWidth: .infinity, alignment: .trailing)
+            .onAppear {
+                Task {
+                    if !handleMetadata.followLogs {
+                        handleMetadata.userScrolled = false
+                        handleMetadata.forceScroll = true
+                    }
+                    
+                    handleMetadata.logPollingTask?.cancel()
+                    
+                    handleMetadata.logPollingTask = Task {
+                        try? await Task.sleep(for: .seconds(Int(UserDefaults().integer(forKey: "logsInterval"))))
+                        await viewModel.watchContainerLogs(for: id, handle: handleIndex)
+                    }
+                }
+            }
         }
     }
 }
