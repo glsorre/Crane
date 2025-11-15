@@ -14,30 +14,6 @@ import SwiftUI
 
 extension ClientContainer: @retroactive Identifiable {}
 
-extension Attachment: @retroactive Hashable {
-    public static func == (lhs: Attachment, rhs: Attachment) -> Bool {
-        return lhs.network == rhs.network &&
-               lhs.hostname == rhs.hostname &&
-               lhs.address == rhs.address &&
-               lhs.gateway == rhs.gateway
-    }
-    
-    public static func ~= (lhs: AttachmentConfiguration, rhs: Attachment) -> Bool {
-        return lhs.network == rhs.network
-    }
-    
-    public func hash(into hasher: inout Hasher) {
-        hasher.combine(network)
-        hasher.combine(hostname)
-        hasher.combine(address)
-        hasher.combine(gateway)
-    }
-}
-
-extension Attachment: @retroactive Identifiable {
-    public var id: String { network }
-}
-
 extension RuntimeStatus {
     func getDescription() -> String {
         switch self {
