@@ -11,13 +11,11 @@ struct SpinnerButton<Label: View>: View {
     let isLoading: Bool
     let action: () -> Void
     let label: () -> Label
-    let minWidth: CGFloat
     
     init(isLoading: Bool, minWidth: CGFloat = .leastNormalMagnitude, action: @escaping () -> Void, @ViewBuilder label: @escaping () -> Label) {
         self.isLoading = isLoading
         self.action = action
         self.label = label
-        self.minWidth = minWidth
     }
     
     var body: some View {
@@ -33,6 +31,5 @@ struct SpinnerButton<Label: View>: View {
             }
         }
         .disabled(isLoading)
-        .frame(minWidth: minWidth)
     }
 }

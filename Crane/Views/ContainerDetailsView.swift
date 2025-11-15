@@ -10,19 +10,22 @@ import ContainerNetworkService
 import SwiftUI
 
 struct ContainerDetailsView: View {
-    @Binding var viewModel: CraneViewModel
+    @Bindable var viewModel: CraneViewModel
+    var id: String
     
     var body: some View {
-        let container = viewModel.currentContainer
-        let metadata = viewModel.containersMetadata?[viewModel.currentContainerId ?? ""] ?? nil
+        let container = viewModel.containers![id]
+        let metadata = viewModel.containersMetadata![id]
         
-        if viewModel.currentContainerId != nil && metadata?.removing == false {
-            TabView(selection: $viewModel.currentLogHandle) {
-                ForEach(Array(metadata!.logHandles.enumerated()), id: \.offset) { index, handleMetadata in
-                    HStack (spacing: 16) {
-                        ContainerDetailsInfoView(viewModel: $viewModel)
+        if metadata?.removing == false {
+            let sortedKeys = metadata!.logHandles.keys.sorted()
+            TabView(selection: $viewModel.currentHandle) {
+                ForEach(0..<sortedKeys.count, id: \.self) { tabIndex in
+                    let handleIndex = sortedKeys[tabIndex]
+                    HStack(spacing: 16) {
+                        ContainerDetailsInfoView(viewModel: viewModel, id: id)
                         if !metadata!.logHandles.isEmpty {
-                            ContainerLogsView(handleMetadata: handleMetadata, containerMetadata: metadata!, handleIndex: index)
+                            ContainerLogsView(viewModel: viewModel, id: id)
                         } else {
                             ProgressView("loadingLogs")
                                 .progressViewStyle(CircularProgressViewStyle())
@@ -30,64 +33,65 @@ struct ContainerDetailsView: View {
                         }
                     }
                     .tabItem {
-                        Text(metadata!.getHandleName(handleIndex: index))
+                        Text(metadata!.getHandleName(handleIndex: handleIndex))
                     }
-                    .tag(index)
+                    .tag(tabIndex)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .tabViewStyle(.automatic)
             .onAppear {
-                if let id = viewModel.currentContainerId, id == container!.id {
-                    Task {
-                        await viewModel.initContainerLogs(for: id)
-                    }
+                Task {
+                    await viewModel.initContainerLogs(for: id)
                 }
             }
-            .onChange(of: viewModel.currentLogHandle) { oldValue, newValue in
+            .onChange(of: viewModel.currentHandle) { oldValue, newValue in
                 // Force scroll to bottom when switching tabs if follow logs is enabled and no user scroll
-                if newValue < metadata!.logHandles.count,
-                   metadata!.logHandles[newValue].followLogs && !metadata!.logHandles[newValue].userScrolled {
-                    metadata!.logHandles[newValue].forceScroll = true
+                if newValue < sortedKeys.count {
+                    let handleIndex = sortedKeys[newValue]
+                    if let handleMetadata = metadata!.logHandles[handleIndex],
+                       handleMetadata.followLogs && !handleMetadata.userScrolled {
+                        metadata!.logHandles[handleIndex]!.forceScroll = true
+                    }
                 }
             }
             .padding()
             .toolbar {
-                if viewModel.currentContainerId != nil {
+                ToolbarItem {
+                    SpinnerButton(isLoading: metadata!.transiting) {
+                        Task {
+                            if container!.status == .stopped {
+                                await viewModel.startContainer(id: id)
+                            } else if container!.status == .running {
+                                await viewModel.stopContainer(id: id)
+                            }
+                        }
+                    } label: {
+                        if (container!.status == .running) {
+                            Label("", systemImage: "stop.fill")
+                        } else {
+                            Label("", systemImage: "play.fill")
+                        }
+                    }
+                    
+                    .buttonStyle(.bordered)
+                }
+                if container!.status == .stopped {
                     ToolbarItem {
-                        SpinnerButton(isLoading: metadata!.transiting) {
+                        SpinnerButton(isLoading: metadata!.removing) {
                             Task {
-                                if container!.status == .stopped {
-                                    await viewModel.startContainer(id: viewModel.currentContainerId!)
-                                } else if container!.status == .running {
-                                    await viewModel.stopContainer(id: viewModel.currentContainerId!)
-                                }
+                                await viewModel.removeContainer(id: id)
                             }
                         } label: {
-                            if (container!.status == .running) {
-                                Label("", systemImage: "stop.fill")
-                            } else {
-                                Label("", systemImage: "play.fill")
-                            }
+                            Label("", systemImage: "trash")
                         }
                         .buttonStyle(.bordered)
                     }
-                    if container!.status == .stopped {
-                        ToolbarItem {
-                            SpinnerButton(isLoading: metadata!.removing) {
-                                Task {
-                                    await viewModel.removeContainer(id: viewModel.currentContainerId!)
-                                }
-                            } label: {
-                                Label("", systemImage: "trash")
-                            }
-                            .buttonStyle(.bordered)
-                        }
-                    }
                 }
             }
-        }  else {
+        } else {
             EmptyView()
         }
     }
 }
+

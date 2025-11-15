@@ -10,13 +10,16 @@ import ContainerNetworkService
 import SwiftUI
 
 struct ContainerDetailsInfoView: View {
-    @Binding var viewModel: CraneViewModel
+    @Bindable var viewModel: CraneViewModel
+    var id: String
     
     var body: some View {
-        let container = viewModel.currentContainer
+        let container = viewModel.containers![id]
         
         if container != nil {
             VStack(spacing: 20) {
+                Text(id)
+                    .font(.largeTitle)
                 HStack(spacing: 10) {
                     Label("cpus", systemImage: "cpu.fill")
                         .frame(maxWidth: .infinity, alignment: .topLeading)
@@ -75,7 +78,7 @@ struct ContainerDetailsInfoView: View {
                 }
                 Spacer()
             }
-            .frame(maxWidth: 175, alignment: .topLeading) 
+            .frame(maxWidth: 200, alignment: .topLeading) 
             .padding()
         } else {
             EmptyView()

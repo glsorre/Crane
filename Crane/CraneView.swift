@@ -15,6 +15,11 @@ import Combine
 import Observation
 import SwiftUI
 
+enum CraneRoute: Hashable {
+    case detail(id: String)
+    case list
+}
+
 struct CraneView: View {
     @State private var viewModel = CraneViewModel()
     
@@ -37,18 +42,40 @@ struct CraneView: View {
     }
     
     var body: some View {
-        NavigationSplitView {
-            if !viewModel.containers!.isEmpty, !viewModel.networks!.isEmpty {
-                ContainerSidebarView(viewModel: viewModel)
-            } else {
-                EmptyView()
+        NavigationStack(path: $viewModel.path) {
+            TabView {
+                CraneContainersListView(viewModel: viewModel)
+                    .tag(1)
+                    .tabItem {
+                        Text("Containers")
+                    }
+                CraneNetworksListView(viewModel: viewModel)
+                    .tag(3)
+                    .tabItem {
+                        Text("Networks")
+                    }
+//                CraneContainersListView(viewModel: viewModel)
+//                    .tag(2)
+//                    .tabItem {
+//                        Text("Images")
+//                    }
+//                CraneContainersListView(viewModel: viewModel)
+//                    .tag(4)
+//                    .tabItem {
+//                        Text("Volumes")
+//                    }
             }
-        } detail: {
-            if viewModel.currentContainerId != nil {
-                ContainerDetailsView(viewModel: $viewModel)
-            } else {
-                EmptyView()
+            .searchable(text: $viewModel.searchText, placement: .toolbar)
+            .tabViewStyle(.automatic)
+            .navigationDestination(for: CraneRoute.self) { route in
+                switch route {
+                case .detail(let id):
+                    ContainerDetailsView(viewModel: viewModel, id: id)
+                case .list:
+                    CraneContainersListView(viewModel: viewModel)
+                }
             }
+            .navigationTransition(.automatic)
         }
         .alert(isPresented: $viewModel.showError) {
             Alert(
@@ -59,15 +86,6 @@ struct CraneView: View {
                     action: kill
                 )
             )
-        }
-        .toolbar {
-            if viewModel.currentContainerId != nil {
-                ToolbarItem(placement: .primaryAction) {
-                    Text(viewModel.currentContainerId ?? "")
-                        .font(.title.bold())
-                        .padding()
-                }
-            }
         }
         .onAppear {
             Task {
@@ -97,20 +115,5 @@ struct CraneView: View {
                 }
             }
         }
-        .onChange(of: viewModel.currentContainerId) { oldValue, newValue in
-            viewModel.currentLogHandle = 0
-        }
-    }
-    
-    // Define these action methods as needed (examples below)
-    private func saveWorkoutData() {
-        // Implement retry logic for saving or re-pinging the container service
-        // e.g., await viewModel.retryConnection()
-    }
-    
-    private func deleteWorkoutData() {
-        // Implement deletion logic for clearing state or logs
-        // e.g., viewModel.clearError()
     }
 }
-

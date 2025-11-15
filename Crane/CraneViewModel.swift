@@ -20,36 +20,23 @@ struct ContainerLogLine: Identifiable {
 
 @Observable
 class ContainerLogsMetadata: Identifiable {
-    let id: Int
     var logs: [ContainerLogLine] = []
     var offset: Int64 = 0
-    var reader: ScrollViewProxy? = nil
     var userScrolled: Bool = false
     var followLogs: Bool = true
     var nextLogId: Int = 0
     var forceScroll: Bool = false
     
-    init(id: Int) {
-        self.id = id
-    }
+    var logPollingTask: Task<Void, Never>? = nil
 }
 
 @Observable
-class ContainerMetadata: Identifiable {
-    var id: String
+class ContainerMetadata {
     var transiting: Bool = false
-    var logHandles: [ContainerLogsMetadata] = []
+    var logHandles: [Int: ContainerLogsMetadata] = [:]
     var removing: Bool = false
     var loadingLogs: Bool = true
     var currentPollingTask: Task<Void, Never>? = nil
-    
-    init (id: String) {
-        self.id = id
-    }
-    
-    convenience init (_ container: ClientContainer) {
-        self.init(id: container.id)
-    }
     
     func getHandleName(handleIndex: Int) -> String {
         if (handleIndex < logHandles.count - 1) {
@@ -84,23 +71,16 @@ struct ErrorWrapper: Identifiable {
 class CraneViewModel {
     var containers: [String: ClientContainer]? = [:]
     var containersMetadata: [String: ContainerMetadata]? = [:]
-    var networks: Set<String>?
+    var networks: [String: AttachmentConfiguration]?
     var containersForNetwork: [String: [ClientContainer]] = [:]
     
-    var containerToCreate: ContainerCreation = .init()
-    var currentContainerId: String?
-    var currentContainer: ClientContainer? {
-        get {
-            if let id = currentContainerId, let container = containers?[id] {
-                return container
-            } else {
-                return nil
-            }
-        }
-    }
     var showError: Bool = false
     var error: Error?
-    var currentLogHandle: Int = 0
+    
+    var path: NavigationPath = NavigationPath()
+    var currentHandle: Int = 0
+    
+    var searchText: String = ""
     
     func initState() async {
         await listContainers()
@@ -111,11 +91,6 @@ class CraneViewModel {
             let newContainers = try await ClientContainer.list()
             
             let containersToRemove: [String] = containers!.keys.filter { key in !newContainers.contains(where: { $0.id == key }) }
-            
-            if containersToRemove.contains(currentContainerId ?? "") {
-                currentContainerId = nil
-                currentLogHandle = 0
-            }
             
             for id in containersToRemove {
                 containers?.removeValue(forKey: id)
@@ -132,14 +107,14 @@ class CraneViewModel {
             for container in newContainers {
                 if !containers!.keys.contains(container.id) {
                     containers?[container.id] = container
-                    let metadata = ContainerMetadata(container)
+                    let metadata = ContainerMetadata()
                     containersMetadata?[container.id] = metadata
                 } else {
                     containers![container.id] = container
                 }
             }
             
-            networks = Set(containers!.values.flatMap { $0.configuration.networks.map { $0.network } })
+            networks = Dictionary(grouping: containers!.values.flatMap { $0.configuration.networks }, by: \.network).mapValues { $0.first! }
             containersForNetwork = Dictionary(grouping: containers!.values.flatMap { container in
                 container.configuration.networks.map { ($0.network, container) }
             }, by: \.0).mapValues { $0.map(\.1) }
@@ -160,6 +135,7 @@ class CraneViewModel {
             return
         }
         containersMetadata?[id]?.transiting = false
+        
         await listContainers()
     }
     
@@ -186,38 +162,35 @@ class CraneViewModel {
     }
     
     func initContainerLogs(for id: String) async {
-      guard let metadata = containersMetadata?[id] else {
-          return 
-      }
-      
-      defer { metadata.loadingLogs = false }
-      
-      do {
-          let fileHandles = try await ClientContainer.get(id: id).logs()
-          metadata.logHandles = (0..<fileHandles.count).map { ContainerLogsMetadata(id: $0) }
-          for (index, handle) in fileHandles.enumerated() {
-              if let streamReader = StreamReader(fileHandle: handle) {
-                  defer {
-                      streamReader.close()
-                  }
-                  while let line = streamReader.nextLine() {
-                      let logLine = ContainerLogLine(id: metadata.logHandles[index].nextLogId, message: line)
-                      metadata.logHandles[index].logs.append(logLine)
-                      metadata.logHandles[index].nextLogId += 1
-                  }
-              }
-              metadata.logHandles[index].offset = Int64(metadata.logHandles[index].logs.count)
-          }
-          await startPollingForSelectedHandle(for: id)
-      } catch {
-          self.error = error
-          self.showError = true
-          return
-      }
-  }
+        guard let metadata = containersMetadata?[id] else { return }
+        
+        do {
+            let fileHandles = try await ClientContainer.get(id: id).logs()
+            metadata.logHandles = Dictionary(uniqueKeysWithValues: (0..<fileHandles.count).map { ($0, ContainerLogsMetadata()) })
+            for (index, handle) in fileHandles.enumerated() {
+                if let streamReader = StreamReader(fileHandle: handle) {
+                    defer {
+                        streamReader.close()
+                    }
+                    while let line = streamReader.nextLine() {
+                        let logLine = ContainerLogLine(id: metadata.logHandles[index]!.nextLogId, message: line)
+                        metadata.logHandles[index]!.logs.append(logLine)
+                        metadata.logHandles[index]!.nextLogId += 1
+                    }
+                }
+                metadata.logHandles[index]!.offset = Int64(metadata.logHandles[index]!.logs.count)
+            }
+        } catch {
+            self.error = error
+            self.showError = true
+            return
+        }
+    }
     
     func watchContainerLogs(for id: String, handle: Int) async {
-        guard let metadata = containersMetadata?[id], handle < metadata.logHandles.count else { return }
+        guard let metadata = containersMetadata?[id],
+              handle < metadata.logHandles.count,
+              let logMetadata = metadata.logHandles[handle] else { return }
         
         do {
             let container = try await ClientContainer.get(id: id)
@@ -227,46 +200,24 @@ class CraneViewModel {
                 defer {
                     streamReader.close()
                 }
-                streamReader.skipLines(Int(metadata.logHandles[handle].offset))
+                streamReader.skipLines(Int(logMetadata.offset))
                 while let line = streamReader.nextLine() {
-                    let logLine = ContainerLogLine(id: metadata.logHandles[handle].nextLogId, message: line)
-                    metadata.logHandles[handle].logs.append(logLine)
-                    metadata.logHandles[handle].nextLogId += 1
+                    let logLine = ContainerLogLine(id: logMetadata.nextLogId, message: line)
+                    logMetadata.logs.append(logLine)
+                    logMetadata.nextLogId += 1
                 }
             }
             
-            metadata.logHandles[handle].offset = Int64(metadata.logHandles[handle].logs.count)
+            logMetadata.offset = Int64(logMetadata.logs.count)
             
-            if metadata.logHandles[handle].followLogs && !metadata.logHandles[handle].userScrolled {
-                metadata.logHandles[handle].forceScroll = true
+            if logMetadata.followLogs && !logMetadata.userScrolled {
+                logMetadata.forceScroll = true
             }
         } catch {
             self.error = error
             self.showError = true
             return
         }
-    }
-    
-    private func startPollingForSelectedHandle(for containerId: String) async {
-        guard let metadata = containersMetadata?[containerId],
-              currentLogHandle < metadata.logHandles.count else { return }
-        let logMetadata = metadata.logHandles[currentLogHandle]
-        
-        metadata.currentPollingTask?.cancel()
-        
-        metadata.currentPollingTask = Task {
-            while !Task.isCancelled {
-                if logMetadata.followLogs && !logMetadata.userScrolled {
-                    await self.watchContainerLogs(for: containerId, handle: currentLogHandle)
-                }
-                try? await Task.sleep(for: .seconds(UserDefaults().integer(forKey: "logsInterval")))
-            }
-        }
-    }
-    
-    func selectLogHandle(for containerId: String, handle: Int) {
-        currentLogHandle = handle
-        Task { await startPollingForSelectedHandle(for: containerId) }
     }
     
     func removeContainer(id: String) async {
@@ -280,11 +231,10 @@ class CraneViewModel {
             self.showError = true
             return
         }
-        currentContainerId = nil
-        currentLogHandle = 0
+
+        currentHandle = 0
         containersMetadata?[id]?.removing = false
         containers?.removeValue(forKey: id)
         await listContainers()
     }
 }
-

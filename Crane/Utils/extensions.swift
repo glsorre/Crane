@@ -38,6 +38,20 @@ extension Attachment: @retroactive Identifiable {
     public var id: String { network }
 }
 
+extension AttachmentConfiguration: @retroactive Hashable {
+    public static func == (lhs: AttachmentConfiguration, rhs: AttachmentConfiguration) -> Bool {
+        return lhs.network == rhs.network
+    }
+    
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(network)
+    }
+}
+
+extension AttachmentConfiguration: @retroactive Identifiable {
+    public var id: String { network }
+}
+
 extension RuntimeStatus {
     func getDescription() -> String {
         switch self {
