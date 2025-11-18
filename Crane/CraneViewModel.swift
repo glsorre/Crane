@@ -72,7 +72,9 @@ class CraneViewModel {
     var containers: [String: ClientContainer]? = [:]
     var containersMetadata: [String: ContainerMetadata]? = [:]
     var networks: [String: NetworkState]?
+    var volumes: [String: Volume]?
     var containersForNetwork: [String: [ClientContainer]] = [:]
+    var volumesForContainer: [String: [Volume]] = [:]
     
     var showError: Bool = false
     var error: Error?
@@ -117,9 +119,22 @@ class CraneViewModel {
             let clientNetworks = try await ClientNetwork.list()
             networks = Dictionary(uniqueKeysWithValues: clientNetworks.map { ($0.id, $0) })
             
+            let clientVolumes = try await ClientVolume.list()
+            volumes = Dictionary(uniqueKeysWithValues: clientVolumes.map { ($0.id, $0) })
+            
             containersForNetwork = Dictionary(grouping: containers!.values.flatMap { container in
                 container.configuration.networks.map { ($0.network, container) }
             }, by: \.0).mapValues { $0.map(\.1) }
+            
+            volumesForContainer = Dictionary(grouping: containers!.values.flatMap { container in
+                container.configuration.mounts.compactMap { mount in
+                    if mount.isVolume, let volume = volumes?[mount.volumeName!] {
+                        return (container.id, volume)
+                    }
+                    return nil
+                }
+            }, by: \.0).mapValues { $0.map(\.1) }
+            
         } catch {
             self.error = error
             self.showError = true
@@ -240,4 +255,3 @@ class CraneViewModel {
         await listContainers()
     }
 }
-
