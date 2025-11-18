@@ -44,12 +44,8 @@ struct CraneNetworksListView: View {
     @State private var selection: NetworkListItem.ID? = nil
     @State private var expandedNetworks: [String: Bool] = [:]
     
-    private var rawNetworks: [String: [ClientContainer]] {
-        return viewModel.containersForNetwork
-    }
-    
     private var allSortedNetworks: [(String, [ClientContainer])] {
-        return rawNetworks.sorted { $0.key < $1.key }
+        return viewModel.containersForNetwork.sorted { $0.key < $1.key }
     }
     
     private var sortedFilteredContainers: [(String, [ClientContainer])] {
@@ -77,7 +73,7 @@ struct CraneNetworksListView: View {
     
     private func itemForID(_ id: NetworkListItem.ID?) -> NetworkListItem? {
         guard let id = id else { return nil }
-        for (key, containers) in rawNetworks {
+        for (key, containers) in viewModel.containersForNetwork {
             if let config = viewModel.networks?[key], config.id == id {
                 return .network(config)
             }

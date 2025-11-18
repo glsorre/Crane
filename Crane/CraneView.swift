@@ -63,11 +63,11 @@ struct CraneView: View {
 //                    .tabItem {
 //                        Text("Images")
 //                    }
-//                CraneContainersListView(viewModel: viewModel)
-//                    .tag(4)
-//                    .tabItem {
-//                        Text("Volumes")
-//                    }
+                CraneVolumesListView(viewModel: viewModel)
+                    .tag(4)
+                    .tabItem {
+                        Text("Volumes")
+                    }
             }
             .searchable(text: $viewModel.searchText, placement: .toolbar)
             .tabViewStyle(.automatic)
