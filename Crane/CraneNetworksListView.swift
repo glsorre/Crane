@@ -19,8 +19,8 @@ enum NetworkListItem {
     
     var id: String {
         switch self {
-        case .network(let config):
-            return config.id
+        case .network(let network):
+            return network.id
         case .container(let container, let networkKey):
             return "\(container.id)-\(networkKey)"
         }
@@ -60,10 +60,10 @@ struct CraneNetworksListView: View {
     }
     
     private func networkForKey(_ key: String) -> NetworkListItem? {
-        guard let config = viewModel.networks?[key] else {
+        guard let network = viewModel.networks?[key] else {
             return nil
         }
-        return .network(config)
+        return .network(network)
     }
     
     private func childrenForNetwork(_ key: String) -> [NetworkListItem] {
@@ -74,8 +74,8 @@ struct CraneNetworksListView: View {
     private func itemForID(_ id: NetworkListItem.ID?) -> NetworkListItem? {
         guard let id = id else { return nil }
         for (key, containers) in viewModel.containersForNetwork {
-            if let config = viewModel.networks?[key], config.id == id {
-                return .network(config)
+            if let network = viewModel.networks?[key], network.id == id {
+                return .network(network)
             }
             for container in containers {
                 if "\(container.id)-\(key)" == id {
@@ -149,7 +149,7 @@ struct CraneNetworksListView: View {
                 }
             }
         }
-        .tableStyle(.bordered)
+        .tableStyle(.inset)
         .onChange(of: selection) { _, newValue in
             if let item = itemForID(newValue) {
                 switch item {

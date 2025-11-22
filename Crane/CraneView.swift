@@ -54,19 +54,19 @@ struct CraneView: View {
                         Text("containers")
                     }
                 CraneNetworksListView(viewModel: viewModel)
-                    .tag(3)
+                    .tag(2)
                     .tabItem {
                         Text("networks")
                     }
-//                CraneContainersListView(viewModel: viewModel)
-//                    .tag(2)
-//                    .tabItem {
-//                        Text("Images")
-//                    }
+                CraneImagesListView(viewModel: viewModel)
+                    .tag(3)
+                    .tabItem {
+                        Text("images")
+                    }
                 CraneVolumesListView(viewModel: viewModel)
                     .tag(4)
                     .tabItem {
-                        Text("Volumes")
+                        Text("volumes")
                     }
             }
             .searchable(text: $viewModel.searchText, placement: .toolbar)

@@ -57,24 +57,26 @@ struct CraneContainersListView: View {
             TableColumn("ports", value: \.configuration.publishedPorts.count) { container in
                 if (container.status == .running) {
                     ForEach(container.configuration.publishedPorts, id: \.containerPort) {publishedPort in
-                        Text("\(String(Int(publishedPort.hostPort))):\(String(Int(publishedPort.containerPort)))")
-                            .monospaced()
+                        PublishedPortLabel(hostPort: publishedPort.hostPort, containerPort: publishedPort.containerPort)
                     }
                 }
             }
             TableColumn("sockets", value: \.configuration.publishedSockets.count) { container in
                 if (container.status == .running) {
                     ForEach(container.configuration.publishedSockets, id: \.containerPath) {publishedSocket in
-                        Text("\(publishedSocket.hostPath):\(publishedSocket.containerPath)")
-                            .monospaced()
+                        PublishedPathLabel(hostPath: publishedSocket.hostPath.absoluteString, containerPath: publishedSocket.containerPath.absoluteString)
                     }
                 }
             }
             TableColumn("mounts", value: \.configuration.mounts.count) { container in
                 if (container.status == .running) {
                     ForEach(container.configuration.mounts, id: \.destination) {mount in
-                        Text("\(mount.source):\(mount.destination)")
-                            .monospaced()
+                        if (mount.isVolume) {
+                            let subSource = mount.source.dropLast(11)
+                            PublishedPathLabel(hostPath: String(subSource), containerPath: mount.destination)
+                        } else {
+                            PublishedPathLabel(hostPath: mount.source, containerPath: mount.destination)
+                        }
                     }
                 }
             }
@@ -87,7 +89,7 @@ struct CraneContainersListView: View {
                 TableRow(container)
             }
         }
-        .tableStyle(.bordered)
+        .tableStyle(.inset)
         .onChange(of: selection ?? "") { oldValue, newValue in
             if !newValue.isEmpty && newValue != oldValue {
                 selection = nil
@@ -96,4 +98,3 @@ struct CraneContainersListView: View {
         }
     }
 }
-

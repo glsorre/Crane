@@ -88,7 +88,7 @@ struct CraneVolumesListView: View {
             TableColumn("name") { item in
                 switch item {
                 case .volume(let volume, _):
-                    Label(volume.name, systemImage: "internaldrive.fill")
+                    Text(volume.name)
                         .padding(5)
                 case .container(let container):
                     Label(container.id, systemImage: "desktopcomputer")
@@ -96,12 +96,13 @@ struct CraneVolumesListView: View {
                         .foregroundColor(.secondary)
                 }
             }
-            TableColumn("imagePath") {item in
+            TableColumn("path") {item in
                 switch item {
                 case .volume(let volume, _):
-                    Text(viewModel.volumes![volume.name]!.source)
-                        .monospaced()
-                        .padding(5)
+                    let subSource = volume.source.dropLast(11)
+                    PathLabel(path: String(subSource), host: true)
+                        .background(Color(.tertiaryLabelColor))
+                        .cornerRadius(4)
                 case .container:
                     EmptyView()
                 }
@@ -110,13 +111,22 @@ struct CraneVolumesListView: View {
                 switch item {
                 case .volume(let volume, let containerId):
                     let mountPoint = viewModel.containers![containerId]!.configuration.mounts.first(where: { $0.volumeName == volume.name })!.destination
-                    Text(mountPoint)
-                        .monospaced()
-                        .padding(5)
+                    PathLabel(path: mountPoint)
+                        .background(Color(.tertiaryLabelColor))
+                        .cornerRadius(4)
                 case .container:
                     EmptyView()
                 }
             }
+            TableColumn("") { item in
+                switch item {
+                case .volume:
+                    EmptyView()
+                case .container(let container):
+                    ContainerListActionsView(viewModel: viewModel, id: container.id)
+                }
+            }
+            .width(100)
         } rows: {
             ForEach(sortedFilteredVolumes, id: \.0) { containerId, _ in
                 if let networkItem = containerForId(containerId) {
@@ -134,7 +144,7 @@ struct CraneVolumesListView: View {
                 }
             }
         }
-        .tableStyle(.bordered)
+        .tableStyle(.inset)
         .onChange(of: selection) { _, newValue in
             if let item = itemForID(newValue) {
                 switch item {
