@@ -16,9 +16,13 @@ Crane is an early phases native MacOS app to manage Apple containers.
 
 !["container details"](screenshots/screenshot_003.png)
 
-### Container details
+### Volumes list
 
-!["settings view"](screenshots/screenshot_004.png)
+!["container details"](screenshots/screenshot_004.png)
+
+### Settings view
+
+!["settings view"](screenshots/screenshot_005.png)
 
 ## Roadmap
 
@@ -27,9 +31,12 @@ Crane is an early phases native MacOS app to manage Apple containers.
 - [X] containers listing polling
 - [X] containers logs grouped by handle
 - [X] containers logs polling
-- [ ] images management
-- [ ] containers creation
+- [X] volumes listing
+- [ ] images listing
+- [ ] volumes creation
+- [ ] image fetching
 - [ ] networks creation
+- [ ] containers creation
 - [ ] launch container apiserver at launch
 - [ ] ...
 
