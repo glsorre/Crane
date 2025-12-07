@@ -19,12 +19,12 @@ struct PublishedPathLabel: View {
     var body: some View {
         HStack (spacing: 0) {
             PathLabel(path: hostPath, host: true)
-                .background(Color(.tertiaryLabelColor))
+                .background(Color(.gray.withAlphaComponent(0.1)))
                 .cornerRadius(4)
             Text(":")
                 .monospaced()
             PathLabel(path: containerPath)
-                .background(Color(.tertiaryLabelColor))
+                .background(Color(.gray.withAlphaComponent(0.1)))
                 .cornerRadius(4)
         }
     }

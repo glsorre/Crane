@@ -10,8 +10,8 @@ import ContainerNetworkService
 import SwiftUI
 
 enum NetworkListItem {
-    case network(NetworkState)
-    case container(ClientContainer, networkKey: String)
+    case network(Network)
+    case container(Container, networkKey: String)
     
     static var sortOrderComparator: KeyPathComparator<NetworkListItem> {
         .init(\.id, order: .forward)
@@ -40,43 +40,31 @@ extension NetworkListItem: Hashable {
 }
 
 struct CraneNetworksListView: View {
-    @Bindable var viewModel: CraneViewModel
+    @State private var appViewModel = AppViewModel.shared
+    @State private var networksStore = NetworksStore.shared
     @State private var selection: NetworkListItem.ID? = nil
     @State private var expandedNetworks: [String: Bool] = [:]
     
-    private var allSortedNetworks: [(String, [ClientContainer])] {
-        return viewModel.containersForNetwork.sorted { $0.key < $1.key }
-    }
-    
-    private var sortedFilteredContainers: [(String, [ClientContainer])] {
-        let searchText = viewModel.searchText
-        if searchText.isEmpty {
-            return allSortedNetworks
-        } else {
-            return allSortedNetworks.filter { key, _ in
-                key.contains(searchText)
-            }
-        }
-    }
-    
     private func networkForKey(_ key: String) -> NetworkListItem? {
-        guard let network = viewModel.networks?[key] else {
+        guard let network = networksStore.networks.first(where: { $0.id == key }) else {
             return nil
         }
         return .network(network)
     }
     
     private func childrenForNetwork(_ key: String) -> [NetworkListItem] {
-        let containers = viewModel.containersForNetwork[key] ?? []
+        let containers = networksStore.containersForNetwork[key] ?? []
         return containers.map { .container($0, networkKey: key) }
     }
     
     private func itemForID(_ id: NetworkListItem.ID?) -> NetworkListItem? {
         guard let id = id else { return nil }
-        for (key, containers) in viewModel.containersForNetwork {
-            if let network = viewModel.networks?[key], network.id == id {
+        for network in networksStore.networks {
+            if network.id == id {
                 return .network(network)
             }
+        }
+        for (key, containers) in networksStore.containersForNetwork {
             for container in containers {
                 if "\(container.id)-\(key)" == id {
                     return .container(container, networkKey: key)
@@ -99,26 +87,12 @@ struct CraneNetworksListView: View {
                         .foregroundColor(.secondary)
                 }
             }
-            TableColumn("status") { item in
-                switch item {
-                case .network(let network):
-                    Image(systemName: network.state == "running" ? "checkmark.square.fill" : "x.square.fill")
-                case .container(let container, _):
-                    Image(systemName: container.status.getIcon())
-                }
-            }.width(60)
             TableColumn("ip") { item in
                 switch item {
-                case .network(let network):
-                    switch(network) {
-                    case .created:
-                        EmptyView()
-                    case .running(_, let status):
-                        Text(status.address)
-                            .monospaced()
-                    }
+                case .network(_):
+                    EmptyView()
                 case .container(let container, let networkKey):
-                    let attachment = container.networks.first { $0.network == networkKey }
+                    let attachment = container.container.networks.first { $0.network == networkKey }
                     Text(attachment?.address ?? "").foregroundColor(.secondary)
                         .monospaced()
                 }
@@ -128,19 +102,19 @@ struct CraneNetworksListView: View {
                 case .network:
                     EmptyView()
                 case .container(let container, _):
-                    ContainerListActionsView(viewModel: viewModel, id: container.id)
+                    ContainerListActionsView(id: container.id)
                 }
             }
             .width(100)
         } rows: {
-            ForEach(sortedFilteredContainers, id: \.0) { networkKey, _ in
-                if let networkItem = networkForKey(networkKey) {
-                    let childrenItems = childrenForNetwork(networkKey)
+            ForEach(networksStore.sortedFilteredNetworks) { key in
+                if let networkItem = networkForKey(key.id) {
+                    let childrenItems = childrenForNetwork(key.id)
                     
-                    let isExpanded = expandedNetworks[networkKey, default: true]
+                    let isExpanded = expandedNetworks[key.id, default: true]
                     DisclosureTableRow(networkItem, isExpanded: Binding(
                         get: { isExpanded },
-                        set: { expandedNetworks[networkKey] = $0 }
+                        set: { expandedNetworks[key.id] = $0 }
                     )) {
                         ForEach(childrenItems, id: \.id) { childItem in
                             TableRow(childItem)
@@ -157,7 +131,7 @@ struct CraneNetworksListView: View {
                     selection = nil
                 case .container(let container, _):
                     selection = nil
-                    viewModel.path.append(CraneRoute.detail(id: container.id))
+                    appViewModel.navigateTo(to: .detail(container: container))
                 }
             }
         }

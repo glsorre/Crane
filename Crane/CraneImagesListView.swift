@@ -1,5 +1,5 @@
 //
-//  CraneNetworksListView.swift
+//  CraneImagesListView.swift
 //  Crane
 //
 //  Created by Giuseppe Lucio Sorrentino on 11/11/25.
@@ -10,8 +10,8 @@ import ContainerNetworkService
 import SwiftUI
 
 enum ImageListItem {
-    case image(ClientImage)
-    case container(ClientContainer, imageKey: String)
+    case image(Image)
+    case container(Container, imageKey: String)
     
     static var sortOrderComparator: KeyPathComparator<ImageListItem> {
         .init(\.id, order: .forward)
@@ -20,7 +20,7 @@ enum ImageListItem {
     var id: String {
         switch self {
         case .image(let image):
-            return image.reference
+            return image.id
         case .container(let container, let imageKey):
             return "\(container.id)-\(imageKey)"
         }
@@ -40,43 +40,31 @@ extension ImageListItem: Hashable {
 }
 
 struct CraneImagesListView: View {
-    @Bindable var viewModel: CraneViewModel
+    @State private var appViewModel = AppViewModel.shared
+    @State private var imagesStore = ImagesStore.shared
     @State private var selection: ImageListItem.ID? = nil
     @State private var expandedImages: [String: Bool] = [:]
     
-    private var allSortedImages: [(String, [ClientContainer])] {
-        return viewModel.containersForImage.sorted { $0.key < $1.key }
-    }
-    
-    private var sortedFilteredImages: [(String, [ClientContainer])] {
-        let searchText = viewModel.searchText
-        if searchText.isEmpty {
-            return allSortedImages
-        } else {
-            return allSortedImages.filter { key, _ in
-                key.contains(searchText)
-            }
-        }
-    }
-    
     private func imageForKey(_ key: String) -> ImageListItem? {
-        guard let image = viewModel.images![key] else {
+        guard let image = imagesStore.images.first(where: { $0.id == key }) else {
             return nil
         }
         return .image(image)
     }
     
     private func childrenForImage(_ key: String) -> [ImageListItem] {
-        let containers = viewModel.containersForImage[key] ?? []
+        let containers = imagesStore.containersForImage[key] ?? []
         return containers.map { .container($0, imageKey: key) }
     }
     
     private func itemForID(_ id: ImageListItem.ID?) -> ImageListItem? {
         guard let id = id else { return nil }
-        for (key, containers) in viewModel.containersForImage{
-            if let image = viewModel.images?[key], image.reference == id {
+        for image in imagesStore.images {
+            if image.id == id {
                 return .image(image)
             }
+        }
+        for (key, containers) in imagesStore.containersForImage {
             for container in containers {
                 if "\(container.id)-\(key)" == id {
                     return .container(container, imageKey: key)
@@ -91,7 +79,7 @@ struct CraneImagesListView: View {
             TableColumn("name") { item in
                 switch item {
                 case .image(let image):
-                    Label(image.reference, systemImage: "photo.circle.fill")
+                    Label(image.id, systemImage: "photo.circle.fill")
                         .padding(5)
                 case .container(let container, _):
                     Text(container.id)
@@ -104,19 +92,19 @@ struct CraneImagesListView: View {
                 case .image:
                     EmptyView()
                 case .container(let container, _):
-                    ContainerListActionsView(viewModel: viewModel, id: container.id)
+                    ContainerListActionsView(id: container.id)
                 }
             }
             .width(100)
         } rows: {
-            ForEach(sortedFilteredImages, id: \.0) { imageKey, _ in
-                if let imageItem = imageForKey(imageKey) {
-                    let childrenItems = childrenForImage(imageKey)
+            ForEach(imagesStore.sortedFilteredImages) { key in
+                if let imageItem = imageForKey(key.id) {
+                    let childrenItems = childrenForImage(key.id)
                     
-                    let isExpanded = expandedImages[imageKey, default: true]
+                    let isExpanded = expandedImages[key.id, default: true]
                     DisclosureTableRow(imageItem, isExpanded: Binding(
                         get: { isExpanded },
-                        set: { expandedImages[imageKey] = $0 }
+                        set: { expandedImages[key.id] = $0 }
                     )) {
                         ForEach(childrenItems, id: \.id) { childItem in
                             TableRow(childItem)
@@ -133,10 +121,9 @@ struct CraneImagesListView: View {
                     selection = nil
                 case .container(let container, _):
                     selection = nil
-                    viewModel.path.append(CraneRoute.detail(id: container.id))
+                    appViewModel.navigateTo(to: .detail(container: container))
                 }
             }
         }
     }
 }
-

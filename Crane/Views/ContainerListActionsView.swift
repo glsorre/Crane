@@ -9,38 +9,40 @@ import ContainerClient
 import SwiftUI
 
 struct ContainerListActionsView: View {
-    @Bindable var viewModel: CraneViewModel
+    @State var appViewModel = AppViewModel.shared
+    @State var containersStore = ContainersStore.shared
     var id: String
     
     var body: some View {
-        let container = viewModel.containers![id]!
-        let metadata = viewModel.containersMetadata![container.id]
+        let container = containersStore.containers.first(where: { $0.id == id })
+        let clientContainer = container?.container
+        
         HStack {
-            SpinnerButton(isLoading: metadata!.transiting) {
+            SpinnerButton(isLoading: container?.transiting ?? true) {
                 Task {
-                    if container.status == .stopped {
-                        await viewModel.startContainer(id: container.id)
-                    } else if container.status == .running {
-                        await viewModel.stopContainer(id: container.id)
+                    if clientContainer?.status == .stopped {
+                        await containersStore.startContainer(id: id)
+                    } else if clientContainer?.status == .running {
+                        await containersStore.stopContainer(id: id)
                     }
                 }
             } label: {
-                if (container.status == .running) {
-                    Image(systemName: "stop.fill")
+                if (clientContainer?.status == .running) {
+                    SwiftUI.Image(systemName: "stop.fill")
                 } else {
-                    Image(systemName: "play.fill")
+                    SwiftUI.Image(systemName: "play.fill")
                 }
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
             .frame(maxWidth: 50)
-            if container.status == .stopped {
-                SpinnerButton(isLoading: metadata!.removing) {
+            if clientContainer?.status == .stopped {
+                SpinnerButton(isLoading: container?.transiting ?? true) {
                     Task {
-                        await viewModel.removeContainer(id: container.id)
+                        await containersStore.removeContainer(id: id)
                     }
                 } label: {
-                    Image(systemName: "trash.fill")
+                    SwiftUI.Image(systemName: "trash.fill")
                         .font(Font.system(size: 11))
                 }
                 .buttonStyle(.bordered)

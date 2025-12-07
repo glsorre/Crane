@@ -20,12 +20,12 @@ struct PublishedPortLabel: View {
     var body: some View {
         HStack(spacing: 0) {
             PortLabel(port: hostPort, host: true)
-                .background(Color(.tertiaryLabelColor))
+                .background(Color(.gray.withAlphaComponent(0.1)))
                 .cornerRadius(4)
             Text(":")
                 .monospaced()
             PortLabel(port: containerPort)
-                .background(Color(.tertiaryLabelColor))
+                .background(Color(.gray.withAlphaComponent(0.1)))
                 .cornerRadius(4)
         }
     }

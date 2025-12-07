@@ -47,15 +47,15 @@ struct SelectableLogText: NSViewRepresentable {
         let textChanged = textView.string != newText
         
         if textChanged {
-            context.coordinator.isUpdating = true  // Flag programmatic update
+            context.coordinator.isUpdating = true
             textView.string = newText
-            context.coordinator.isUpdating = false  // Reset after
+            context.coordinator.isUpdating = false
             
             if shouldFollow && (isAtBottom || forceScroll) {
-                DispatchQueue.main.async {  // Ensure on main thread for UI updates
+                DispatchQueue.main.async {
                     textView.scrollToEndOfDocument(nil)
                 }
-                userScrolled = false  // Reset since we scrolled to bottom
+                userScrolled = false
                 if forceScroll {
                     forceScroll = false
                 }
@@ -89,7 +89,6 @@ struct SelectableLogText: NSViewRepresentable {
         }
         
         @objc func boundsDidChange(_ notification: Notification) {
-            // Mark as user-scrolled only if user action and currently should follow
             if !isUpdating && parent.shouldFollow {
                 parent.userScrolled = true
             }
