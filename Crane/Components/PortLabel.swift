@@ -23,14 +23,14 @@ struct PortLabel: View {
                 .padding(4)
             if (host) {
                 Link(destination: URL(string: "http://localhost:\(port)")!) {
-                    Image(systemName: "link")
+                    SwiftUI.Image(systemName: "link")
                 }
             }
             Button(action: {
                 NSPasteboard.general.clearContents()
                 NSPasteboard.general.setString("\(port)", forType: .string)
             }) {
-                Image(systemName: "doc.on.doc")
+                SwiftUI.Image(systemName: "doc.on.doc")
                     .font(.caption)
             }
             .buttonStyle(.borderless)

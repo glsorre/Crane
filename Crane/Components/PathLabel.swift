@@ -28,7 +28,7 @@ struct PathLabel: View {
                 Button (action: {
                     NSWorkspace.shared.activateFileViewerSelecting([pathUrl!])
                 }){
-                    Image(systemName: "folder")
+                    SwiftUI.Image(systemName: "folder")
                         .renderingMode(.template)
                         .foregroundColor(Color.accentColor)
                 }
@@ -37,7 +37,7 @@ struct PathLabel: View {
                 NSPasteboard.general.clearContents()
                 NSPasteboard.general.setString(path, forType: .string)
             }) {
-                Image(systemName: "doc.on.doc")
+                SwiftUI.Image(systemName: "doc.on.doc")
                     .font(.caption)
             }
             .buttonStyle(.borderless)

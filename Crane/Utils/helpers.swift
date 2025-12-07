@@ -1,5 +1,5 @@
 //
-//  isServiceLoaded.swift
+//  helpers.swift
 //  Crane
 //
 //  Created by Giuseppe Lucio Sorrentino on 13/11/25.
@@ -28,4 +28,18 @@ func isServiceLoaded(label: String, domain: String) -> Bool {
     } catch {
         return false
     }
+}
+
+func withTimeout(action: @escaping () async throws -> Void, timeout: Int = 10) async throws {
+    let task = Task {
+        try await action()
+    }
+    
+    let timeoutTask = Task {
+        try await Task.sleep(for: .seconds(timeout))
+        task.cancel()
+    }
+    
+    try await task.value
+    timeoutTask.cancel()
 }
