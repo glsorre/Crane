@@ -25,6 +25,7 @@ struct CraneContainersListView: View {
                     appViewModel.navigateTo(to: .detail(container: container))
                 }
             }
+            .searchable(text: $containersStore.searchText, placement: .toolbar)
     }
     
     private func buildTable(containers: [Container]) -> some View {
@@ -87,7 +88,7 @@ struct CraneContainersListView: View {
             }
             
             TableColumn("") { container in
-                ContainerListActionsView(containersStore: containersStore, id: container.id)
+                ContainerActionsView(containersStore: containersStore, id: container.id)
             }
             .width(105)
         } rows: {

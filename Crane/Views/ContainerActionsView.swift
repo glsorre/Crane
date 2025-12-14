@@ -1,5 +1,5 @@
 //
-//  ContainerListActionsView.swift
+//  ContainerActionsView.swift
 //  Crane
 //
 //  Created by Giuseppe Lucio Sorrentino on 15/11/25.
@@ -8,7 +8,7 @@
 import ContainerClient
 import SwiftUI
 
-struct ContainerListActionsView: View {
+struct ContainerActionsView: View {
     @State var appViewModel = AppViewModel.shared
     @State var containersStore = ContainersStore.shared
     var id: String
@@ -34,8 +34,7 @@ struct ContainerListActionsView: View {
                 }
             }
             .buttonStyle(.borderedProminent)
-            .controlSize(.large)
-            .frame(maxWidth: 50)
+            .frame(width: 50)
             if clientContainer?.status == .stopped {
                 SpinnerButton(isLoading: container?.transiting ?? true) {
                     Task {
@@ -46,9 +45,8 @@ struct ContainerListActionsView: View {
                         .font(Font.system(size: 11))
                 }
                 .buttonStyle(.bordered)
-                .controlSize(.large)
                 .foregroundColor(Color(.systemRed))
-                .frame(maxWidth: 50)
+                .frame(width: 50)
             }
         }
     }
