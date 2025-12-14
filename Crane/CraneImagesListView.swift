@@ -8,6 +8,7 @@
 import ContainerClient
 import ContainerNetworkService
 import SwiftUI
+import Combine
 
 enum ImageListItem {
     case image(Image)
@@ -45,6 +46,9 @@ struct CraneImagesListView: View {
     @State private var selection: ImageListItem.ID? = nil
     @State private var expandedImages: [String: Bool] = [:]
     
+    @State private var fetchingPopupIsVisible: Bool = false
+    @State private var imageToFetch: String = ""
+    
     private func imageForKey(_ key: String) -> ImageListItem? {
         guard let image = imagesStore.images.first(where: { $0.id == key }) else {
             return nil
@@ -75,11 +79,63 @@ struct CraneImagesListView: View {
     }
     
     var body: some View {
+        buildTable(images: imagesStore.sortedFilteredImages)
+            .tableStyle(.inset)
+            .toolbar {
+                ToolbarItem(placement: .navigation) {
+                    VStack(spacing: 20) {
+                        Button(action: {
+                            fetchingPopupIsVisible.toggle()
+                        }) {
+                            SwiftUI.Image(systemName: "plus")
+                        }
+                        .buttonStyle(.bordered)
+                        .popover(isPresented: $fetchingPopupIsVisible) {
+                            Form {
+                                TextField(String(localized: "fetchImageUrl"), text: $imageToFetch)
+                                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                                Button(action: {
+                                    Task {
+                                        do {
+                                            fetchingPopupIsVisible.toggle()
+                                            try await imagesStore.fetchImage(reference: imageToFetch)
+                                        } catch {
+                                            print("Error fetching image: \(error)")
+                                        }
+                                    }
+                                }) {
+                                    Text(String(localized: "fetchImage"))
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .controlSize(.regular)
+                                .disabled(imageToFetch.isEmpty)
+                            }
+                            .frame(width: 400)
+                            .padding()
+                        }
+                    }
+                }
+            }
+            .searchable(text: $imagesStore.searchText, placement: .toolbar)
+            .onChange(of: selection) { _, newValue in
+                if let item = itemForID(newValue) {
+                    switch item {
+                    case .image:
+                        selection = nil
+                    case .container(let container, _):
+                        selection = nil
+                        appViewModel.navigateTo(to: .detail(container: container))
+                    }
+                }
+            }
+    }
+    
+    private func buildTable(images: [Image]) -> some View {
         Table(of: ImageListItem.self, selection: $selection) {
             TableColumn("name") { item in
                 switch item {
                 case .image(let image):
-                    Label(image.id, systemImage: "photo.circle.fill")
+                    Label(image.id, systemImage: "photo.fill")
                         .padding(5)
                 case .container(let container, _):
                     Text(container.id)
@@ -89,15 +145,15 @@ struct CraneImagesListView: View {
             }
             TableColumn("") { item in
                 switch item {
-                case .image:
-                    EmptyView()
+                case .image(let image):
+                    ImagesActionsView(image: image)
                 case .container(let container, _):
-                    ContainerListActionsView(id: container.id)
+                    ContainerActionsView(id: container.id)
                 }
             }
-            .width(100)
+            .width(105)
         } rows: {
-            ForEach(imagesStore.sortedFilteredImages) { key in
+            ForEach(images) { key in
                 if let imageItem = imageForKey(key.id) {
                     let childrenItems = childrenForImage(key.id)
                     
@@ -110,18 +166,6 @@ struct CraneImagesListView: View {
                             TableRow(childItem)
                         }
                     }
-                }
-            }
-        }
-        .tableStyle(.inset)
-        .onChange(of: selection) { _, newValue in
-            if let item = itemForID(newValue) {
-                switch item {
-                case .image:
-                    selection = nil
-                case .container(let container, _):
-                    selection = nil
-                    appViewModel.navigateTo(to: .detail(container: container))
                 }
             }
         }

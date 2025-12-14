@@ -23,7 +23,7 @@ struct PathLabel: View {
             Text(pathUrl?.lastPathComponent ?? "")
                 .monospaced()
                 .help(path)
-                .padding(4)
+                .padding(5)
             if host {
                 Button (action: {
                     NSWorkspace.shared.activateFileViewerSelecting([pathUrl!])
@@ -41,7 +41,7 @@ struct PathLabel: View {
                     .font(.caption)
             }
             .buttonStyle(.borderless)
-            .padding(4)
+            .padding(5)
         }
     }
 }

@@ -45,6 +45,9 @@ struct CraneNetworksListView: View {
     @State private var selection: NetworkListItem.ID? = nil
     @State private var expandedNetworks: [String: Bool] = [:]
     
+    @State private var creatingPopupIsVisible: Bool = false
+    @State private var networkToCreate: String = ""
+    
     private func networkForKey(_ key: String) -> NetworkListItem? {
         guard let network = networksStore.networks.first(where: { $0.id == key }) else {
             return nil
@@ -75,6 +78,56 @@ struct CraneNetworksListView: View {
     }
     
     var body: some View {
+        buildTable(networks: networksStore.sortedFilteredNetworks)
+        .tableStyle(.inset)
+        .toolbar {
+            ToolbarItem(placement: .navigation) {
+                Button(action: {
+                    creatingPopupIsVisible.toggle()
+                }) {
+                    SwiftUI.Image(systemName: "plus")
+                }
+                .buttonStyle(.bordered)
+                .popover(isPresented: $creatingPopupIsVisible) {
+                    Form {
+                        TextField(String(localized: "networkToCreateName"), text: $networkToCreate)
+                            .textFieldStyle(RoundedBorderTextFieldStyle())
+                        Button(action: {
+                            Task {
+                                do {
+                                    creatingPopupIsVisible.toggle()
+                                    try await networksStore.createNetwork(id: networkToCreate)
+                                } catch {
+                                    print("Error fetching image: \(error)")
+                                }
+                            }
+                        }) {
+                            Text(String(localized: "networkToCreate"))
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.regular)
+                        .disabled(networkToCreate.isEmpty)
+                    }
+                    .frame(width: 400)
+                    .padding()
+                }
+            }
+        }
+        .searchable(text: $networksStore.searchText, placement: .toolbar)
+        .onChange(of: selection) { _, newValue in
+            if let item = itemForID(newValue) {
+                switch item {
+                case .network:
+                    selection = nil
+                case .container(let container, _):
+                    selection = nil
+                    appViewModel.navigateTo(to: .detail(container: container))
+                }
+            }
+        }
+    }
+    
+    func buildTable(networks: [Network]) -> some View {
         Table(of: NetworkListItem.self, selection: $selection) {
             TableColumn("name") { item in
                 switch item {
@@ -102,12 +155,12 @@ struct CraneNetworksListView: View {
                 case .network:
                     EmptyView()
                 case .container(let container, _):
-                    ContainerListActionsView(id: container.id)
+                    ContainerActionsView(id: container.id)
                 }
             }
             .width(100)
         } rows: {
-            ForEach(networksStore.sortedFilteredNetworks) { key in
+            ForEach(networks) { key in
                 if let networkItem = networkForKey(key.id) {
                     let childrenItems = childrenForNetwork(key.id)
                     
@@ -120,18 +173,6 @@ struct CraneNetworksListView: View {
                             TableRow(childItem)
                         }
                     }
-                }
-            }
-        }
-        .tableStyle(.inset)
-        .onChange(of: selection) { _, newValue in
-            if let item = itemForID(newValue) {
-                switch item {
-                case .network:
-                    selection = nil
-                case .container(let container, _):
-                    selection = nil
-                    appViewModel.navigateTo(to: .detail(container: container))
                 }
             }
         }

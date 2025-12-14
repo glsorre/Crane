@@ -116,4 +116,10 @@ class NetworksStore {
         networks.removeAll()
         try await self.collect()
     }
+    
+    func createNetwork(id: String) async throws {
+        let network = try await ClientNetwork.create(configuration: .init(id: id, mode: NetworkMode.nat))
+        let networkModel = Network(network: network)
+        networks.insert(networkModel)
+    }
 }

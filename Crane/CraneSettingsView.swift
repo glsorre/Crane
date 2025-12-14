@@ -45,8 +45,8 @@ struct CraneSettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .padding()
         .frame(minWidth: 400, minHeight: 320)
+        .padding()
     }
 }
 

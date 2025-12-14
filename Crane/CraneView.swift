@@ -30,18 +30,17 @@ struct CraneView: View {
                     .tabItem {
                         Text("containers")
                     }
-                CraneNetworksListView()
-                    .tag(2)
-                    .tabItem {
-                        Text("networks")
-                    }
                 CraneImagesListView()
-                    .tag(3)
+                    .tag(2)
                     .tabItem {
                         Text("images")
                     }
+                CraneNetworksListView()
+                    .tag(3)
+                    .tabItem {
+                        Text("networks")
+                    }
             }
-            .searchable(text: $containersStore.searchText, placement: .toolbar)
             .tabViewStyle(.automatic)
             .navigationDestination(for: CraneRoute.self) { route in
                 switch route {
@@ -57,7 +56,9 @@ struct CraneView: View {
             var button = Alert.Button.default(Text("refresh")) {
                 Task {
                     appViewModel.navigateTo(to: .list)
-                    try await containersStore.reset()
+                    try await ContainersStore.shared.reset()
+                    try await ImagesStore.shared.reset()
+                    try await NetworksStore.shared.reset()
                 }
             }
             if appViewModel.error?.fatal == true {

@@ -100,7 +100,7 @@ class ContainersStore {
     
     var images: [ImageDescription] {
         get {
-            return Set(containers).map { $0.container.configuration.image }
+            return Set(containers).compactMap { $0.container.configuration.image }
         }
     }
     
@@ -112,13 +112,13 @@ class ContainersStore {
     
     var networks: [AttachmentConfiguration] {
         get {
-            return Set(containers).flatMap { $0.container.configuration.networks }
+            return containers.flatMap { $0.container.configuration.networks }
         }
     }
     
     var containersForNetwork: [String: [Container]] {
         get {
-            Dictionary(grouping: (containers).flatMap { container in
+            Dictionary(grouping: containers.flatMap { container in
                 container.container.configuration.networks.map { ($0, container) }
             }, by: { $0.0.network }).mapValues { $0.map(\.1) }
         }
@@ -203,3 +203,4 @@ class ContainersStore {
         }
     }
 }
+

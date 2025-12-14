@@ -17,15 +17,18 @@ enum CraneError: LocalizedError {
     case notRegistered
     case notRunning
     case containerNotFound
+    case imageFetchingFailed
     
     var errorDescription: String {
         switch self {
         case .notRegistered:
             return String(localized: "notRegistered")
         case .notRunning:
-            return String(localized: "notRegistered")
+            return String(localized: "notRunning")
         case .containerNotFound:
             return String(localized: "containerNotFound")
+        case .imageFetchingFailed:
+            return String(localized: "imageFetchingFailed")
         }
     }
     
@@ -33,7 +36,7 @@ enum CraneError: LocalizedError {
         switch self {
         case .notRegistered, .notRunning:
             return true
-        case .containerNotFound:
+        case .containerNotFound, .imageFetchingFailed:
             return false
         }
     }
@@ -59,9 +62,9 @@ class AppViewModel {
     }
     
     func navigateTo(to route: CraneRoute, removeStack: Bool = false) {
+        self.path.append(route)
         if removeStack {
             self.path.removeLast(self.path.count - 1)
         }
-        self.path.append(route)
     }
 }
