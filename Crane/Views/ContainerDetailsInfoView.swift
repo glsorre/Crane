@@ -5,8 +5,8 @@
 //  Created by Giuseppe Lucio Sorrentino on 11/11/25.
 //
 
-import ContainerClient
-import ContainerNetworkService
+import ContainerAPIClient
+import ContainerResource
 import SwiftUI
 
 struct ContainerDetailsInfoView: View {
@@ -40,7 +40,7 @@ struct ContainerDetailsInfoView: View {
                             .frame(maxWidth: .infinity, alignment: .topLeading)
                             .foregroundStyle(Color.accentColor)
                         ForEach(container.networks, id: \.hostname) { network in
-                            Text("\(network.address)")
+                            Text("\(network.ipv4Address)")
                                 .textSelection(.enabled)
                                 .frame(maxWidth: .infinity, alignment: .topLeading)
                                 .monospaced()
@@ -78,14 +78,8 @@ struct ContainerDetailsInfoView: View {
                             .frame(maxWidth: .infinity, alignment: .topLeading)
                             .foregroundStyle(Color.accentColor)
                         ForEach(container.configuration.mounts, id: \.destination) { mount in
-                            if (mount.isVolume) {
-                                let subSource = mount.source.dropLast(11)
-                                PublishedPathLabel(hostPath: String(subSource), containerPath: mount.destination)
-                                    .frame(maxWidth: .infinity, alignment: .topLeading)
-                            } else {
-                                PublishedPathLabel(hostPath: mount.source, containerPath: mount.destination)
-                                    .frame(maxWidth: .infinity, alignment: .topLeading)
-                            }
+                            PublishedPathLabel(hostPath: mountDisplaySource(mount), containerPath: mount.destination)
+                                .frame(maxWidth: .infinity, alignment: .topLeading)
                         }
                     }
                 }

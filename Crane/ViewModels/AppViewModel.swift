@@ -5,11 +5,10 @@
 //  Created by Giuseppe Lucio Sorrentino on 10/11/25.
 //
 
-import ContainerClient
-import ContainerNetworkService
+import ContainerAPIClient
+import ContainerResource
 import ContainerizationOCI
 import Foundation
-import Combine
 import Observation
 import SwiftUI
 
@@ -18,7 +17,14 @@ enum CraneError: LocalizedError {
     case notRunning
     case containerNotFound
     case imageFetchingFailed
-    
+    case containerStartFailed(String)
+    case containerStopFailed(String)
+    case containerRemoveFailed(String)
+    case imageRemoveFailed(String)
+    case imageFetchFailed(String)
+    case networkCreateFailed(String)
+    case logStreamFailed(String)
+
     var errorDescription: String {
         switch self {
         case .notRegistered:
@@ -29,14 +35,28 @@ enum CraneError: LocalizedError {
             return String(localized: "containerNotFound")
         case .imageFetchingFailed:
             return String(localized: "imageFetchingFailed")
+        case .containerStartFailed(let detail):
+            return "Failed to start container: \(detail)"
+        case .containerStopFailed(let detail):
+            return "Failed to stop container: \(detail)"
+        case .containerRemoveFailed(let detail):
+            return "Failed to remove container: \(detail)"
+        case .imageRemoveFailed(let detail):
+            return "Failed to remove image: \(detail)"
+        case .imageFetchFailed(let detail):
+            return "Failed to fetch image: \(detail)"
+        case .networkCreateFailed(let detail):
+            return "Failed to create network: \(detail)"
+        case .logStreamFailed(let detail):
+            return "Failed to stream logs: \(detail)"
         }
     }
-    
+
     var fatal: Bool {
         switch self {
         case .notRegistered, .notRunning:
             return true
-        case .containerNotFound, .imageFetchingFailed:
+        default:
             return false
         }
     }

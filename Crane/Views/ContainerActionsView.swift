@@ -5,12 +5,13 @@
 //  Created by Giuseppe Lucio Sorrentino on 15/11/25.
 //
 
-import ContainerClient
+import ContainerAPIClient
 import SwiftUI
+import ContainerResource
 
 struct ContainerActionsView: View {
-    @State var appViewModel = AppViewModel.shared
-    @State var containersStore = ContainersStore.shared
+    @State private var appViewModel = AppViewModel.shared
+    @State private var containersStore = ContainersStore.shared
     var id: String
     
     var body: some View {

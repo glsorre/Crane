@@ -5,13 +5,13 @@
 //  Created by Giuseppe Lucio Sorrentino on 08/12/25.
 //
 
-import ContainerClient
-import ContainerNetworkService
+import ContainerAPIClient
+import ContainerResource
 import ContainerizationOCI
 import Foundation
-import Combine
 import Observation
 import SwiftUI
+import os.log
 
 @Observable
 class Container : Identifiable, Hashable {
@@ -91,37 +91,27 @@ class ContainersStore {
     var searchText: String = ""
     
     var sortedFilteredContainers: [Container] {
-        get {
-            containers
-                .sorted { $0.id < $1.id }
-                .filter { self.searchText.isEmpty || ($0.id.contains(self.searchText)) }
-        }
+        containers
+            .sorted { $0.id < $1.id }
+            .filter { self.searchText.isEmpty || ($0.id.contains(self.searchText)) }
     }
-    
+
     var images: [ImageDescription] {
-        get {
-            return Set(containers).compactMap { $0.container.configuration.image }
-        }
+        Set(containers).compactMap { $0.container.configuration.image }
     }
-    
+
     var containersForImage: [String: [Container]] {
-        get {
-            Dictionary(grouping: containers) { $0.container.configuration.image.reference }
-        }
+        Dictionary(grouping: containers) { $0.container.configuration.image.reference }
     }
-    
+
     var networks: [AttachmentConfiguration] {
-        get {
-            return containers.flatMap { $0.container.configuration.networks }
-        }
+        containers.flatMap { $0.container.configuration.networks }
     }
-    
+
     var containersForNetwork: [String: [Container]] {
-        get {
-            Dictionary(grouping: containers.flatMap { container in
-                container.container.configuration.networks.map { ($0, container) }
-            }, by: { $0.0.network }).mapValues { $0.map(\.1) }
-        }
+        Dictionary(grouping: containers.flatMap { container in
+            container.container.configuration.networks.map { ($0, container) }
+        }, by: { $0.0.network }).mapValues { $0.map(\.1) }
     }
     
     private init() {
@@ -134,15 +124,11 @@ class ContainersStore {
     
     func stop() {
         self.containersTask?.cancel()
-        self.containersTask = nil
     }
-    
+
     func start() {
-        self.containersTask = Task {
-            while !Task.isCancelled {
-                _ = try? await self.collect()
-                try? await Task.sleep(for: .seconds(UserDefaults().integer(forKey: "refreshInterval")))
-            }
+        self.containersTask = startPolling(interval: { AppSettings.refreshInterval }) {
+            try await self.collect()
         }
     }
     
@@ -173,33 +159,27 @@ class ContainersStore {
     func startContainer(id: String) async {
         guard let container = containers.first(where: { $0.id == id }) else { return }
         do {
-            let io = try ProcessIO.create(tty: true, interactive: false, detach: true)
-            defer {
-                _ = try? io.close()
-            }
             try await container.start()
         } catch {
-            AppViewModel.shared.showError(CraneError.containerNotFound)
+            AppViewModel.shared.showError(.containerStartFailed(error.localizedDescription))
         }
     }
-    
+
     func stopContainer(id: String) async {
         guard let container = containers.first(where: { $0.id == id }) else { return }
-        
         do {
             try await container.stop()
         } catch {
-            AppViewModel.shared.showError(CraneError.containerNotFound)
+            AppViewModel.shared.showError(.containerStopFailed(error.localizedDescription))
         }
     }
-    
+
     func removeContainer(id: String) async {
         guard let container = containers.first(where: { $0.id == id }) else { return }
-        
         do {
             try await container.remove()
         } catch {
-            AppViewModel.shared.showError(CraneError.containerNotFound)
+            AppViewModel.shared.showError(.containerRemoveFailed(error.localizedDescription))
         }
     }
 }

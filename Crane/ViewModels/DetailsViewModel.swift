@@ -5,13 +5,13 @@
 //  Created by Giuseppe Lucio Sorrentino on 06/12/25.
 //
 
-import ContainerClient
-import ContainerNetworkService
+import ContainerAPIClient
+import ContainerResource
 import ContainerizationOCI
 import Foundation
-import Combine
 import Observation
 import SwiftUI
+import os.log
 
 struct ContainerLogLine: Identifiable {
     let id: Int
@@ -29,7 +29,7 @@ class ContainerLogStream: Identifiable {
 }
 
 @Observable
-class DetailsViewModel: ObservableObject {
+class DetailsViewModel {
     var container: Container
     var currentHandle: Int = 0
     
@@ -49,62 +49,53 @@ class DetailsViewModel: ObservableObject {
     func bootstrap() async {
         do {
             let handlesCount = try await container.container.logs().count
-            
+
             for handleIndex in 0..<handlesCount {
                 self.logHandles[handleIndex] = ContainerLogStream()
             }
         } catch {
-            print("Failed to get log handles count: \(error)")
+            AppViewModel.shared.showError(.logStreamFailed(error.localizedDescription))
         }
     }
     
     func start(handleIndex: Int) {
         self.logsRefresher?.cancel()
-        
-        self.logsRefresher = Task {
-            do {
-                while !Task.isCancelled {
-                    if self.logHandles[handleIndex] == nil {
-                        self.logHandles[handleIndex] = ContainerLogStream()
-                    }
-                    
-                    try await self.readLogHandle(handleIndex: handleIndex)
-                    try await Task.sleep(for: .seconds(UserDefaults().integer(forKey: "logsInterval")))
-                }
-            } catch {
-                print("Log refresh failed: \(error)")
+
+        self.logsRefresher = startPolling(interval: { AppSettings.logsInterval }) {
+            if self.logHandles[handleIndex] == nil {
+                self.logHandles[handleIndex] = ContainerLogStream()
             }
+            try await self.readLogHandle(handleIndex: handleIndex)
         }
     }
-    
+
     func stop() {
         self.logsRefresher?.cancel()
-        self.logsRefresher = nil
     }
     
-    func startContainer() async throws {
+    func startContainer() async {
         do {
             try await container.start()
         } catch {
-            print("Failed to start container: \(error)")
+            AppViewModel.shared.showError(.containerStartFailed(error.localizedDescription))
         }
     }
-    
-    func stopContainer() async throws {
+
+    func stopContainer() async {
         do {
             try await container.stop()
         } catch {
-            print("Failed to stop container: \(error)")
+            AppViewModel.shared.showError(.containerStopFailed(error.localizedDescription))
         }
     }
-    
-    func removeContainer() async throws {
+
+    func removeContainer() async {
         do {
             try await container.remove()
         } catch {
-            print("Failed to remove container: \(error)")
+            AppViewModel.shared.showError(.containerRemoveFailed(error.localizedDescription))
         }
-        
+
         AppViewModel.shared.navigateTo(to: CraneRoute.list, removeStack: true)
     }
     

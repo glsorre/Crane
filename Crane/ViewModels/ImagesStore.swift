@@ -5,14 +5,14 @@
 //  Created by Giuseppe Lucio Sorrentino on 08/12/25.
 //
 
-import ContainerClient
-import ContainerNetworkService
+import ContainerAPIClient
+import ContainerResource
 import Containerization
 import ContainerizationOCI
 import Foundation
-import Combine
 import Observation
 import SwiftUI
+import os.log
 
 enum ImageStatus {
     case available
@@ -80,15 +80,13 @@ class Image : Identifiable, Hashable {
             AttachmentConfiguration(network: network.id, options: AttachmentOptions(hostname: network.id))
         }
         
-        let clientContainer = try await ClientContainer.create(
+        _ = try await ClientContainer.create(
             configuration: containerConfiguration,
             options: .default,
             kernel: ClientKernel.getDefaultKernel(for: .current)
         )
-        
-        let container = Container(container: clientContainer)
-        ContainersStore.shared.containers.insert(container)
-        container.update(container: clientContainer)
+
+        try? await ContainersStore.shared.collect()
     }
 }
 
@@ -102,17 +100,9 @@ class ImagesStore {
     var searchText: String = ""
     
     var sortedFilteredImages: [Image] {
-        get {
-            images
-                .sorted { $0.id < $1.id }
-                .filter { self.searchText.isEmpty || ($0.id.contains(self.searchText)) }
-        }
-    }
-    
-    var containersForImage: [String: [Container]] {
-        get {
-            Dictionary(grouping: ContainersStore.shared.containers) { $0.container.configuration.image.reference }
-        }
+        images
+            .sorted { $0.id < $1.id }
+            .filter { self.searchText.isEmpty || ($0.id.contains(self.searchText)) }
     }
     
     private init() {
@@ -125,15 +115,11 @@ class ImagesStore {
     
     func stop() {
         self.imagesTask?.cancel()
-        self.imagesTask = nil
     }
-    
+
     func start() {
-        self.imagesTask = Task {
-            while !Task.isCancelled {
-                _ = try? await self.collect()
-                try? await Task.sleep(for: .seconds(UserDefaults().integer(forKey: "refreshInterval")))
-            }
+        self.imagesTask = startPolling(interval: { AppSettings.refreshInterval }) {
+            try await self.collect()
         }
     }
     
