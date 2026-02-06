@@ -5,13 +5,13 @@
 //  Created by Giuseppe Lucio Sorrentino on 08/12/25.
 //
 
-import ContainerClient
-import ContainerNetworkService
+import ContainerAPIClient
+import ContainerResource
 import ContainerizationOCI
 import Foundation
-import Combine
 import Observation
 import SwiftUI
+import os.log
 
 @Observable
 class Network : Identifiable, Hashable {
@@ -56,19 +56,9 @@ class NetworksStore {
     var searchText: String = ""
     
     var sortedFilteredNetworks: [Network] {
-        get {
-            networks
-                .sorted { $0.id < $1.id }
-                .filter { self.searchText.isEmpty || ($0.id.contains(self.searchText)) }
-        }
-    }
-    
-    var containersForNetwork: [String: [Container]] {
-        get {
-            Dictionary(grouping: ContainersStore.shared.containers.flatMap { container in
-                container.container.configuration.networks.map { ($0.network, container) }
-            }, by: \.0).mapValues { $0.map(\.1) }
-        }
+        networks
+            .sorted { $0.id < $1.id }
+            .filter { self.searchText.isEmpty || ($0.id.contains(self.searchText)) }
     }
     
     private init() {
@@ -81,15 +71,11 @@ class NetworksStore {
     
     func stop() {
         self.networksTask?.cancel()
-        self.networksTask = nil
     }
-    
+
     func start() {
-        self.networksTask = Task {
-            while !Task.isCancelled {
-                _ = try? await self.collect()
-                try? await Task.sleep(for: .seconds(UserDefaults().integer(forKey: "refreshInterval")))
-            }
+        self.networksTask = startPolling(interval: { AppSettings.refreshInterval }) {
+            try await self.collect()
         }
     }
     
@@ -107,8 +93,8 @@ class NetworksStore {
         }
         
         let networksToRemove = networks.subtracting(currentNetworksSet)
-        networksToRemove.forEach { imageToRemove in
-            networks.remove(imageToRemove)
+        networksToRemove.forEach { networkToRemove in
+            networks.remove(networkToRemove)
         }
     }
     
@@ -118,7 +104,7 @@ class NetworksStore {
     }
     
     func createNetwork(id: String) async throws {
-        let network = try await ClientNetwork.create(configuration: .init(id: id, mode: NetworkMode.nat))
+        let network = try await ClientNetwork.create(configuration: try .init(id: id, mode: NetworkMode.nat))
         let networkModel = Network(network: network)
         networks.insert(networkModel)
     }

@@ -5,8 +5,8 @@
 //  Created by Giuseppe Lucio Sorrentino on 11/11/25.
 //
 
-import ContainerClient
-import ContainerNetworkService
+import ContainerAPIClient
+import ContainerResource
 import SwiftUI
 
 enum NetworkListItem {
@@ -56,7 +56,7 @@ struct CraneNetworksListView: View {
     }
     
     private func childrenForNetwork(_ key: String) -> [NetworkListItem] {
-        let containers = networksStore.containersForNetwork[key] ?? []
+        let containers = ContainersStore.shared.containersForNetwork[key] ?? []
         return containers.map { .container($0, networkKey: key) }
     }
     
@@ -67,7 +67,7 @@ struct CraneNetworksListView: View {
                 return .network(network)
             }
         }
-        for (key, containers) in networksStore.containersForNetwork {
+        for (key, containers) in ContainersStore.shared.containersForNetwork {
             for container in containers {
                 if "\(container.id)-\(key)" == id {
                     return .container(container, networkKey: key)
@@ -98,7 +98,7 @@ struct CraneNetworksListView: View {
                                     creatingPopupIsVisible.toggle()
                                     try await networksStore.createNetwork(id: networkToCreate)
                                 } catch {
-                                    print("Error fetching image: \(error)")
+                                    AppViewModel.shared.showError(.networkCreateFailed(error.localizedDescription))
                                 }
                             }
                         }) {
@@ -146,7 +146,7 @@ struct CraneNetworksListView: View {
                     EmptyView()
                 case .container(let container, let networkKey):
                     let attachment = container.container.networks.first { $0.network == networkKey }
-                    Text(attachment?.address ?? "").foregroundColor(.secondary)
+                    Text(attachment.map { "\($0.ipv4Address)" } ?? "").foregroundColor(.secondary)
                         .monospaced()
                 }
             }

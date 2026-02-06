@@ -8,18 +8,17 @@
 
 /* Begin PBXBuildFile section */
 		1A36E77B2EC504C00067D8B3 /* ContainerLog in Frameworks */ = {isa = PBXBuildFile; productRef = 1A36E77A2EC504C00067D8B3 /* ContainerLog */; };
-		1A36E77D2EC504C00067D8B3 /* ContainerNetworkService in Frameworks */ = {isa = PBXBuildFile; productRef = 1A36E77C2EC504C00067D8B3 /* ContainerNetworkService */; };
 		1A36E77F2EC504C00067D8B3 /* ContainerPersistence in Frameworks */ = {isa = PBXBuildFile; productRef = 1A36E77E2EC504C00067D8B3 /* ContainerPersistence */; };
 		1A36E7812EC504C00067D8B3 /* ContainerPlugin in Frameworks */ = {isa = PBXBuildFile; productRef = 1A36E7802EC504C00067D8B3 /* ContainerPlugin */; };
-		1A36E7832EC504C00067D8B3 /* ContainerSandboxService in Frameworks */ = {isa = PBXBuildFile; productRef = 1A36E7822EC504C00067D8B3 /* ContainerSandboxService */; };
 		1A36E7852EC504C00067D8B3 /* ContainerVersion in Frameworks */ = {isa = PBXBuildFile; productRef = 1A36E7842EC504C00067D8B3 /* ContainerVersion */; };
 		1A36E7872EC504C00067D8B3 /* ContainerXPC in Frameworks */ = {isa = PBXBuildFile; productRef = 1A36E7862EC504C00067D8B3 /* ContainerXPC */; };
 		1A36E7892EC504C00067D8B3 /* SocketForwarder in Frameworks */ = {isa = PBXBuildFile; productRef = 1A36E7882EC504C00067D8B3 /* SocketForwarder */; };
 		1AB8D2912EBE73DB00421B16 /* ContainerAPIService in Frameworks */ = {isa = PBXBuildFile; productRef = 1AB8D2902EBE73DB00421B16 /* ContainerAPIService */; };
 		1AB8D2932EBE73DB00421B16 /* ContainerBuild in Frameworks */ = {isa = PBXBuildFile; productRef = 1AB8D2922EBE73DB00421B16 /* ContainerBuild */; };
-		1AB8D2952EBE73DB00421B16 /* ContainerClient in Frameworks */ = {isa = PBXBuildFile; productRef = 1AB8D2942EBE73DB00421B16 /* ContainerClient */; };
+		1AB8D2952EBE73DB00421B16 /* ContainerAPIClient in Frameworks */ = {isa = PBXBuildFile; productRef = 1AB8D2942EBE73DB00421B16 /* ContainerAPIClient */; };
 		1AB8D2972EBE73DB00421B16 /* ContainerCommands in Frameworks */ = {isa = PBXBuildFile; productRef = 1AB8D2962EBE73DB00421B16 /* ContainerCommands */; };
 		1AB8D2992EBE73DB00421B16 /* ContainerImagesService in Frameworks */ = {isa = PBXBuildFile; productRef = 1AB8D2982EBE73DB00421B16 /* ContainerImagesService */; };
+		1AB8D29A2EBE73DB00421B17 /* ContainerResource in Frameworks */ = {isa = PBXBuildFile; productRef = 1AB8D29B2EBE73DB00421B17 /* ContainerResource */; };
 		1AF136B42EC4DE8800FDF4AC /* LaunchAtLogin in Frameworks */ = {isa = PBXBuildFile; productRef = 1AF136B32EC4DE8800FDF4AC /* LaunchAtLogin */; };
 /* End PBXBuildFile section */
 
@@ -45,14 +44,13 @@
 				1A36E7892EC504C00067D8B3 /* SocketForwarder in Frameworks */,
 				1AB8D2912EBE73DB00421B16 /* ContainerAPIService in Frameworks */,
 				1A36E7872EC504C00067D8B3 /* ContainerXPC in Frameworks */,
-				1AB8D2952EBE73DB00421B16 /* ContainerClient in Frameworks */,
+				1AB8D2952EBE73DB00421B16 /* ContainerAPIClient in Frameworks */,
+				1AB8D29A2EBE73DB00421B17 /* ContainerResource in Frameworks */,
 				1A36E77F2EC504C00067D8B3 /* ContainerPersistence in Frameworks */,
 				1A36E77B2EC504C00067D8B3 /* ContainerLog in Frameworks */,
 				1A36E7812EC504C00067D8B3 /* ContainerPlugin in Frameworks */,
 				1AB8D2972EBE73DB00421B16 /* ContainerCommands in Frameworks */,
-				1A36E77D2EC504C00067D8B3 /* ContainerNetworkService in Frameworks */,
 				1AB8D2932EBE73DB00421B16 /* ContainerBuild in Frameworks */,
-				1A36E7832EC504C00067D8B3 /* ContainerSandboxService in Frameworks */,
 				1AB8D2992EBE73DB00421B16 /* ContainerImagesService in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -98,15 +96,14 @@
 			packageProductDependencies = (
 				1AB8D2902EBE73DB00421B16 /* ContainerAPIService */,
 				1AB8D2922EBE73DB00421B16 /* ContainerBuild */,
-				1AB8D2942EBE73DB00421B16 /* ContainerClient */,
+				1AB8D2942EBE73DB00421B16 /* ContainerAPIClient */,
+				1AB8D29B2EBE73DB00421B17 /* ContainerResource */,
 				1AB8D2962EBE73DB00421B16 /* ContainerCommands */,
 				1AB8D2982EBE73DB00421B16 /* ContainerImagesService */,
 				1AF136B32EC4DE8800FDF4AC /* LaunchAtLogin */,
 				1A36E77A2EC504C00067D8B3 /* ContainerLog */,
-				1A36E77C2EC504C00067D8B3 /* ContainerNetworkService */,
 				1A36E77E2EC504C00067D8B3 /* ContainerPersistence */,
 				1A36E7802EC504C00067D8B3 /* ContainerPlugin */,
-				1A36E7822EC504C00067D8B3 /* ContainerSandboxService */,
 				1A36E7842EC504C00067D8B3 /* ContainerVersion */,
 				1A36E7862EC504C00067D8B3 /* ContainerXPC */,
 				1A36E7882EC504C00067D8B3 /* SocketForwarder */,
@@ -123,7 +120,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 2610;
-				LastUpgradeCheck = 2610;
+				LastUpgradeCheck = 2620;
 				TargetAttributes = {
 					1AB8D27F2EBE72D200421B16 = {
 						CreatedOnToolsVersion = 26.0.1;
@@ -226,6 +223,7 @@
 				);
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
@@ -287,6 +285,7 @@
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
@@ -453,11 +452,6 @@
 			package = 1AB8D28F2EBE73DB00421B16 /* XCRemoteSwiftPackageReference "container" */;
 			productName = ContainerLog;
 		};
-		1A36E77C2EC504C00067D8B3 /* ContainerNetworkService */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 1AB8D28F2EBE73DB00421B16 /* XCRemoteSwiftPackageReference "container" */;
-			productName = ContainerNetworkService;
-		};
 		1A36E77E2EC504C00067D8B3 /* ContainerPersistence */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 1AB8D28F2EBE73DB00421B16 /* XCRemoteSwiftPackageReference "container" */;
@@ -467,11 +461,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 1AB8D28F2EBE73DB00421B16 /* XCRemoteSwiftPackageReference "container" */;
 			productName = ContainerPlugin;
-		};
-		1A36E7822EC504C00067D8B3 /* ContainerSandboxService */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 1AB8D28F2EBE73DB00421B16 /* XCRemoteSwiftPackageReference "container" */;
-			productName = ContainerSandboxService;
 		};
 		1A36E7842EC504C00067D8B3 /* ContainerVersion */ = {
 			isa = XCSwiftPackageProductDependency;
@@ -498,10 +487,10 @@
 			package = 1AB8D28F2EBE73DB00421B16 /* XCRemoteSwiftPackageReference "container" */;
 			productName = ContainerBuild;
 		};
-		1AB8D2942EBE73DB00421B16 /* ContainerClient */ = {
+		1AB8D2942EBE73DB00421B16 /* ContainerAPIClient */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 1AB8D28F2EBE73DB00421B16 /* XCRemoteSwiftPackageReference "container" */;
-			productName = ContainerClient;
+			productName = ContainerAPIClient;
 		};
 		1AB8D2962EBE73DB00421B16 /* ContainerCommands */ = {
 			isa = XCSwiftPackageProductDependency;
@@ -512,6 +501,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 1AB8D28F2EBE73DB00421B16 /* XCRemoteSwiftPackageReference "container" */;
 			productName = ContainerImagesService;
+		};
+		1AB8D29B2EBE73DB00421B17 /* ContainerResource */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1AB8D28F2EBE73DB00421B16 /* XCRemoteSwiftPackageReference "container" */;
+			productName = ContainerResource;
 		};
 		1AF136B32EC4DE8800FDF4AC /* LaunchAtLogin */ = {
 			isa = XCSwiftPackageProductDependency;

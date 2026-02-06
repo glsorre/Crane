@@ -5,8 +5,8 @@
 //  Created by Giuseppe Lucio Sorrentino on 11/11/25.
 //
 
-import ContainerClient
-import ContainerNetworkService
+import ContainerAPIClient
+import ContainerResource
 import SwiftUI
 
 struct CraneContainersListView: View {
@@ -56,7 +56,7 @@ struct CraneContainersListView: View {
             }
             TableColumn("ips", value: \.container.networks.count) { container in
                 ForEach(container.container.networks, id: \.network) {network in
-                    Text(network.address)
+                    Text("\(network.ipv4Address)")
                         .monospaced()
                 }
             }
@@ -76,19 +76,14 @@ struct CraneContainersListView: View {
             }
             TableColumn("mounts", value: \.container.configuration.mounts.count) { container in
                 if (container.container.status == .running) {
-                    ForEach(container.container.configuration.mounts, id: \.destination) {mount in
-                        if (mount.isVolume) {
-                            let subSource = mount.source.dropLast(11)
-                            PublishedPathLabel(hostPath: String(subSource), containerPath: mount.destination)
-                        } else {
-                            PublishedPathLabel(hostPath: mount.source, containerPath: mount.destination)
-                        }
+                    ForEach(container.container.configuration.mounts, id: \.destination) { mount in
+                        PublishedPathLabel(hostPath: mountDisplaySource(mount), containerPath: mount.destination)
                     }
                 }
             }
             
             TableColumn("") { container in
-                ContainerActionsView(containersStore: containersStore, id: container.id)
+                ContainerActionsView(id: container.id)
             }
             .width(105)
         } rows: {

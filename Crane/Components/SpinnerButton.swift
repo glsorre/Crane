@@ -12,7 +12,7 @@ struct SpinnerButton<Label: View>: View {
     let action: () -> Void
     let label: () -> Label
     
-    init(isLoading: Bool, minWidth: CGFloat = .leastNormalMagnitude, action: @escaping () -> Void, @ViewBuilder label: @escaping () -> Label) {
+    init(isLoading: Bool, action: @escaping () -> Void, @ViewBuilder label: @escaping () -> Label) {
         self.isLoading = isLoading
         self.action = action
         self.label = label

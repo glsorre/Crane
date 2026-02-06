@@ -5,10 +5,9 @@
 //  Created by Giuseppe Lucio Sorrentino on 11/11/25.
 //
 
-import ContainerClient
-import ContainerNetworkService
+import ContainerAPIClient
+import ContainerResource
 import SwiftUI
-import Combine
 
 enum ImageListItem {
     case image(Image)
@@ -57,7 +56,7 @@ struct CraneImagesListView: View {
     }
     
     private func childrenForImage(_ key: String) -> [ImageListItem] {
-        let containers = imagesStore.containersForImage[key] ?? []
+        let containers = ContainersStore.shared.containersForImage[key] ?? []
         return containers.map { .container($0, imageKey: key) }
     }
     
@@ -68,7 +67,7 @@ struct CraneImagesListView: View {
                 return .image(image)
             }
         }
-        for (key, containers) in imagesStore.containersForImage {
+        for (key, containers) in ContainersStore.shared.containersForImage {
             for container in containers {
                 if "\(container.id)-\(key)" == id {
                     return .container(container, imageKey: key)
@@ -100,7 +99,7 @@ struct CraneImagesListView: View {
                                             fetchingPopupIsVisible.toggle()
                                             try await imagesStore.fetchImage(reference: imageToFetch)
                                         } catch {
-                                            print("Error fetching image: \(error)")
+                                            AppViewModel.shared.showError(.imageFetchFailed(error.localizedDescription))
                                         }
                                     }
                                 }) {

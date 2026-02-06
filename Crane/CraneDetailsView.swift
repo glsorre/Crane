@@ -5,8 +5,8 @@
 //  Created by Giuseppe Lucio Sorrentino on 11/11/25.
 //
 
-import ContainerClient
-import ContainerNetworkService
+import ContainerAPIClient
+import ContainerResource
 import Containerization
 import SwiftUI
 
@@ -58,13 +58,13 @@ struct CraneDetailsView: View {
                 SpinnerButton(isLoading: viewModel.container.transiting) {
                     Task {
                         if clientContainer.status == .stopped {
-                            try await viewModel.startContainer()
+                            await viewModel.startContainer()
                         } else if clientContainer.status == .running {
-                            try await viewModel.stopContainer()
+                            await viewModel.stopContainer()
                         }
                     }
                 } label: {
-                    if (clientContainer.status == .running && clientContainer.status == .running) {
+                    if clientContainer.status == .running {
                         Label("", systemImage: "stop.fill")
                     } else {
                         Label("", systemImage: "play.fill")
@@ -77,7 +77,7 @@ struct CraneDetailsView: View {
                 ToolbarItem {
                     SpinnerButton(isLoading: viewModel.container.transiting) {
                         Task {
-                            try await viewModel.removeContainer()
+                            await viewModel.removeContainer()
                         }
                     } label: {
                         Label("", systemImage: "trash")

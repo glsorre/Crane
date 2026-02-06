@@ -5,18 +5,17 @@
 //  Created by Giuseppe Lucio Sorrentino on 06/11/25.
 //
 
-import ContainerClient
+import ContainerAPIClient
 import ContainerizationError
-import ContainerNetworkService
+import ContainerResource
 import ContainerPlugin
 import Containerization
 import ContainerizationOS
-import Combine
 import Observation
 import SwiftUI
 import os.log
 
-private let logger = Logger(subsystem: "com.example.Crane", category: "Launch")
+private let logger = Logger(subsystem: "me.rightright.RightCrane", category: "Launch")
 
 struct CraneView: View {
     @State private var appViewModel = AppViewModel.shared
