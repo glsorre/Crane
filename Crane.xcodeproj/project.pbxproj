@@ -412,7 +412,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 1.3;
+				MARKETING_VERSION = 1.4;
 				PRODUCT_BUNDLE_IDENTIFIER = me.rightright.RightCrane;
 				PRODUCT_MODULE_NAME = Crane;
 				PRODUCT_NAME = "Right $(TARGET_NAME)";
@@ -461,7 +461,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 1.3;
+				MARKETING_VERSION = 1.4;
 				PRODUCT_BUNDLE_IDENTIFIER = me.rightright.RightCrane;
 				PRODUCT_MODULE_NAME = Crane;
 				PRODUCT_NAME = "Right $(TARGET_NAME)";
