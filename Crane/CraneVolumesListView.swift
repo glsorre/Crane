@@ -1,97 +1,97 @@
 //
-//  CraneNetworksListView.swift
+//  CraneVolumesListView.swift
 //  Crane
 //
-//  Created by Giuseppe Lucio Sorrentino on 11/11/25.
+//  Created by Giuseppe Lucio Sorrentino on 08/02/26.
 //
 
 import ContainerAPIClient
 import ContainerResource
 import SwiftUI
 
-enum NetworkListItem {
-    case network(Network)
-    case container(Container, networkKey: String)
-    
-    static var sortOrderComparator: KeyPathComparator<NetworkListItem> {
+enum VolumeListItem {
+    case volume(CraneVolume)
+    case container(Container, volumeName: String)
+
+    static var sortOrderComparator: KeyPathComparator<VolumeListItem> {
         .init(\.id, order: .forward)
     }
-    
+
     var id: String {
         switch self {
-        case .network(let network):
-            return network.id
-        case .container(let container, let networkKey):
-            return "\(container.id)-\(networkKey)"
+        case .volume(let volume):
+            return volume.id
+        case .container(let container, let volumeName):
+            return "\(container.id)-\(volumeName)"
         }
     }
 }
 
-extension NetworkListItem: Identifiable {}
+extension VolumeListItem: Identifiable {}
 
-extension NetworkListItem: Hashable {
-    static func == (lhs: NetworkListItem, rhs: NetworkListItem) -> Bool {
+extension VolumeListItem: Hashable {
+    static func == (lhs: VolumeListItem, rhs: VolumeListItem) -> Bool {
         lhs.id == rhs.id
     }
-    
+
     func hash(into hasher: inout Hasher) {
         hasher.combine(id)
     }
 }
 
-struct CraneNetworksListView: View {
+struct CraneVolumesListView: View {
     @State private var appViewModel = AppViewModel.shared
-    @State private var networksStore = NetworksStore.shared
-    @State private var selection: NetworkListItem.ID? = nil
-    @State private var expandedNetworks: [String: Bool] = [:]
-    
+    @State private var volumesStore = VolumesStore.shared
+    @State private var selection: VolumeListItem.ID? = nil
+    @State private var expandedVolumes: [String: Bool] = [:]
+
     @State private var creatingPopupIsVisible: Bool = false
-    @State private var networkToCreate: String = ""
-    
-    private func networkForKey(_ key: String) -> NetworkListItem? {
-        guard let network = networksStore.networks.first(where: { $0.id == key }) else {
+    @State private var volumeToCreate: String = ""
+
+    private func volumeForKey(_ key: String) -> VolumeListItem? {
+        guard let volume = volumesStore.volumes.first(where: { $0.id == key }) else {
             return nil
         }
-        return .network(network)
+        return .volume(volume)
     }
-    
-    private func childrenForNetwork(_ key: String) -> [NetworkListItem] {
-        let containers = ContainersStore.shared.containersForNetwork[key] ?? []
-        return containers.map { .container($0, networkKey: key) }
+
+    private func childrenForVolume(_ key: String) -> [VolumeListItem] {
+        let containers = ContainersStore.shared.containersForVolume[key] ?? []
+        return containers.map { .container($0, volumeName: key) }
     }
-    
-    private func itemForID(_ id: NetworkListItem.ID?) -> NetworkListItem? {
+
+    private func itemForID(_ id: VolumeListItem.ID?) -> VolumeListItem? {
         guard let id = id else { return nil }
-        for network in networksStore.networks {
-            if network.id == id {
-                return .network(network)
+        for volume in volumesStore.volumes {
+            if volume.id == id {
+                return .volume(volume)
             }
         }
-        for (key, containers) in ContainersStore.shared.containersForNetwork {
+        for (key, containers) in ContainersStore.shared.containersForVolume {
             for container in containers {
                 if "\(container.id)-\(key)" == id {
-                    return .container(container, networkKey: key)
+                    return .container(container, volumeName: key)
                 }
             }
         }
         return nil
     }
-    
+
     var body: some View {
-        buildTable(networks: networksStore.sortedFilteredNetworks)
+        buildTable(volumes: volumesStore.sortedFilteredVolumes)
         .tableStyle(.inset)
         .toolbar {
             ToolbarItem(placement: .navigation) {
                 Button(action: {
                     Task {
-                        await networksStore.pruneNetworks()
+                        await volumesStore.pruneVolumes()
                     }
                 }) {
                     SwiftUI.Image(systemName: "xmark.bin")
                 }
                 .buttonStyle(.glass)
-                .disabled(!networksStore.hasEmptyNetworks)
-                .help("Remove empty networks")
+                .disabled(!volumesStore.hasUnusedVolumes)
+                .help("Remove unused volumes")
             }
             ToolbarItem(placement: .navigation) {
                 Button(action: {
@@ -102,22 +102,22 @@ struct CraneNetworksListView: View {
                 .buttonStyle(.glass)
                 .popover(isPresented: $creatingPopupIsVisible) {
                     Form {
-                        TextField(String(localized: "networkToCreateName"), text: $networkToCreate)
+                        TextField(String(localized: "volumeToCreateName"), text: $volumeToCreate)
                         Button(action: {
                             Task {
                                 do {
                                     creatingPopupIsVisible.toggle()
-                                    try await networksStore.createNetwork(id: networkToCreate)
+                                    try await volumesStore.createVolume(name: volumeToCreate)
                                 } catch {
-                                    AppViewModel.shared.showError(.networkCreateFailed(error.localizedDescription))
+                                    AppViewModel.shared.showError(.volumeCreateFailed(error.localizedDescription))
                                 }
                             }
                         }) {
-                            Text(String(localized: "networkToCreate"))
+                            Text(String(localized: "volumeToCreate"))
                         }
                         .buttonStyle(.glassProminent)
                         .controlSize(.regular)
-                        .disabled(networkToCreate.isEmpty)
+                        .disabled(volumeToCreate.isEmpty)
                     }
                     .formStyle(.grouped)
                     .frame(width: 400)
@@ -125,11 +125,11 @@ struct CraneNetworksListView: View {
                 }
             }
         }
-        .searchable(text: $networksStore.searchText, placement: .toolbar)
+        .searchable(text: $volumesStore.searchText, placement: .toolbar)
         .onChange(of: selection) { _, newValue in
             if let item = itemForID(newValue) {
                 switch item {
-                case .network:
+                case .volume:
                     selection = nil
                 case .container(let container, _):
                     selection = nil
@@ -138,13 +138,13 @@ struct CraneNetworksListView: View {
             }
         }
     }
-    
-    func buildTable(networks: [Network]) -> some View {
-        Table(of: NetworkListItem.self, selection: $selection) {
+
+    func buildTable(volumes: [CraneVolume]) -> some View {
+        Table(of: VolumeListItem.self, selection: $selection) {
             TableColumn("name") { item in
                 switch item {
-                case .network(let network):
-                    Label(network.id, systemImage: "network")
+                case .volume(let volume):
+                    Label(volume.id, systemImage: "externaldrive.fill")
                         .font(.callout)
                         .padding(.vertical, Spacing.xxs)
                 case .container(let container, _):
@@ -154,13 +154,17 @@ struct CraneNetworksListView: View {
                         .foregroundColor(.secondary)
                 }
             }
-            TableColumn("ip") { item in
+            TableColumn("driver") { item in
                 switch item {
-                case .network(_):
-                    EmptyView()
-                case .container(let container, let networkKey):
-                    let attachment = container.container.networks.first { $0.network == networkKey }
-                    Text(attachment.map { "\($0.ipv4Address)" } ?? "")
+                case .volume(let volume):
+                    Text(volume.volume.driver)
+                        .font(.callout)
+                        .foregroundColor(.secondary)
+                        .monospaced()
+                case .container(let container, let volumeName):
+                    let destination = container.container.configuration.mounts
+                        .first { $0.isVolume && $0.volumeName == volumeName }?.destination
+                    Text(destination ?? "")
                         .font(.callout)
                         .foregroundColor(.secondary)
                         .monospaced()
@@ -168,12 +172,12 @@ struct CraneNetworksListView: View {
             }
             TableColumn("") { item in
                 switch item {
-                case .network(let network):
-                    let isEmpty = (ContainersStore.shared.containersForNetwork[network.id] ?? []).isEmpty
-                    if !network.network.isBuiltin && isEmpty {
-                        SpinnerButton(isLoading: network.transiting) {
+                case .volume(let volume):
+                    let isEmpty = (ContainersStore.shared.containersForVolume[volume.id] ?? []).isEmpty
+                    if isEmpty {
+                        SpinnerButton(isLoading: volume.transiting) {
                             Task {
-                                await networksStore.removeNetwork(id: network.id)
+                                await volumesStore.removeVolume(name: volume.id)
                             }
                         } label: {
                             SwiftUI.Image(systemName: "trash.fill")
@@ -189,14 +193,14 @@ struct CraneNetworksListView: View {
             }
             .width(100)
         } rows: {
-            ForEach(networks) { key in
-                if let networkItem = networkForKey(key.id) {
-                    let childrenItems = childrenForNetwork(key.id)
-                    
-                    let isExpanded = expandedNetworks[key.id, default: true]
-                    DisclosureTableRow(networkItem, isExpanded: Binding(
+            ForEach(volumes) { key in
+                if let volumeItem = volumeForKey(key.id) {
+                    let childrenItems = childrenForVolume(key.id)
+
+                    let isExpanded = expandedVolumes[key.id, default: true]
+                    DisclosureTableRow(volumeItem, isExpanded: Binding(
                         get: { isExpanded },
-                        set: { expandedNetworks[key.id] = $0 }
+                        set: { expandedVolumes[key.id] = $0 }
                     )) {
                         ForEach(childrenItems, id: \.id) { childItem in
                             TableRow(childItem)
@@ -207,4 +211,3 @@ struct CraneNetworksListView: View {
         }
     }
 }
-

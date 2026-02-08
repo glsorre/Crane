@@ -19,24 +19,26 @@ struct ContainerActionsView: View {
         let clientContainer = container?.container
         
         HStack {
-            SpinnerButton(isLoading: container?.transiting ?? true) {
-                Task {
-                    if clientContainer?.status == .stopped {
-                        await containersStore.startContainer(id: id)
-                    } else if clientContainer?.status == .running {
-                        await containersStore.stopContainer(id: id)
+            if container?.isExited != true {
+                SpinnerButton(isLoading: container?.transiting ?? true) {
+                    Task {
+                        if clientContainer?.status == .stopped {
+                            await containersStore.startContainer(id: id)
+                        } else if clientContainer?.status == .running {
+                            await containersStore.stopContainer(id: id)
+                        }
+                    }
+                } label: {
+                    if (clientContainer?.status == .running) {
+                        SwiftUI.Image(systemName: "stop.fill")
+                    } else {
+                        SwiftUI.Image(systemName: "play.fill")
                     }
                 }
-            } label: {
-                if (clientContainer?.status == .running) {
-                    SwiftUI.Image(systemName: "stop.fill")
-                } else {
-                    SwiftUI.Image(systemName: "play.fill")
-                }
+                .buttonStyle(.glassProminent)
+                .frame(width: 50)
             }
-            .buttonStyle(.glassProminent)
-            .frame(width: 50)
-            if clientContainer?.status == .stopped {
+            if clientContainer?.status == .stopped || container?.isExited == true {
                 SpinnerButton(isLoading: container?.transiting ?? true) {
                     Task {
                         await containersStore.removeContainer(id: id)

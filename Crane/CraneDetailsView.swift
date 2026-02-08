@@ -54,26 +54,27 @@ struct CraneDetailsView: View {
         .tabViewStyle(.automatic)
         .padding(Spacing.md)
         .toolbar {
-            ToolbarItem {
-                SpinnerButton(isLoading: viewModel.container.transiting) {
-                    Task {
-                        if clientContainer.status == .stopped {
-                            await viewModel.startContainer()
-                        } else if clientContainer.status == .running {
-                            await viewModel.stopContainer()
+            if !container.isExited {
+                ToolbarItem {
+                    SpinnerButton(isLoading: viewModel.container.transiting) {
+                        Task {
+                            if clientContainer.status == .stopped {
+                                await viewModel.startContainer()
+                            } else if clientContainer.status == .running {
+                                await viewModel.stopContainer()
+                            }
+                        }
+                    } label: {
+                        if clientContainer.status == .running {
+                            Label("stop", systemImage: "stop.fill")
+                        } else {
+                            Label("start", systemImage: "play.fill")
                         }
                     }
-                } label: {
-                    if clientContainer.status == .running {
-                        Label("stop", systemImage: "stop.fill")
-                    } else {
-                        Label("start", systemImage: "play.fill")
-                    }
+                    .buttonStyle(.glass)
                 }
-                
-                .buttonStyle(.glass)
             }
-            if clientContainer.status == .stopped {
+            if clientContainer.status == .stopped || container.isExited {
                 ToolbarItem {
                     SpinnerButton(isLoading: viewModel.container.transiting) {
                         Task {

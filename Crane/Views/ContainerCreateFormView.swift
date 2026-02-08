@@ -12,6 +12,7 @@ struct ContainerCreateFormView: View {
     @SwiftUI.State private var arguments: String = ""
     @SwiftUI.State private var environment: String = ""
     @SwiftUI.State private var selectedNetworks: Set<String> = []
+    @SwiftUI.State private var autoRemove: Bool = true
     @SwiftUI.State private var isCreating: Bool = false
 
     private var isDisabled: Bool {
@@ -26,6 +27,7 @@ struct ContainerCreateFormView: View {
                 TextField("createContainerExecutableArguments", text: $arguments, prompt: Text(image.imageConfiguration?.config?.cmd?.joined(separator: " ") ?? ""))
                 TextField("createContainerEnvironment", text: $environment, axis: .vertical)
                     .lineLimit(5...10)
+                Toggle("createContainerAutoRemove", isOn: $autoRemove)
                 LabeledContent("createContainerNetworks") {
                     VStack {
                         ForEach(Array(NetworksStore.shared.networks), id: \.id) { network in
@@ -57,7 +59,8 @@ struct ContainerCreateFormView: View {
                             executable: executable,
                             arguments: executableArgs,
                             environment: environmentVars,
-                            networks: Array(networks)
+                            networks: Array(networks),
+                            autoRemove: autoRemove
                         )
                         isPresented = false
                     } catch {

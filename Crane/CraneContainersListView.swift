@@ -37,9 +37,16 @@ struct CraneContainersListView: View {
                     .padding(.vertical, Spacing.xxs)
             }
             TableColumn("status", value: \.container.status.rawValue) { container in
-                SwiftUI.Image(systemName: container.container.status.getIcon())
-                    .font(.callout)
-                    .padding(.vertical, Spacing.xxs)
+                if container.isExited {
+                    SwiftUI.Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.secondary)
+                        .font(.callout)
+                        .padding(.vertical, Spacing.xxs)
+                } else {
+                    SwiftUI.Image(systemName: container.container.status.getIcon())
+                        .font(.callout)
+                        .padding(.vertical, Spacing.xxs)
+                }
             }.width(60)
             TableColumn("cpus", value: \.container.configuration.resources.cpus) { container in
                 Text(String(container.container.configuration.resources.cpus))

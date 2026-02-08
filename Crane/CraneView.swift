@@ -33,6 +33,9 @@ struct CraneView: View {
                 Tab("networks", systemImage: "network") {
                     CraneNetworksListView()
                 }
+                Tab("volumes", systemImage: "externaldrive.fill") {
+                    CraneVolumesListView()
+                }
             }
             .tabViewStyle(.sidebarAdaptable)
             .navigationDestination(for: CraneRoute.self) { route in
@@ -54,6 +57,7 @@ struct CraneView: View {
                         try await ContainersStore.shared.reset()
                         try await ImagesStore.shared.reset()
                         try await NetworksStore.shared.reset()
+                        try await VolumesStore.shared.reset()
                     }
                 }
             }

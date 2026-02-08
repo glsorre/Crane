@@ -46,6 +46,7 @@ struct CraneImagesListView: View {
     @State private var expandedImages: [String: Bool] = [:]
     
     @State private var fetchingPopupIsVisible: Bool = false
+    @State private var buildSheetIsVisible: Bool = false
     @State private var imageToFetch: String = ""
     
     private func imageForKey(_ key: String) -> ImageListItem? {
@@ -83,6 +84,14 @@ struct CraneImagesListView: View {
             .toolbar {
                 ToolbarItem(placement: .navigation) {
                     Button(action: {
+                        buildSheetIsVisible.toggle()
+                    }) {
+                        SwiftUI.Image(systemName: "hammer.fill")
+                    }
+                    .buttonStyle(.glass)
+                }
+                ToolbarItem(placement: .navigation) {
+                    Button(action: {
                         fetchingPopupIsVisible.toggle()
                     }) {
                         SwiftUI.Image(systemName: "plus")
@@ -112,6 +121,9 @@ struct CraneImagesListView: View {
                         .padding(Spacing.sm)
                     }
                 }
+            }
+            .sheet(isPresented: $buildSheetIsVisible) {
+                ImageBuildView(isPresented: $buildSheetIsVisible)
             }
             .searchable(text: $imagesStore.searchText, placement: .toolbar)
             .onChange(of: selection) { _, newValue in

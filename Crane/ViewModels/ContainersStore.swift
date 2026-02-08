@@ -34,11 +34,14 @@ class Container : Identifiable, Hashable {
     var id: String
     var container: ClientContainer
     var transiting: Bool
-    
+    var isExited: Bool = false
+    var autoRemove: Bool = true
+
     init(container: ClientContainer) {
         self.id = container.id
         self.container = container
         self.transiting = false
+        self.autoRemove = !AppSettings.persistentContainerIDs.contains(container.id)
     }
     
     func update(container: ClientContainer) {
@@ -113,6 +116,17 @@ class ContainersStore {
             container.container.configuration.networks.map { ($0, container) }
         }, by: { $0.0.network }).mapValues { $0.map(\.1) }
     }
+
+    var containersForVolume: [String: [Container]] {
+        Dictionary(grouping: containers.flatMap { container in
+            container.container.configuration.mounts
+                .filter { $0.isVolume }
+                .compactMap { mount -> (String, Container)? in
+                    guard let name = mount.volumeName else { return nil }
+                    return (name, container)
+                }
+        }, by: { $0.0 }).mapValues { $0.map(\.1) }
+    }
     
     private init() {
         self.start()
@@ -135,19 +149,25 @@ class ContainersStore {
     func collect() async throws {
         let currentContainers = try await ClientContainer.list()
         var currentContainersSet: Set<Container> = Set()
-        
+
         for clientContainer in currentContainers {
             let newContainer = Container(container: clientContainer)
             currentContainersSet.insert(newContainer)
             if let container = containers.first(where: { $0.id == newContainer.id }) {
                 container.update(container: clientContainer)
+                container.isExited = false
             }
             containers.insert(newContainer)
         }
-        
-        let containersToRemove = containers.subtracting(currentContainersSet)
-        containersToRemove.forEach { containerToRemove in
-            containers.remove(containerToRemove)
+
+        let exitedContainers = containers.subtracting(currentContainersSet)
+        exitedContainers.forEach { container in
+            if !container.autoRemove {
+                container.isExited = true
+                container.transiting = false
+            } else {
+                containers.remove(container)
+            }
         }
     }
     
@@ -176,8 +196,14 @@ class ContainersStore {
 
     func removeContainer(id: String) async {
         guard let container = containers.first(where: { $0.id == id }) else { return }
+        if container.isExited {
+            containers.remove(container)
+            AppSettings.removePersistentContainerID(id)
+            return
+        }
         do {
             try await container.remove()
+            AppSettings.removePersistentContainerID(id)
         } catch {
             AppViewModel.shared.showError(.containerRemoveFailed(error.localizedDescription))
         }
