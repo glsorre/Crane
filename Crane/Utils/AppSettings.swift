@@ -1,8 +1,11 @@
 import Foundation
 
 enum AppSettings {
+    static let isRunningTests = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+
     static var autoRefresh: Bool {
-        UserDefaults.standard.object(forKey: "autoRefresh") == nil
+        if isRunningTests { return false }
+        return UserDefaults.standard.object(forKey: "autoRefresh") == nil
             ? true
             : UserDefaults.standard.bool(forKey: "autoRefresh")
     }

@@ -32,21 +32,6 @@ xcodebuild -project Crane.xcodeproj -scheme Crane build
 
 Or open `Crane.xcodeproj` in Xcode and build normally.
 
-## Roadmap
-
-- [x] Container listing with network grouping
-- [x] Container management (start, stop, remove)
-- [x] Container creation with full configuration
-- [x] Container log streaming grouped by handle
-- [x] Adaptive polling
-- [x] Volume listing and management
-- [x] Image listing and fetching
-- [x] Image building from Dockerfiles
-- [x] Network creation
-- [x] Automatic API service startup
-- [ ] Interactive terminal
-- [ ] Live resource metrics
-
 ## Contributing
 
 The project is in active development — contributions are welcome.
