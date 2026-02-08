@@ -91,7 +91,7 @@ class Image : Identifiable, Hashable {
             AppSettings.addPersistentContainerID(id)
         }
 
-        try? await ContainersStore.shared.collect()
+        RefreshCoordinator.shared.containerMutated()
     }
 }
 
@@ -101,6 +101,7 @@ class ImagesStore {
     
     var images: Set<Image> = []
     var imagesTask: Task<Void, Never>? = nil
+    var resetPolling: (() -> Void)?
 
     var searchText: String = ""
     
@@ -123,11 +124,17 @@ class ImagesStore {
     }
 
     func start() {
-        self.imagesTask = startPolling(interval: { AppSettings.refreshInterval }) {
-            try await self.collect()
+        guard AppSettings.autoRefresh else { return }
+        let (task, reset) = startAdaptivePolling(
+            baseInterval: { AppSettings.refreshInterval },
+            maxInterval: { AppSettings.maxPollingInterval }
+        ) {
+            try await self.collectWithChangeDetection()
         }
+        self.imagesTask = task
+        self.resetPolling = reset
     }
-    
+
     func fetchImage(reference: String) async throws {
         let normalizedReference = try ClientImage.normalizeReference(reference)
         let image = Image(id: normalizedReference)
@@ -136,20 +143,29 @@ class ImagesStore {
         try await image.setImage(image: clientImage)
         image.status = .available
         images.update(with: image)
+        RefreshCoordinator.shared.imageMutated()
     }
-    
+
     func removeImage(reference: String) async throws {
         if let existingImage = self.images.first(where: { $0.id == reference }) {
             existingImage.status = .removing
             try await existingImage.remove()
             images.remove(existingImage)
         }
+        RefreshCoordinator.shared.imageMutated()
     }
     
-    func collect() async throws {
+    @discardableResult
+    func collect() async throws -> Bool {
+        try await collectWithChangeDetection()
+    }
+
+    private func collectWithChangeDetection() async throws -> Bool {
+        let previousIDs = Set(images.map { $0.id })
+
         let currentImages = try await ClientImage.list()
         var currentImagesSet: Set<Image> = Set()
-        
+
         for clientImage in currentImages {
             let newImage = Image(image: clientImage)
             currentImagesSet.insert(newImage)
@@ -158,13 +174,16 @@ class ImagesStore {
             }
             images.insert(newImage)
         }
-        
+
         let imagesToRemove = images.subtracting(currentImagesSet)
         imagesToRemove.forEach { imageToRemove in
             if imageToRemove.status != .fetching {
                 images.remove(imageToRemove)
             }
         }
+
+        let newIDs = Set(images.map { $0.id })
+        return previousIDs != newIDs
     }
     
     func reset() async throws {

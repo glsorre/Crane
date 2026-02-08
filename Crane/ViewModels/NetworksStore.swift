@@ -52,6 +52,7 @@ class NetworksStore {
     
     var networks: Set<Network> = []
     var networksTask: Task<Void, Never>? = nil
+    var resetPolling: (() -> Void)?
 
     var searchText: String = ""
     
@@ -74,15 +75,28 @@ class NetworksStore {
     }
 
     func start() {
-        self.networksTask = startPolling(interval: { AppSettings.refreshInterval }) {
-            try await self.collect()
+        guard AppSettings.autoRefresh else { return }
+        let (task, reset) = startAdaptivePolling(
+            baseInterval: { AppSettings.refreshInterval },
+            maxInterval: { AppSettings.maxPollingInterval }
+        ) {
+            try await self.collectWithChangeDetection()
         }
+        self.networksTask = task
+        self.resetPolling = reset
     }
-    
-    func collect() async throws {
+
+    @discardableResult
+    func collect() async throws -> Bool {
+        try await collectWithChangeDetection()
+    }
+
+    private func collectWithChangeDetection() async throws -> Bool {
+        let previousIDs = Set(networks.map { $0.id })
+
         let currentNetworks = try await ClientNetwork.list()
         var currentNetworksSet: Set<Network> = Set()
-        
+
         for networkState in currentNetworks {
             let newNetwork = Network(network: networkState)
             currentNetworksSet.insert(newNetwork)
@@ -91,11 +105,14 @@ class NetworksStore {
             }
             networks.insert(newNetwork)
         }
-        
+
         let networksToRemove = networks.subtracting(currentNetworksSet)
         networksToRemove.forEach { networkToRemove in
             networks.remove(networkToRemove)
         }
+
+        let newIDs = Set(networks.map { $0.id })
+        return previousIDs != newIDs
     }
     
     func reset() async throws {
@@ -126,6 +143,7 @@ class NetworksStore {
                 AppViewModel.shared.showError(.networkRemoveFailed(error.localizedDescription))
             }
         }
+        RefreshCoordinator.shared.networkMutated()
     }
 
     func removeNetwork(id: String) async {
@@ -138,11 +156,13 @@ class NetworksStore {
             network.transiting = false
             AppViewModel.shared.showError(.networkRemoveFailed(error.localizedDescription))
         }
+        RefreshCoordinator.shared.networkMutated()
     }
 
     func createNetwork(id: String) async throws {
         let network = try await ClientNetwork.create(configuration: try .init(id: id, mode: NetworkMode.nat))
         let networkModel = Network(network: network)
         networks.insert(networkModel)
+        RefreshCoordinator.shared.networkMutated()
     }
 }
