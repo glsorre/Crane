@@ -14,7 +14,7 @@ struct ImagesActionsView: View {
                 }) {
                     SwiftUI.Image(systemName: "play.fill")
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.glassProminent)
                 .popover(isPresented: $createPopupIsVisible) {
                     ContainerCreateFormView(image: image, isPresented: $createPopupIsVisible)
                 }
@@ -27,7 +27,7 @@ struct ImagesActionsView: View {
                     SwiftUI.Image(systemName: "trash.fill")
                         .font(Font.system(size: 11))
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.glass)
                 .foregroundColor(Color(.systemRed))
                 .frame(width: 50)
             }

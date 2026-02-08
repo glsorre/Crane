@@ -13,7 +13,6 @@ struct CraneSettingsView: View {
     @AppStorage("autoRefresh") private var autoRefresh: Bool = true
     @AppStorage("refreshInterval") private var refreshInterval: Int = 1
     @AppStorage("logsInterval") private var logInterval: Int = 3
-    @AppStorage("themePreference") private var themePreference: String = "System"
 
     var body: some View {
         Form {
@@ -23,30 +22,17 @@ struct CraneSettingsView: View {
             Section("autoRefresh") {
                 Toggle("autoRefresh", isOn: $autoRefresh)
                 
-                GeometryReader { geometry in
-                    HStack {
-                        Text("listInterval")
-                            .frame(width: geometry.size.width * 0.8, alignment: .leading)
-                        NumericField(value: $refreshInterval)
-                            .frame(alignment: .trailing)
-                    }
-                    .frame(alignment: .center)
+                LabeledContent("listInterval") {
+                    NumericField(value: $refreshInterval).frame(width: 80)
                 }
-                
-                GeometryReader { geometry in
-                    HStack {
-                        Text("logsInterval")
-                            .frame(width: geometry.size.width * 0.8, alignment: .leading)
-                        NumericField(value: $logInterval)
-                            .frame(alignment: .trailing)
-                    }
-                    .frame(alignment: .center)
+                LabeledContent("logsInterval") {
+                    NumericField(value: $logInterval).frame(width: 80)
                 }
             }
         }
         .formStyle(.grouped)
-        .frame(minWidth: 400, minHeight: 320)
-        .padding()
+        .frame(minWidth: 400, minHeight: 280)
+        .padding(Spacing.sm)
     }
 }
 

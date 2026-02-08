@@ -33,51 +33,67 @@ struct CraneContainersListView: View {
             // Active columns (start simple to avoid type-checking issues)
             TableColumn("name", value: \.id) { container in
                 Text(container.id)
-                    .padding(.vertical, 5)
+                    .font(.callout)
+                    .padding(.vertical, Spacing.xxs)
             }
             TableColumn("status", value: \.container.status.rawValue) { container in
                 SwiftUI.Image(systemName: container.container.status.getIcon())
-                    .padding(.vertical, 5)
+                    .font(.callout)
+                    .padding(.vertical, Spacing.xxs)
             }.width(60)
             TableColumn("cpus", value: \.container.configuration.resources.cpus) { container in
                 Text(String(container.container.configuration.resources.cpus))
-                    .padding(.vertical, 5)
+                    .font(.callout)
+                    .padding(.vertical, Spacing.xxs)
             }.width(80)
-            
+
             TableColumn("memory", value: \.container.configuration.resources.memoryInBytes) { container in
                 let memoryInGiB = container.container.configuration.resources.memoryInBytes / 1024 / 1024 / 1024
                 Text("\(memoryInGiB) GiB")
-                    .padding(.vertical, 5)
+                    .font(.callout)
+                    .padding(.vertical, Spacing.xxs)
             }.width(80)
             TableColumn("networks", value: \.container.networks.count) { container in
-                ForEach(container.container.networks, id: \.network) {network in
-                    Text(network.network)
+                VStack(alignment: .leading, spacing: Spacing.xxxs) {
+                    ForEach(container.container.networks, id: \.network) {network in
+                        Text(network.network)
+                            .font(.callout)
+                    }
                 }
             }
             TableColumn("ips", value: \.container.networks.count) { container in
-                ForEach(container.container.networks, id: \.network) {network in
-                    Text("\(network.ipv4Address)")
-                        .monospaced()
+                VStack(alignment: .leading, spacing: Spacing.xxxs) {
+                    ForEach(container.container.networks, id: \.network) {network in
+                        Text("\(network.ipv4Address)")
+                            .font(.callout)
+                            .monospaced()
+                    }
                 }
             }
             TableColumn("ports", value: \.container.configuration.publishedPorts.count) { container in
                 if (container.container.status == .running) {
-                    ForEach(container.container.configuration.publishedPorts, id: \.containerPort) {publishedPort in
-                        PublishedPortLabel(hostPort: Int(publishedPort.hostPort), containerPort: Int(publishedPort.containerPort))
+                    VStack(alignment: .leading, spacing: Spacing.xxxs) {
+                        ForEach(container.container.configuration.publishedPorts, id: \.containerPort) {publishedPort in
+                            PublishedPortLabel(hostPort: Int(publishedPort.hostPort), containerPort: Int(publishedPort.containerPort))
+                        }
                     }
                 }
             }
             TableColumn("sockets", value: \.container.configuration.publishedSockets.count) { container in
                 if (container.container.status == .running) {
-                    ForEach(container.container.configuration.publishedSockets, id: \.containerPath) {publishedSocket in
-                        PublishedPathLabel(hostPath: publishedSocket.hostPath.absoluteString, containerPath: publishedSocket.containerPath.absoluteString)
+                    VStack(alignment: .leading, spacing: Spacing.xxxs) {
+                        ForEach(container.container.configuration.publishedSockets, id: \.containerPath) {publishedSocket in
+                            PublishedPathLabel(hostPath: publishedSocket.hostPath.absoluteString, containerPath: publishedSocket.containerPath.absoluteString)
+                        }
                     }
                 }
             }
             TableColumn("mounts", value: \.container.configuration.mounts.count) { container in
                 if (container.container.status == .running) {
-                    ForEach(container.container.configuration.mounts, id: \.destination) { mount in
-                        PublishedPathLabel(hostPath: mountDisplaySource(mount), containerPath: mount.destination)
+                    VStack(alignment: .leading, spacing: Spacing.xxxs) {
+                        ForEach(container.container.configuration.mounts, id: \.destination) { mount in
+                            PublishedPathLabel(hostPath: mountDisplaySource(mount), containerPath: mount.destination)
+                        }
                     }
                 }
             }

@@ -34,7 +34,7 @@ struct ContainerActionsView: View {
                     SwiftUI.Image(systemName: "play.fill")
                 }
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.glassProminent)
             .frame(width: 50)
             if clientContainer?.status == .stopped {
                 SpinnerButton(isLoading: container?.transiting ?? true) {
@@ -45,7 +45,7 @@ struct ContainerActionsView: View {
                     SwiftUI.Image(systemName: "trash.fill")
                         .font(Font.system(size: 11))
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.glass)
                 .foregroundColor(Color(.systemRed))
                 .frame(width: 50)
             }

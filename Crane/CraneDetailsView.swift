@@ -24,7 +24,7 @@ struct CraneDetailsView: View {
         
         TabView(selection: $viewModel.currentHandle) {
             ForEach(0..<viewModel.logHandles.count, id: \.self) { tabIndex in
-                HStack(spacing: 16) {
+                HStack(spacing: Spacing.md) {
                     ContainerDetailsInfoView(container: clientContainer)
                     if !viewModel.logHandles.isEmpty {
                         ContainerLogsView(viewModel: viewModel)
@@ -52,7 +52,7 @@ struct CraneDetailsView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .tabViewStyle(.automatic)
-        .padding()
+        .padding(Spacing.md)
         .toolbar {
             ToolbarItem {
                 SpinnerButton(isLoading: viewModel.container.transiting) {
@@ -65,13 +65,13 @@ struct CraneDetailsView: View {
                     }
                 } label: {
                     if clientContainer.status == .running {
-                        Label("", systemImage: "stop.fill")
+                        Label("stop", systemImage: "stop.fill")
                     } else {
-                        Label("", systemImage: "play.fill")
+                        Label("start", systemImage: "play.fill")
                     }
                 }
                 
-                .buttonStyle(.bordered)
+                .buttonStyle(.glass)
             }
             if clientContainer.status == .stopped {
                 ToolbarItem {
@@ -80,9 +80,9 @@ struct CraneDetailsView: View {
                             await viewModel.removeContainer()
                         }
                     } label: {
-                        Label("", systemImage: "trash")
+                        Label("remove", systemImage: "trash")
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(.glass)
                 }
             }
         }

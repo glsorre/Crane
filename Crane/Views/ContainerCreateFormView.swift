@@ -19,17 +19,13 @@ struct ContainerCreateFormView: View {
     }
 
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: Spacing.md) {
             Form {
                 TextField("createContainerName", text: $name)
-                    .textFieldStyle(.roundedBorder)
                 TextField("createContainerExecutable", text: $executable, prompt: Text(image.imageConfiguration?.config?.entrypoint?.joined(separator: " ") ?? ""))
-                    .textFieldStyle(.roundedBorder)
                 TextField("createContainerExecutableArguments", text: $arguments, prompt: Text(image.imageConfiguration?.config?.cmd?.joined(separator: " ") ?? ""))
-                    .textFieldStyle(.roundedBorder)
                 TextField("createContainerEnvironment", text: $environment, axis: .vertical)
                     .lineLimit(5...10)
-                    .textFieldStyle(.roundedBorder)
                 LabeledContent("createContainerNetworks") {
                     VStack {
                         ForEach(Array(NetworksStore.shared.networks), id: \.id) { network in
@@ -47,6 +43,7 @@ struct ContainerCreateFormView: View {
                     }
                 }
             }
+            .formStyle(.grouped)
             .frame(width: 400, alignment: .topLeading)
             SpinnerButton(isLoading: isCreating, action: {
                 Task { @MainActor in
@@ -71,9 +68,9 @@ struct ContainerCreateFormView: View {
             }) {
                 Text("createContainerFromImage")
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.glassProminent)
             .disabled(isDisabled)
         }
-        .padding()
+        .padding(Spacing.sm)
     }
 }

@@ -24,23 +24,17 @@ struct CraneView: View {
     var body: some View {
         NavigationStack(path: $appViewModel.path) {
             TabView {
-                CraneContainersListView()
-                    .tag(1)
-                    .tabItem {
-                        Text("containers")
-                    }
-                CraneImagesListView()
-                    .tag(2)
-                    .tabItem {
-                        Text("images")
-                    }
-                CraneNetworksListView()
-                    .tag(3)
-                    .tabItem {
-                        Text("networks")
-                    }
+                Tab("containers", systemImage: "shippingbox.fill") {
+                    CraneContainersListView()
+                }
+                Tab("images", systemImage: "photo.fill") {
+                    CraneImagesListView()
+                }
+                Tab("networks", systemImage: "network") {
+                    CraneNetworksListView()
+                }
             }
-            .tabViewStyle(.automatic)
+            .tabViewStyle(.sidebarAdaptable)
             .navigationDestination(for: CraneRoute.self) { route in
                 switch route {
                 case .detail(let container):
@@ -49,29 +43,22 @@ struct CraneView: View {
                     CraneContainersListView()
                 }
             }
-            .navigationTransition(.automatic)
         }
-        .alert(isPresented: $appViewModel.errorShow) {
-            var button = Alert.Button.default(Text("refresh")) {
-                Task {
-                    appViewModel.navigateTo(to: .list)
-                    try await ContainersStore.shared.reset()
-                    try await ImagesStore.shared.reset()
-                    try await NetworksStore.shared.reset()
-                }
-            }
+        .alert(String(localized: "craneError"), isPresented: $appViewModel.errorShow) {
             if appViewModel.error?.fatal == true {
-                button = Alert.Button.destructive(Text("quit")) {
+                Button("quit", role: .destructive) { exit(1) }
+            } else {
+                Button("refresh") {
                     Task {
-                        exit(1)
+                        appViewModel.navigateTo(to: .list)
+                        try await ContainersStore.shared.reset()
+                        try await ImagesStore.shared.reset()
+                        try await NetworksStore.shared.reset()
                     }
                 }
             }
-            return Alert(
-                title: Text(String(localized: "craneError")),
-                message: Text(appViewModel.error?.localizedDescription ?? String(localized: "unknownError")),
-                dismissButton: button
-            )
+        } message: {
+            Text(appViewModel.error?.localizedDescription ?? String(localized: "unknownError"))
         }
         .onAppear {
             Task {
