@@ -1,8 +1,19 @@
 import Foundation
 
 enum AppSettings {
+    static var autoRefresh: Bool {
+        UserDefaults.standard.object(forKey: "autoRefresh") == nil
+            ? true
+            : UserDefaults.standard.bool(forKey: "autoRefresh")
+    }
+
     static var refreshInterval: Int {
         max(UserDefaults.standard.integer(forKey: "refreshInterval"), 1)
+    }
+
+    static var maxPollingInterval: Int {
+        let val = UserDefaults.standard.integer(forKey: "maxPollingInterval")
+        return val > 0 ? val : 30
     }
 
     static var logsInterval: Int {

@@ -52,6 +52,7 @@ class VolumesStore {
 
     var volumes: Set<CraneVolume> = []
     var volumesTask: Task<Void, Never>? = nil
+    var resetPolling: (() -> Void)?
 
     var searchText: String = ""
 
@@ -74,12 +75,25 @@ class VolumesStore {
     }
 
     func start() {
-        self.volumesTask = startPolling(interval: { AppSettings.refreshInterval }) {
-            try await self.collect()
+        guard AppSettings.autoRefresh else { return }
+        let (task, reset) = startAdaptivePolling(
+            baseInterval: { AppSettings.refreshInterval },
+            maxInterval: { AppSettings.maxPollingInterval }
+        ) {
+            try await self.collectWithChangeDetection()
         }
+        self.volumesTask = task
+        self.resetPolling = reset
     }
 
-    func collect() async throws {
+    @discardableResult
+    func collect() async throws -> Bool {
+        try await collectWithChangeDetection()
+    }
+
+    private func collectWithChangeDetection() async throws -> Bool {
+        let previousIDs = Set(volumes.map { $0.id })
+
         let currentVolumes = try await ClientVolume.list()
         var currentVolumesSet: Set<CraneVolume> = Set()
 
@@ -96,6 +110,9 @@ class VolumesStore {
         volumesToRemove.forEach { volumeToRemove in
             volumes.remove(volumeToRemove)
         }
+
+        let newIDs = Set(volumes.map { $0.id })
+        return previousIDs != newIDs
     }
 
     func reset() async throws {
@@ -126,6 +143,7 @@ class VolumesStore {
                 AppViewModel.shared.showError(.volumeRemoveFailed(error.localizedDescription))
             }
         }
+        RefreshCoordinator.shared.volumeMutated()
     }
 
     func removeVolume(name: String) async {
@@ -138,11 +156,13 @@ class VolumesStore {
             volume.transiting = false
             AppViewModel.shared.showError(.volumeRemoveFailed(error.localizedDescription))
         }
+        RefreshCoordinator.shared.volumeMutated()
     }
 
     func createVolume(name: String) async throws {
         let volume = try await ClientVolume.create(name: name)
         let volumeModel = CraneVolume(volume: volume)
         volumes.insert(volumeModel)
+        RefreshCoordinator.shared.volumeMutated()
     }
 }

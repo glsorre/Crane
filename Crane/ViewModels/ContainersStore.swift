@@ -50,7 +50,7 @@ class Container : Identifiable, Hashable {
     
     func start() async throws {
         self.transiting = true
-        
+
         try await withTimeout() {
             let io = try ProcessIO.create(tty: true, interactive: false, detach: true)
             defer {
@@ -59,28 +59,32 @@ class Container : Identifiable, Hashable {
             let process = try await self.container.bootstrap(stdio: io.stdio)
             try await process.start()
         }
-        
-        try await Task.sleep(for: .seconds(5))
+
+        try? await Task.sleep(for: .milliseconds(500))
         self.transiting = false
+        await RefreshCoordinator.shared.containerMutated()
     }
-    
+
     func stop() async throws {
         self.transiting = true
-        
+
         try await withTimeout() {
             try await self.container.stop()
         }
-        
-        try await Task.sleep(for: .seconds(5))
+
+        try? await Task.sleep(for: .milliseconds(500))
         self.transiting = false
+        await RefreshCoordinator.shared.containerMutated()
     }
-    
+
     func remove() async throws {
         self.transiting = true
-        
+
         try await withTimeout() {
             try await self.container.delete()
         }
+
+        await RefreshCoordinator.shared.containerMutated()
     }
 }
 
@@ -90,6 +94,7 @@ class ContainersStore {
     
     var containers: Set<Container> = []
     var containersTask: Task<Void, Never>? = nil
+    var resetPolling: (() -> Void)?
 
     var searchText: String = ""
     
@@ -141,12 +146,26 @@ class ContainersStore {
     }
 
     func start() {
-        self.containersTask = startPolling(interval: { AppSettings.refreshInterval }) {
-            try await self.collect()
+        guard AppSettings.autoRefresh else { return }
+        let (task, reset) = startAdaptivePolling(
+            baseInterval: { AppSettings.refreshInterval },
+            maxInterval: { AppSettings.maxPollingInterval }
+        ) {
+            try await self.collectWithChangeDetection()
         }
+        self.containersTask = task
+        self.resetPolling = reset
     }
-    
-    func collect() async throws {
+
+    @discardableResult
+    func collect() async throws -> Bool {
+        try await collectWithChangeDetection()
+    }
+
+    private func collectWithChangeDetection() async throws -> Bool {
+        let previousIDs = Set(containers.map { $0.id })
+        let previousCount = containers.count
+
         let currentContainers = try await ClientContainer.list()
         var currentContainersSet: Set<Container> = Set()
 
@@ -169,6 +188,9 @@ class ContainersStore {
                 containers.remove(container)
             }
         }
+
+        let newIDs = Set(containers.map { $0.id })
+        return previousIDs != newIDs || previousCount != containers.count
     }
     
     func reset() async throws {
@@ -207,6 +229,7 @@ class ContainersStore {
         } catch {
             AppViewModel.shared.showError(.containerRemoveFailed(error.localizedDescription))
         }
+        RefreshCoordinator.shared.containerMutated()
     }
 }
 
