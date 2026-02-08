@@ -20,7 +20,8 @@ private let logger = Logger(subsystem: "me.rightright.RightCrane", category: "La
 struct CraneView: View {
     @State private var appViewModel = AppViewModel.shared
     @State private var containersStore = ContainersStore.shared
-    
+    @State private var isStartingService = false
+
     var body: some View {
         NavigationStack(path: $appViewModel.path) {
             TabView {
@@ -64,19 +65,66 @@ struct CraneView: View {
         } message: {
             Text(appViewModel.error?.localizedDescription ?? String(localized: "unknownError"))
         }
+        .overlay {
+            if isStartingService {
+                VStack(spacing: Spacing.sm) {
+                    ProgressView()
+                        .controlSize(.large)
+                    Text("startingServices")
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(.background)
+            }
+        }
         .onAppear {
             Task {
-                let isRegistered = isServiceLoaded(label: "com.apple.container.apiserver", domain: "gui/\(getuid())")
+                let serviceLabel = "com.apple.container.apiserver"
+                let domain = "gui/\(getuid())"
+                var isRegistered = isServiceLoaded(label: serviceLabel, domain: domain)
+
+                if !isRegistered && AppSettings.launchContainerizationService {
+                    isStartingService = true
+                    logger.info("Starting container service via launchctl bootstrap…")
+                    let started = await startContainerService()
+                    if !started {
+                        logger.warning("startContainerService() failed — plist may be missing (run `container system start` once)")
+                    }
+                    logger.info("startContainerService() returned success=\(started)")
+                    // Wait for the service to register (up to 15s)
+                    for _ in 0..<30 {
+                        try await Task.sleep(for: .milliseconds(500))
+                        if isServiceLoaded(label: serviceLabel, domain: domain) {
+                            isRegistered = true
+                            break
+                        }
+                    }
+                }
+
                 if !isRegistered {
+                    isStartingService = false
                     appViewModel.showError(CraneError.notRegistered)
                     return
+                }
+
+                // Wait for the API server to become responsive (up to 30s)
+                if isStartingService {
+                    logger.info("Service registered, waiting for API server…")
+                }
+                var healthy = false
+                for _ in 0..<60 {
+                    do {
+                        let _ = try await ClientHealthCheck.ping(timeout: .seconds(2))
+                        healthy = true
+                        break
+                    } catch {
+                        try await Task.sleep(for: .milliseconds(500))
                     }
-                
-                do {
-                    let _ = try await ClientHealthCheck.ping(timeout: .seconds(10))
-                } catch {
+                }
+
+                isStartingService = false
+                if !healthy {
                     appViewModel.showError(CraneError.notRunning)
-                    return
                 }
             }
         }

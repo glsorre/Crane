@@ -13,12 +13,12 @@ struct CraneSettingsView: View {
     @AppStorage("autoRefresh") private var autoRefresh: Bool = true
     @AppStorage("refreshInterval") private var refreshInterval: Int = 1
     @AppStorage("maxPollingInterval") private var maxPollingInterval: Int = 30
-    @AppStorage("logsInterval") private var logInterval: Int = 3
 
     var body: some View {
         Form {
             Section("general") {
                 LaunchAtLogin.Toggle(String(localized: "launchAtLogin"))
+                Toggle("launchContainerizationService", isOn: $launchContainerizationFramework)
             }
             Section("autoRefresh") {
                 Toggle("autoRefresh", isOn: $autoRefresh)
@@ -26,11 +26,8 @@ struct CraneSettingsView: View {
                 LabeledContent("listInterval") {
                     NumericField(value: $refreshInterval).frame(width: 80)
                 }
-                LabeledContent("maxPollingInterval") {
+                LabeledContent("maxIdleInterval") {
                     NumericField(value: $maxPollingInterval).frame(width: 80)
-                }
-                LabeledContent("logsInterval") {
-                    NumericField(value: $logInterval).frame(width: 80)
                 }
             }
         }

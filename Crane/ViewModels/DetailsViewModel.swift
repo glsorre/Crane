@@ -13,6 +13,11 @@ import Observation
 import SwiftUI
 import os.log
 
+enum DetailsTab: String, CaseIterable {
+    case information
+    case logs
+}
+
 struct ContainerLogLine: Identifiable {
     let id: Int
     let message: String
@@ -28,21 +33,40 @@ class ContainerLogStream: Identifiable {
 }
 
 @Observable
+class ContainerMetrics {
+    var memoryUsageBytes: UInt64?
+    var memoryLimitBytes: UInt64?
+    var cpuUsageUsec: UInt64?
+    var networkRxBytes: UInt64?
+    var networkTxBytes: UInt64?
+    var blockReadBytes: UInt64?
+    var blockWriteBytes: UInt64?
+    var numProcesses: UInt64?
+    var cpuPercent: Double?
+    var isAvailable: Bool = false
+}
+
+@Observable
 class DetailsViewModel {
     var container: Container
     var currentHandle: Int = 0
+    var selectedTab: DetailsTab = .information
+    var metrics = ContainerMetrics()
 
     var logHandles: [Int: ContainerLogStream] = [:]
 
     var streamingTask: Task<Void, Never>? = nil
+    var metricsTask: Task<Void, Never>? = nil
 
     init(container: Container) {
         self.container = container
         self.start(handleIndex: self.currentHandle)
+        self.startMetricsPolling()
     }
 
     deinit {
         self.stop()
+        self.metricsTask?.cancel()
     }
 
     func bootstrap() async {
@@ -50,7 +74,9 @@ class DetailsViewModel {
             let handlesCount = try await container.container.logs().count
 
             for handleIndex in 0..<handlesCount {
-                self.logHandles[handleIndex] = ContainerLogStream()
+                if self.logHandles[handleIndex] == nil {
+                    self.logHandles[handleIndex] = ContainerLogStream()
+                }
             }
         } catch {
             AppViewModel.shared.showError(.logStreamFailed(error.localizedDescription))
@@ -137,5 +163,57 @@ class DetailsViewModel {
         } else {
             return "System"
         }
+    }
+
+    func startMetricsPolling() {
+        metricsTask = Task { [weak self] in
+            while !Task.isCancelled {
+                guard let self, self.container.container.status == .running else {
+                    self?.metrics.isAvailable = false
+                    try? await Task.sleep(for: .seconds(2))
+                    continue
+                }
+                do {
+                    let sample1 = try await self.container.container.stats()
+                    try await Task.sleep(for: .seconds(2))
+                    if Task.isCancelled { break }
+                    let sample2 = try await self.container.container.stats()
+
+                    self.metrics.memoryUsageBytes = sample2.memoryUsageBytes
+                    self.metrics.memoryLimitBytes = sample2.memoryLimitBytes
+                    self.metrics.networkRxBytes = sample2.networkRxBytes
+                    self.metrics.networkTxBytes = sample2.networkTxBytes
+                    self.metrics.blockReadBytes = sample2.blockReadBytes
+                    self.metrics.blockWriteBytes = sample2.blockWriteBytes
+                    self.metrics.numProcesses = sample2.numProcesses
+                    self.metrics.cpuUsageUsec = sample2.cpuUsageUsec
+
+                    if let cpu1 = sample1.cpuUsageUsec, let cpu2 = sample2.cpuUsageUsec, cpu2 >= cpu1 {
+                        let deltaUsec = Double(cpu2 - cpu1)
+                        self.metrics.cpuPercent = deltaUsec / 2_000_000 * 100
+                    } else {
+                        self.metrics.cpuPercent = nil
+                    }
+
+                    self.metrics.isAvailable = true
+                } catch {
+                    self.metrics.isAvailable = false
+                    try? await Task.sleep(for: .seconds(2))
+                }
+            }
+        }
+    }
+
+    static func formatBytes(_ bytes: UInt64) -> String {
+        let gib = Double(bytes) / (1024 * 1024 * 1024)
+        if gib >= 1 {
+            return String(format: "%.1f GiB", gib)
+        }
+        let mib = Double(bytes) / (1024 * 1024)
+        if mib >= 1 {
+            return String(format: "%.1f MiB", mib)
+        }
+        let kib = Double(bytes) / 1024
+        return String(format: "%.1f KiB", kib)
     }
 }

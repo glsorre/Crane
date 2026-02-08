@@ -16,8 +16,10 @@ enum AppSettings {
         return val > 0 ? val : 30
     }
 
-    static var logsInterval: Int {
-        max(UserDefaults.standard.integer(forKey: "logsInterval"), 1)
+    static var launchContainerizationService: Bool {
+        UserDefaults.standard.object(forKey: "launchContainerizationFramework") == nil
+            ? true
+            : UserDefaults.standard.bool(forKey: "launchContainerizationFramework")
     }
 
     static var persistentContainerIDs: Set<String> {

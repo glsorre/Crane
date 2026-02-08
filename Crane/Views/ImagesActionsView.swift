@@ -4,21 +4,23 @@ import SwiftUI
 
 struct ImagesActionsView: View {
     @SwiftUI.State var image: Image
-    @SwiftUI.State private var createPopupIsVisible: Bool = false
+    @SwiftUI.State private var runSheetIsVisible = false
 
     var body: some View {
         if image.status == .available {
-            HStack {
-                Button(action: {
-                    createPopupIsVisible.toggle()
-                }) {
+            HStack(spacing: 4) {
+                Button {
+                    runSheetIsVisible = true
+                } label: {
                     SwiftUI.Image(systemName: "play.fill")
+                        .font(Font.system(size: 11))
                 }
-                .buttonStyle(.glassProminent)
-                .popover(isPresented: $createPopupIsVisible) {
-                    ContainerCreateFormView(image: image, isPresented: $createPopupIsVisible)
-                }
+                .buttonStyle(.glass)
                 .frame(width: 50)
+                .sheet(isPresented: $runSheetIsVisible) {
+                    ContainerRunView(isPresented: $runSheetIsVisible, initialImageID: image.id)
+                }
+
                 SpinnerButton(isLoading: image.status != .available) {
                     Task {
                         try await ImagesStore.shared.removeImage(reference: image.id)

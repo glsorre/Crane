@@ -10,22 +10,19 @@ import SwiftUI
 struct PublishedPathLabel: View {
     let hostPath: String
     let containerPath: String
-    
+
     init(hostPath: String, containerPath: String) {
         self.hostPath = hostPath
         self.containerPath = containerPath
     }
-    
+
     var body: some View {
-        HStack (spacing: 0) {
+        HStack(spacing: Spacing.xxxs) {
             PathLabel(path: hostPath, host: true)
-                .background(Color(.gray.withAlphaComponent(0.1)))
-                .cornerRadius(4)
-            Text(":")
-                .monospaced()
+            SwiftUI.Image(systemName: "arrow.right")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
             PathLabel(path: containerPath)
-                .background(Color(.gray.withAlphaComponent(0.1)))
-                .cornerRadius(4)
         }
     }
 }

@@ -58,8 +58,9 @@ class Image : Identifiable, Hashable {
         try await ClientImage.delete(reference: self.id)
     }
     
-    func setImage(image: ClientImage) async throws{
+    func setImage(image: ClientImage) async throws {
         self.image = image
+        self.imageConfiguration = try? await image.config(for: .current)
     }
     
     func createContainer(id: String, executable: String, arguments: [String], environment: [String], networks: [Network], autoRemove: Bool = true) async throws {

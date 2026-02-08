@@ -1,5 +1,5 @@
 //
-//  PortLabel.swift
+//  PathLabel.swift
 //  Crane
 //
 //  Created by Giuseppe Lucio Sorrentino on 10/11/25.
@@ -11,38 +11,31 @@ struct PathLabel: View {
     let path: String
     let pathUrl: URL?
     let host: Bool
-    
+
     init(path: String, host: Bool = false) {
         self.path = path
         self.pathUrl = URL(fileURLWithPath: path)
         self.host = host
     }
-    
+
     var body: some View {
-        HStack(spacing: 0) {
+        HStack(spacing: Spacing.xxs) {
             Text(pathUrl?.lastPathComponent ?? "")
                 .font(.callout)
                 .monospaced()
                 .help(path)
-                .padding(Spacing.xxs)
-            if host {
-                Button (action: {
-                    NSWorkspace.shared.activateFileViewerSelecting([pathUrl!])
-                }){
+            if host, let pathUrl {
+                Button(action: {
+                    NSWorkspace.shared.activateFileViewerSelecting([pathUrl])
+                }) {
                     SwiftUI.Image(systemName: "folder")
-                        .renderingMode(.template)
-                        .foregroundColor(Color.accentColor)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
+                .buttonStyle(.borderless)
             }
-            Button(action: {
-                NSPasteboard.general.clearContents()
-                NSPasteboard.general.setString(path, forType: .string)
-            }) {
-                SwiftUI.Image(systemName: "doc.on.doc")
-                    .font(.caption)
-            }
-            .buttonStyle(.borderless)
-            .padding(.horizontal, Spacing.xxs)
+            CopyButton(text: path)
         }
+        .copyableValueStyle()
     }
 }

@@ -10,32 +10,26 @@ import SwiftUI
 struct PortLabel: View {
     let port: Int
     let host: Bool
-    
+
     init(port: Int, host: Bool = false) {
         self.port = port
         self.host = host
     }
-    
+
     var body: some View {
-        HStack(spacing: 0) {
-            Text("\(String(Int(port)))")
+        HStack(spacing: Spacing.xxs) {
+            Text("\(port)")
                 .font(.callout)
                 .monospaced()
-                .padding(Spacing.xxs)
-            if (host) {
+            if host {
                 Link(destination: URL(string: "http://localhost:\(port)")!) {
                     SwiftUI.Image(systemName: "link")
+                        .font(.caption)
                 }
+                .buttonStyle(.borderless)
             }
-            Button(action: {
-                NSPasteboard.general.clearContents()
-                NSPasteboard.general.setString("\(port)", forType: .string)
-            }) {
-                SwiftUI.Image(systemName: "doc.on.doc")
-                    .font(.caption)
-            }
-            .buttonStyle(.borderless)
-            .padding(.horizontal, Spacing.xxs)
+            CopyButton(text: "\(port)")
         }
+        .copyableValueStyle()
     }
 }

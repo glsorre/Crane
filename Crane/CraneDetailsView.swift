@@ -13,45 +13,44 @@ import SwiftUI
 struct CraneDetailsView: View {
     @State var viewModel: DetailsViewModel
     var container: Container
-    
+
     init(container: Container) {
         self.container = container
         self._viewModel = State(initialValue: DetailsViewModel(container: container))
     }
-    
+
     var body: some View {
         let clientContainer = viewModel.container.container
-        
-        TabView(selection: $viewModel.currentHandle) {
-            ForEach(0..<viewModel.logHandles.count, id: \.self) { tabIndex in
-                HStack(spacing: Spacing.md) {
-                    ContainerDetailsInfoView(container: clientContainer)
-                    if !viewModel.logHandles.isEmpty {
-                        ContainerLogsView(viewModel: viewModel)
-                    } else {
-                        ProgressView("loadingLogs")
-                            .progressViewStyle(CircularProgressViewStyle())
-                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-                    }
+
+        VStack(spacing: Spacing.md) {
+            Picker("Tab", selection: $viewModel.selectedTab) {
+                ForEach(DetailsTab.allCases, id: \.self) { tab in
+                    Text(tab.rawValue.capitalized).tag(tab)
                 }
-                .tabItem {
-                    Text(viewModel.getHandleName(handleIndex: tabIndex))
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .frame(maxWidth: 300)
+
+            switch viewModel.selectedTab {
+            case .information:
+                ContainerDetailsInfoView(container: clientContainer, metrics: viewModel.metrics)
+            case .logs:
+                if !viewModel.logHandles.isEmpty {
+                    ContainerLogsView(viewModel: viewModel)
+                } else {
+                    ProgressView("loadingLogs")
+                        .progressViewStyle(CircularProgressViewStyle())
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                 }
-                .tag(tabIndex)
             }
         }
         .onAppear {
             Task {
-                if !viewModel.logHandles.isEmpty {
-                    await viewModel.bootstrap()
-                }
+                await viewModel.bootstrap()
             }
         }
-        .onChange(of: viewModel.currentHandle) { _, newValue in
-            viewModel.start(handleIndex: newValue)
-        }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .tabViewStyle(.automatic)
         .padding(Spacing.md)
         .toolbar {
             if !container.isExited {

@@ -25,6 +25,7 @@ enum CraneError: LocalizedError {
     case networkCreateFailed(String)
     case logStreamFailed(String)
     case imageBuildFailed(String)
+    case containerCreateFailed(String)
     case networkRemoveFailed(String)
     case volumeCreateFailed(String)
     case volumeRemoveFailed(String)
@@ -55,6 +56,8 @@ enum CraneError: LocalizedError {
             return "Failed to stream logs: \(detail)"
         case .imageBuildFailed(let detail):
             return "Failed to build image: \(detail)"
+        case .containerCreateFailed(let detail):
+            return "Failed to create container: \(detail)"
         case .networkRemoveFailed(let detail):
             return "Failed to remove network: \(detail)"
         case .volumeCreateFailed(let detail):
