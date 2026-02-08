@@ -79,6 +79,7 @@ struct CraneView: View {
         }
         .onAppear {
             Task {
+                guard !AppSettings.isRunningTests else { return }
                 let serviceLabel = "com.apple.container.apiserver"
                 let domain = "gui/\(getuid())"
                 var isRegistered = isServiceLoaded(label: serviceLabel, domain: domain)
