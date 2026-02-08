@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		1A0BD0032F0E800000000003 /* Highlightr in Frameworks */ = {isa = PBXBuildFile; productRef = 1A0BD0022F0E800000000002 /* Highlightr */; };
 		1A36E77B2EC504C00067D8B3 /* ContainerLog in Frameworks */ = {isa = PBXBuildFile; productRef = 1A36E77A2EC504C00067D8B3 /* ContainerLog */; };
 		1A36E77F2EC504C00067D8B3 /* ContainerPersistence in Frameworks */ = {isa = PBXBuildFile; productRef = 1A36E77E2EC504C00067D8B3 /* ContainerPersistence */; };
 		1A36E7812EC504C00067D8B3 /* ContainerPlugin in Frameworks */ = {isa = PBXBuildFile; productRef = 1A36E7802EC504C00067D8B3 /* ContainerPlugin */; };
@@ -52,6 +53,7 @@
 				1AB8D2972EBE73DB00421B16 /* ContainerCommands in Frameworks */,
 				1AB8D2932EBE73DB00421B16 /* ContainerBuild in Frameworks */,
 				1AB8D2992EBE73DB00421B16 /* ContainerImagesService in Frameworks */,
+				1A0BD0032F0E800000000003 /* Highlightr in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -107,6 +109,7 @@
 				1A36E7842EC504C00067D8B3 /* ContainerVersion */,
 				1A36E7862EC504C00067D8B3 /* ContainerXPC */,
 				1A36E7882EC504C00067D8B3 /* SocketForwarder */,
+				1A0BD0022F0E800000000002 /* Highlightr */,
 			);
 			productName = Crane;
 			productReference = 1AB8D2802EBE72D200421B16 /* Right Crane.app */;
@@ -140,6 +143,7 @@
 				1AB8D28F2EBE73DB00421B16 /* XCRemoteSwiftPackageReference "container" */,
 				1AF136B22EC4DE8800FDF4AC /* XCRemoteSwiftPackageReference "LaunchAtLogin-Modern" */,
 				1A04D5BA2ECB621F00787F31 /* XCRemoteSwiftPackageReference "swift-argument-parser" */,
+				1A0BD0012F0E800000000001 /* XCRemoteSwiftPackageReference "Highlightr" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 1AB8D2812EBE72D200421B16 /* Products */;
@@ -428,6 +432,14 @@
 				minimumVersion = 1.6.2;
 			};
 		};
+		1A0BD0012F0E800000000001 /* XCRemoteSwiftPackageReference "Highlightr" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/raspu/Highlightr";
+			requirement = {
+				branch = master;
+				kind = branch;
+			};
+		};
 		1AB8D28F2EBE73DB00421B16 /* XCRemoteSwiftPackageReference "container" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/apple/container";
@@ -447,6 +459,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		1A0BD0022F0E800000000002 /* Highlightr */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1A0BD0012F0E800000000001 /* XCRemoteSwiftPackageReference "Highlightr" */;
+			productName = Highlightr;
+		};
 		1A36E77A2EC504C00067D8B3 /* ContainerLog */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 1AB8D28F2EBE73DB00421B16 /* XCRemoteSwiftPackageReference "container" */;

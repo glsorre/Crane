@@ -62,7 +62,7 @@ class Image : Identifiable, Hashable {
         self.image = image
     }
     
-    func createContainer(id: String, executable: String, arguments: [String], environment: [String], networks: [Network]) async throws {
+    func createContainer(id: String, executable: String, arguments: [String], environment: [String], networks: [Network], autoRemove: Bool = true) async throws {
         let processConfiguration: ProcessConfiguration = ProcessConfiguration(
             executable: executable,
             arguments: arguments,
@@ -80,11 +80,16 @@ class Image : Identifiable, Hashable {
             AttachmentConfiguration(network: network.id, options: AttachmentOptions(hostname: network.id))
         }
         
+        let options = ContainerCreateOptions(autoRemove: autoRemove)
         _ = try await ClientContainer.create(
             configuration: containerConfiguration,
-            options: .default,
+            options: options,
             kernel: ClientKernel.getDefaultKernel(for: .current)
         )
+
+        if !autoRemove {
+            AppSettings.addPersistentContainerID(id)
+        }
 
         try? await ContainersStore.shared.collect()
     }

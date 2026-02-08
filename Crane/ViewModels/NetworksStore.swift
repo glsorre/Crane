@@ -103,6 +103,43 @@ class NetworksStore {
         try await self.collect()
     }
     
+    var hasEmptyNetworks: Bool {
+        let containersForNetwork = ContainersStore.shared.containersForNetwork
+        return networks.contains { network in
+            !network.network.isBuiltin && (containersForNetwork[network.id] ?? []).isEmpty
+        }
+    }
+
+    func pruneNetworks() async {
+        let containersForNetwork = ContainersStore.shared.containersForNetwork
+        let emptyNetworks = networks.filter { network in
+            !network.network.isBuiltin && (containersForNetwork[network.id] ?? []).isEmpty
+        }
+
+        for network in emptyNetworks {
+            network.transiting = true
+            do {
+                try await ClientNetwork.delete(id: network.id)
+                networks.remove(network)
+            } catch {
+                network.transiting = false
+                AppViewModel.shared.showError(.networkRemoveFailed(error.localizedDescription))
+            }
+        }
+    }
+
+    func removeNetwork(id: String) async {
+        guard let network = networks.first(where: { $0.id == id }) else { return }
+        network.transiting = true
+        do {
+            try await ClientNetwork.delete(id: network.id)
+            networks.remove(network)
+        } catch {
+            network.transiting = false
+            AppViewModel.shared.showError(.networkRemoveFailed(error.localizedDescription))
+        }
+    }
+
     func createNetwork(id: String) async throws {
         let network = try await ClientNetwork.create(configuration: try .init(id: id, mode: NetworkMode.nat))
         let networkModel = Network(network: network)
