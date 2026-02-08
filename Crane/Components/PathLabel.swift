@@ -21,9 +21,10 @@ struct PathLabel: View {
     var body: some View {
         HStack(spacing: 0) {
             Text(pathUrl?.lastPathComponent ?? "")
+                .font(.callout)
                 .monospaced()
                 .help(path)
-                .padding(5)
+                .padding(Spacing.xxs)
             if host {
                 Button (action: {
                     NSWorkspace.shared.activateFileViewerSelecting([pathUrl!])
@@ -41,7 +42,7 @@ struct PathLabel: View {
                     .font(.caption)
             }
             .buttonStyle(.borderless)
-            .padding(5)
+            .padding(.horizontal, Spacing.xxs)
         }
     }
 }

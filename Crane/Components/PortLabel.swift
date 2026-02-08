@@ -19,8 +19,9 @@ struct PortLabel: View {
     var body: some View {
         HStack(spacing: 0) {
             Text("\(String(Int(port)))")
+                .font(.callout)
                 .monospaced()
-                .padding(5)
+                .padding(Spacing.xxs)
             if (host) {
                 Link(destination: URL(string: "http://localhost:\(port)")!) {
                     SwiftUI.Image(systemName: "link")
@@ -34,7 +35,7 @@ struct PortLabel: View {
                     .font(.caption)
             }
             .buttonStyle(.borderless)
-            .padding(5)
+            .padding(.horizontal, Spacing.xxs)
         }
     }
 }

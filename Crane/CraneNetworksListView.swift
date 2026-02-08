@@ -87,11 +87,10 @@ struct CraneNetworksListView: View {
                 }) {
                     SwiftUI.Image(systemName: "plus")
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.glass)
                 .popover(isPresented: $creatingPopupIsVisible) {
                     Form {
                         TextField(String(localized: "networkToCreateName"), text: $networkToCreate)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
                         Button(action: {
                             Task {
                                 do {
@@ -104,12 +103,13 @@ struct CraneNetworksListView: View {
                         }) {
                             Text(String(localized: "networkToCreate"))
                         }
-                        .buttonStyle(.borderedProminent)
+                        .buttonStyle(.glassProminent)
                         .controlSize(.regular)
                         .disabled(networkToCreate.isEmpty)
                     }
+                    .formStyle(.grouped)
                     .frame(width: 400)
-                    .padding()
+                    .padding(Spacing.sm)
                 }
             }
         }
@@ -133,10 +133,12 @@ struct CraneNetworksListView: View {
                 switch item {
                 case .network(let network):
                     Label(network.id, systemImage: "network")
-                        .padding(5)
+                        .font(.callout)
+                        .padding(.vertical, Spacing.xxs)
                 case .container(let container, _):
                     Text(container.id)
-                        .padding(5)
+                        .font(.callout)
+                        .padding(.vertical, Spacing.xxs)
                         .foregroundColor(.secondary)
                 }
             }
@@ -146,7 +148,9 @@ struct CraneNetworksListView: View {
                     EmptyView()
                 case .container(let container, let networkKey):
                     let attachment = container.container.networks.first { $0.network == networkKey }
-                    Text(attachment.map { "\($0.ipv4Address)" } ?? "").foregroundColor(.secondary)
+                    Text(attachment.map { "\($0.ipv4Address)" } ?? "")
+                        .font(.callout)
+                        .foregroundColor(.secondary)
                         .monospaced()
                 }
             }

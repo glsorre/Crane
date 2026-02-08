@@ -82,36 +82,34 @@ struct CraneImagesListView: View {
             .tableStyle(.inset)
             .toolbar {
                 ToolbarItem(placement: .navigation) {
-                    VStack(spacing: 20) {
-                        Button(action: {
-                            fetchingPopupIsVisible.toggle()
-                        }) {
-                            SwiftUI.Image(systemName: "plus")
-                        }
-                        .buttonStyle(.bordered)
-                        .popover(isPresented: $fetchingPopupIsVisible) {
-                            Form {
-                                TextField(String(localized: "fetchImageUrl"), text: $imageToFetch)
-                                    .textFieldStyle(RoundedBorderTextFieldStyle())
-                                Button(action: {
-                                    Task {
-                                        do {
-                                            fetchingPopupIsVisible.toggle()
-                                            try await imagesStore.fetchImage(reference: imageToFetch)
-                                        } catch {
-                                            AppViewModel.shared.showError(.imageFetchFailed(error.localizedDescription))
-                                        }
+                    Button(action: {
+                        fetchingPopupIsVisible.toggle()
+                    }) {
+                        SwiftUI.Image(systemName: "plus")
+                    }
+                    .buttonStyle(.glass)
+                    .popover(isPresented: $fetchingPopupIsVisible) {
+                        Form {
+                            TextField(String(localized: "fetchImageUrl"), text: $imageToFetch)
+                            Button(action: {
+                                Task {
+                                    do {
+                                        fetchingPopupIsVisible.toggle()
+                                        try await imagesStore.fetchImage(reference: imageToFetch)
+                                    } catch {
+                                        AppViewModel.shared.showError(.imageFetchFailed(error.localizedDescription))
                                     }
-                                }) {
-                                    Text(String(localized: "fetchImage"))
                                 }
-                                .buttonStyle(.borderedProminent)
-                                .controlSize(.regular)
-                                .disabled(imageToFetch.isEmpty)
+                            }) {
+                                Text(String(localized: "fetchImage"))
                             }
-                            .frame(width: 400)
-                            .padding()
+                            .buttonStyle(.glassProminent)
+                            .controlSize(.regular)
+                            .disabled(imageToFetch.isEmpty)
                         }
+                        .formStyle(.grouped)
+                        .frame(width: 400)
+                        .padding(Spacing.sm)
                     }
                 }
             }
@@ -135,10 +133,12 @@ struct CraneImagesListView: View {
                 switch item {
                 case .image(let image):
                     Label(image.id, systemImage: "photo.fill")
-                        .padding(5)
+                        .font(.callout)
+                        .padding(.vertical, Spacing.xxs)
                 case .container(let container, _):
                     Text(container.id)
-                        .padding(5)
+                        .font(.callout)
+                        .padding(.vertical, Spacing.xxs)
                         .foregroundColor(.secondary)
                 }
             }

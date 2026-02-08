@@ -14,7 +14,7 @@ struct ContainerLogsView: View {
         let handleIndex = viewModel.currentHandle
         let handleMetadata = viewModel.logHandles[handleIndex] ?? .init()
         
-        VStack(spacing: 10) {
+        VStack(spacing: Spacing.xs) {
             SelectableLogText(
                 logs: Binding(
                     get: { handleMetadata.logs.map { $0.message } },
@@ -34,7 +34,7 @@ struct ContainerLogsView: View {
                 )
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .cornerRadius(8)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
             
             Toggle("followLogs", isOn: Binding(
                 get: { handleMetadata.followLogs },

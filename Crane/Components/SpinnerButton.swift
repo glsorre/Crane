@@ -22,11 +22,11 @@ struct SpinnerButton<Label: View>: View {
         Button(action: action) {
             HStack {
                 if isLoading {
-                    AnyView(ProgressView()
+                    ProgressView()
                         .progressViewStyle(.circular)
-                        .controlSize(.small))
+                        .controlSize(.small)
                 } else {
-                    AnyView(label())
+                    label()
                 }
             }
         }
