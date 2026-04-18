@@ -86,10 +86,10 @@ struct CraneView: View {
 
                 if !isRegistered && AppSettings.launchContainerizationService {
                     isStartingService = true
-                    logger.info("Starting container service via launchctl bootstrap…")
+                    logger.info("Starting container service…")
                     let started = await startContainerService()
                     if !started {
-                        logger.warning("startContainerService() failed — plist may be missing (run `container system start` once)")
+                        logger.warning("startContainerService() failed")
                     }
                     logger.info("startContainerService() returned success=\(started)")
                     // Wait for the service to register (up to 15s)

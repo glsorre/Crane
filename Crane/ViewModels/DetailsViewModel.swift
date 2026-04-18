@@ -71,7 +71,7 @@ class DetailsViewModel {
 
     func bootstrap() async {
         do {
-            let handlesCount = try await container.container.logs().count
+            let handlesCount = try await container.logs().count
 
             for handleIndex in 0..<handlesCount {
                 if self.logHandles[handleIndex] == nil {
@@ -93,7 +93,7 @@ class DetailsViewModel {
                 }
                 guard let logMetadata = self.logHandles[handleIndex] else { return }
 
-                let fileHandle = try await container.container.logs()[handleIndex]
+                let fileHandle = try await container.logs()[handleIndex]
 
                 // Bulk-read existing content
                 if let reader = StreamReader(fileHandle: fileHandle) {
@@ -168,16 +168,16 @@ class DetailsViewModel {
     func startMetricsPolling() {
         metricsTask = Task { [weak self] in
             while !Task.isCancelled {
-                guard let self, self.container.container.status == .running else {
+                guard let self, self.container.snapshot.status == .running else {
                     self?.metrics.isAvailable = false
                     try? await Task.sleep(for: .seconds(2))
                     continue
                 }
                 do {
-                    let sample1 = try await self.container.container.stats()
+                    let sample1 = try await self.container.stats()
                     try await Task.sleep(for: .seconds(2))
                     if Task.isCancelled { break }
-                    let sample2 = try await self.container.container.stats()
+                    let sample2 = try await self.container.stats()
 
                     self.metrics.memoryUsageBytes = sample2.memoryUsageBytes
                     self.metrics.memoryLimitBytes = sample2.memoryLimitBytes

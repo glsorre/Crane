@@ -20,7 +20,7 @@ struct CraneDetailsView: View {
     }
 
     var body: some View {
-        let clientContainer = viewModel.container.container
+        let clientContainer = viewModel.container.snapshot
 
         VStack(spacing: Spacing.md) {
             Picker("Tab", selection: $viewModel.selectedTab) {
@@ -34,7 +34,7 @@ struct CraneDetailsView: View {
 
             switch viewModel.selectedTab {
             case .information:
-                ContainerDetailsInfoView(container: clientContainer, metrics: viewModel.metrics)
+                ContainerDetailsInfoView(snapshot: clientContainer, metrics: viewModel.metrics)
             case .logs:
                 if !viewModel.logHandles.isEmpty {
                     ContainerLogsView(viewModel: viewModel)

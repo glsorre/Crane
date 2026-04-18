@@ -16,7 +16,7 @@ struct ContainerActionsView: View {
     
     var body: some View {
         let container = containersStore.containers.first(where: { $0.id == id })
-        let clientContainer = container?.container
+        let clientContainer = container?.snapshot
         
         HStack {
             if container?.isExited != true {

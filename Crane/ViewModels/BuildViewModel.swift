@@ -32,6 +32,8 @@ enum BuildStatus: Equatable {
 
 @Observable
 class BuildViewModel {
+    private let containerClient = ContainerClient()
+
     var status: BuildStatus = .idle
 
     func build(tag: String, dockerfileContent: String) async {
@@ -39,9 +41,9 @@ class BuildViewModel {
 
         do {
             // 1. Ensure builder running
-            let container: ClientContainer
+            let container: ContainerSnapshot
             do {
-                container = try await ClientContainer.get(id: "buildkit")
+                container = try await containerClient.get(id: "buildkit")
             } catch {
                 status = .failed("BuildKit container not found. Run 'container builder start' in Terminal.")
                 return
@@ -49,16 +51,16 @@ class BuildViewModel {
 
             var fh: FileHandle
             do {
-                fh = try await container.dial(8088)
+                fh = try await containerClient.dial(id: container.id, port: 8088)
             } catch {
                 // Container exists but might be stopped — try to start it
                 do {
                     let io = try ProcessIO.create(tty: true, interactive: false, detach: true)
                     defer { _ = try? io.close() }
-                    let process = try await container.bootstrap(stdio: io.stdio)
+                    let process = try await containerClient.bootstrap(id: container.id, stdio: io.stdio)
                     try await process.start()
                     try await Task.sleep(for: .seconds(5))
-                    fh = try await container.dial(8088)
+                    fh = try await containerClient.dial(id: container.id, port: 8088)
                 } catch {
                     status = .failed("Failed to start BuildKit: \(error.localizedDescription)")
                     return
@@ -101,8 +103,10 @@ class BuildViewModel {
                 buildID: buildID,
                 contentStore: RemoteContentStoreClient(),
                 buildArgs: [],
+                secrets: [:],
                 contextDir: tempDir.path,
                 dockerfile: dockerfileData,
+                hiddenDockerDir: nil,
                 labels: [],
                 noCache: false,
                 platforms: [platform],
@@ -112,7 +116,8 @@ class BuildViewModel {
                 quiet: true,
                 exports: [export],
                 cacheIn: [],
-                cacheOut: []
+                cacheOut: [],
+                pull: false
             )
 
             // 7. Build

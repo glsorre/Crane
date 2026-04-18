@@ -27,30 +27,30 @@ final class ContainersStoreTests: CraneTestBase {
         config.networks = []
 
         let options = ContainerCreateOptions(autoRemove: true)
-        let created = try await ClientContainer.create(
+        try await containerClient.create(
             configuration: config,
             options: options,
-            kernel: ClientKernel.getDefaultKernel(for: .current)
+            kernel: try await defaultKernel()
         )
 
         // Start container
         let io = try ProcessIO.create(tty: false, interactive: false, detach: true)
         defer { _ = try? io.close() }
-        let proc = try await created.bootstrap(stdio: io.stdio)
+        let proc = try await containerClient.bootstrap(id: containerID, stdio: io.stdio)
         try await proc.start()
 
         // Verify it appears in container list
         try await waitForCondition {
-            let list = try await ClientContainer.list()
+            let list = try await self.containerClient.list()
             return list.contains { $0.id == containerID }
         }
 
         // Stop
-        try await created.stop()
+        try await containerClient.stop(id: containerID)
 
         // Verify it's gone (autoRemove)
         try await waitForCondition {
-            let list = try await ClientContainer.list()
+            let list = try await self.containerClient.list()
             return !list.contains { $0.id == containerID }
         }
     }

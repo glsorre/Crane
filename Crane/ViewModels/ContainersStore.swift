@@ -14,90 +14,113 @@ import SwiftUI
 import os.log
 
 @Observable
-class Container : Identifiable, Hashable {
+class Container: Identifiable, Hashable {
+    private static let client = ContainerClient()
+
     static func == (lhs: Container, rhs: Container) -> Bool {
         lhs.id == rhs.id
     }
-    
-    static func == (lhs: Container, rhs: ClientContainer) -> Bool {
-        lhs.id == rhs.id
-    }
-    
-    static func == (lhs: ClientContainer, rhs: Container) -> Bool {
-        lhs.id == rhs.id
-    }
-    
+
     func hash(into hasher: inout Hasher) {
         hasher.combine(id)
     }
-    
+
     var id: String
-    var container: ClientContainer
+    var snapshot: ContainerSnapshot
     var transiting: Bool
     var isExited: Bool = false
     var autoRemove: Bool = true
 
-    init(container: ClientContainer) {
-        self.id = container.id
-        self.container = container
+    init(snapshot: ContainerSnapshot) {
+        self.id = snapshot.id
+        self.snapshot = snapshot
         self.transiting = false
-        self.autoRemove = !AppSettings.persistentContainerIDs.contains(container.id)
+        self.autoRemove = !AppSettings.persistentContainerIDs.contains(snapshot.id)
     }
-    
-    func update(container: ClientContainer) {
-        self.container = container
+
+    func update(snapshot: ContainerSnapshot) {
+        self.snapshot = snapshot
     }
-    
+
     func start() async throws {
         self.transiting = true
 
-        try await withTimeout() {
-            let io = try ProcessIO.create(tty: true, interactive: false, detach: true)
-            defer {
-                _ = try? io.close()
+        do {
+            try await withTimeout {
+                let io = try ProcessIO.create(tty: true, interactive: false, detach: true)
+                defer {
+                    _ = try? io.close()
+                }
+                let process = try await Self.client.bootstrap(id: self.id, stdio: io.stdio)
+                try await process.start()
             }
-            let process = try await self.container.bootstrap(stdio: io.stdio)
-            try await process.start()
+        } catch {
+            self.transiting = false
+            throw error
         }
 
         try? await Task.sleep(for: .milliseconds(500))
         self.transiting = false
-        await RefreshCoordinator.shared.containerMutated()
+        RefreshCoordinator.shared.containerMutated()
     }
 
     func stop() async throws {
         self.transiting = true
 
-        try await withTimeout() {
-            try await self.container.stop()
+        do {
+            try await withTimeout {
+                try await Self.client.stop(id: self.id)
+            }
+        } catch {
+            self.transiting = false
+            throw error
         }
 
         try? await Task.sleep(for: .milliseconds(500))
         self.transiting = false
-        await RefreshCoordinator.shared.containerMutated()
+        RefreshCoordinator.shared.containerMutated()
     }
 
     func remove() async throws {
         self.transiting = true
 
-        try await withTimeout() {
-            try await self.container.delete()
+        do {
+            try await withTimeout {
+                try await Self.client.delete(id: self.id)
+            }
+        } catch {
+            self.transiting = false
+            throw error
         }
 
-        await RefreshCoordinator.shared.containerMutated()
+        RefreshCoordinator.shared.containerMutated()
+    }
+
+    func logs() async throws -> [FileHandle] {
+        try await Self.client.logs(id: id)
+    }
+
+    func dial(_ port: UInt32) async throws -> FileHandle {
+        try await Self.client.dial(id: id, port: port)
+    }
+
+    func stats() async throws -> ContainerStats {
+        try await Self.client.stats(id: id)
     }
 }
 
 @Observable
 class ContainersStore {
     static let shared = ContainersStore()
-    
+
+    private let client = ContainerClient()
+
     var containers: Set<Container> = []
     var containersTask: Task<Void, Never>? = nil
     var resetPolling: (() -> Void)?
 
     var searchText: String = ""
-    
+
     var sortedFilteredContainers: [Container] {
         containers
             .sorted { $0.id < $1.id }
@@ -105,26 +128,26 @@ class ContainersStore {
     }
 
     var images: [ImageDescription] {
-        Set(containers).compactMap { $0.container.configuration.image }
+        containers.compactMap { $0.snapshot.configuration.image }
     }
 
     var containersForImage: [String: [Container]] {
-        Dictionary(grouping: containers) { $0.container.configuration.image.reference }
+        Dictionary(grouping: containers) { $0.snapshot.configuration.image.reference }
     }
 
     var networks: [AttachmentConfiguration] {
-        containers.flatMap { $0.container.configuration.networks }
+        containers.flatMap { $0.snapshot.configuration.networks }
     }
 
     var containersForNetwork: [String: [Container]] {
         Dictionary(grouping: containers.flatMap { container in
-            container.container.configuration.networks.map { ($0, container) }
+            container.snapshot.configuration.networks.map { ($0, container) }
         }, by: { $0.0.network }).mapValues { $0.map(\.1) }
     }
 
     var containersForVolume: [String: [Container]] {
         Dictionary(grouping: containers.flatMap { container in
-            container.container.configuration.mounts
+            container.snapshot.configuration.mounts
                 .filter { $0.isVolume }
                 .compactMap { mount -> (String, Container)? in
                     guard let name = mount.volumeName else { return nil }
@@ -132,15 +155,15 @@ class ContainersStore {
                 }
         }, by: { $0.0 }).mapValues { $0.map(\.1) }
     }
-    
+
     private init() {
         self.start()
     }
-    
+
     deinit {
         self.stop()
     }
-    
+
     func stop() {
         self.containersTask?.cancel()
     }
@@ -166,14 +189,14 @@ class ContainersStore {
         let previousIDs = Set(containers.map { $0.id })
         let previousCount = containers.count
 
-        let currentContainers = try await ClientContainer.list()
-        var currentContainersSet: Set<Container> = Set()
+        let currentSnapshots = try await client.list()
+        var currentContainersSet: Set<Container> = []
 
-        for clientContainer in currentContainers {
-            let newContainer = Container(container: clientContainer)
+        for snapshot in currentSnapshots {
+            let newContainer = Container(snapshot: snapshot)
             currentContainersSet.insert(newContainer)
             if let container = containers.first(where: { $0.id == newContainer.id }) {
-                container.update(container: clientContainer)
+                container.update(snapshot: snapshot)
                 container.isExited = false
             }
             containers.insert(newContainer)
@@ -192,12 +215,12 @@ class ContainersStore {
         let newIDs = Set(containers.map { $0.id })
         return previousIDs != newIDs || previousCount != containers.count
     }
-    
+
     func reset() async throws {
         containers.removeAll()
         try await self.collect()
     }
-    
+
     func startContainer(id: String) async {
         guard let container = containers.first(where: { $0.id == id }) else { return }
         do {
@@ -232,4 +255,3 @@ class ContainersStore {
         RefreshCoordinator.shared.containerMutated()
     }
 }
-
