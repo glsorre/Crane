@@ -5,16 +5,12 @@
 //  Created by Giuseppe Lucio Sorrentino on 11/11/25.
 //
 
-import ContainerAPIClient
-import ContainerResource
 import SwiftUI
 
 struct CraneNetworksListView: View {
-    @State private var appViewModel = AppViewModel.shared
     @State private var networksStore = NetworksStore.shared
 
-    @State private var creatingPopupIsVisible: Bool = false
-    @State private var networkToCreate: String = ""
+    @State private var createSheetIsVisible = false
 
     var body: some View {
         List(networksStore.sortedFilteredNetworks) { network in
@@ -36,35 +32,15 @@ struct CraneNetworksListView: View {
             }
             ToolbarItem(placement: .navigation) {
                 Button(action: {
-                    creatingPopupIsVisible.toggle()
+                    createSheetIsVisible = true
                 }) {
                     SwiftUI.Image(systemName: "plus")
                 }
                 .buttonStyle(.glass)
-                .popover(isPresented: $creatingPopupIsVisible) {
-                    Form {
-                        TextField(String(localized: "networkToCreateName"), text: $networkToCreate)
-                        Button(action: {
-                            Task {
-                                do {
-                                    creatingPopupIsVisible.toggle()
-                                    try await networksStore.createNetwork(id: networkToCreate)
-                                } catch {
-                                    AppViewModel.shared.showError(.networkCreateFailed(error.localizedDescription))
-                                }
-                            }
-                        }) {
-                            Text(String(localized: "networkToCreate"))
-                        }
-                        .buttonStyle(.glassProminent)
-                        .controlSize(.regular)
-                        .disabled(networkToCreate.isEmpty)
-                    }
-                    .formStyle(.grouped)
-                    .frame(width: 400)
-                    .padding(Spacing.sm)
-                }
             }
+        }
+        .sheet(isPresented: $createSheetIsVisible) {
+            NetworkCreateView(isPresented: $createSheetIsVisible)
         }
         .searchable(text: $networksStore.searchText, placement: .toolbar)
     }

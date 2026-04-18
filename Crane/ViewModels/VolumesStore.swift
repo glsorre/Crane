@@ -54,6 +54,8 @@ class VolumesStore {
     var volumesTask: Task<Void, Never>? = nil
     var resetPolling: (() -> Void)?
 
+    private var pendingDeletionIDs: Set<String> = []
+
     var searchText: String = ""
 
     var sortedFilteredVolumes: [CraneVolume] {
@@ -95,9 +97,12 @@ class VolumesStore {
         let previousIDs = Set(volumes.map { $0.id })
 
         let currentVolumes = try await ClientVolume.list()
+        let currentIDs = Set(currentVolumes.map(\.name))
+        pendingDeletionIDs.formIntersection(currentIDs)
+
         var currentVolumesSet: Set<CraneVolume> = Set()
 
-        for vol in currentVolumes {
+        for vol in currentVolumes where !pendingDeletionIDs.contains(vol.name) {
             let newVolume = CraneVolume(volume: vol)
             currentVolumesSet.insert(newVolume)
             if let volume = volumes.first(where: { $0.id == newVolume.id }) {
@@ -117,7 +122,16 @@ class VolumesStore {
 
     func reset() async throws {
         volumes.removeAll()
+        pendingDeletionIDs.removeAll()
         try await self.collect()
+    }
+
+    func beginPendingDeletion(_ id: String) {
+        pendingDeletionIDs.insert(id)
+    }
+
+    func endPendingDeletion(_ id: String) {
+        pendingDeletionIDs.remove(id)
     }
 
     var hasUnusedVolumes: Bool {
@@ -135,10 +149,12 @@ class VolumesStore {
 
         for volume in unusedVolumes {
             volume.transiting = true
+            beginPendingDeletion(volume.id)
             do {
                 try await ClientVolume.delete(name: volume.id)
                 volumes.remove(volume)
             } catch {
+                endPendingDeletion(volume.id)
                 volume.transiting = false
                 AppViewModel.shared.showError(.volumeRemoveFailed(error.localizedDescription))
             }
@@ -149,10 +165,12 @@ class VolumesStore {
     func removeVolume(name: String) async {
         guard let volume = volumes.first(where: { $0.id == name }) else { return }
         volume.transiting = true
+        beginPendingDeletion(volume.id)
         do {
             try await ClientVolume.delete(name: volume.id)
             volumes.remove(volume)
         } catch {
+            endPendingDeletion(volume.id)
             volume.transiting = false
             AppViewModel.shared.showError(.volumeRemoveFailed(error.localizedDescription))
         }
@@ -160,6 +178,7 @@ class VolumesStore {
     }
 
     func createVolume(name: String) async throws {
+        endPendingDeletion(name)
         let volume = try await ClientVolume.create(name: name)
         let volumeModel = CraneVolume(volume: volume)
         volumes.insert(volumeModel)

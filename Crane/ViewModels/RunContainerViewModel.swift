@@ -49,16 +49,16 @@ class RunContainerViewModel {
     // Identity
     var name: String = ""
     var selectedImageID: String?
+    var selectedNetworkID: String?
 
     // Process
-    var command: String = ""
+    var useImageDefaultCommand: Bool = true
+    var executable: String = ""
+    var arguments: String = ""
     var environment: String = ""
     var workingDirectory: String = ""
     var terminal: Bool = false
     var userString: String = ""
-
-    // Networks
-    var selectedNetworks: Set<String> = []
 
     // Ports / Sockets / Mounts
     var ports: [PortEntry] = []
@@ -91,35 +91,211 @@ class RunContainerViewModel {
     var error: String?
     var success: Bool = false
 
-    func prefillFromImage() {
-        guard let imageID = selectedImageID,
-              let image = ImagesStore.shared.images.first(where: { $0.id == imageID }),
-              let config = image.imageConfiguration?.config else { return }
+    private var didBootstrapSelection = false
+    private var nameWasCustomized = false
+    private var commandWasCustomized = false
+    private var environmentWasCustomized = false
+    private var workingDirectoryWasCustomized = false
+    private var userWasCustomized = false
 
-        let parts = (config.entrypoint ?? []) + (config.cmd ?? [])
-        if !parts.isEmpty {
-            command = parts.joined(separator: " ")
+    private var imageDefaultArguments: [String] = []
+    private var imageDefaultEnvironment: [String] = []
+    private var imageDefaultWorkingDirectory: String = ""
+    private var imageDefaultUser: String = ""
+
+    var availableImageHasDefaultCommand: Bool {
+        !imageDefaultArguments.isEmpty
+    }
+
+    var defaultCommandPreview: String {
+        shellJoin(imageDefaultArguments)
+    }
+
+    var imageValidationMessage: String? {
+        selectedImageID == nil ? String(localized: "Select an image.") : nil
+    }
+
+    var nameValidationMessage: String? {
+        let trimmedName = name.trimmed
+        guard !trimmedName.isEmpty else {
+            return String(localized: "Enter a container name.")
         }
-        if let env = config.env, !env.isEmpty {
-            environment = env.joined(separator: "\n")
+        if ContainersStore.shared.containers.contains(where: { $0.id == trimmedName }) {
+            return String(localized: "A container with this name already exists.")
         }
-        if let wd = config.workingDir, !wd.isEmpty {
-            workingDirectory = wd
+        return nil
+    }
+
+    var commandValidationMessage: String? {
+        guard selectedImageID != nil else { return nil }
+
+        if useImageDefaultCommand {
+            return availableImageHasDefaultCommand
+                ? nil
+                : String(localized: "This image doesn’t provide a default command. Enter an executable.")
         }
-        if let user = config.user, !user.isEmpty {
-            userString = user
+
+        return executable.trimmed.isEmpty ? String(localized: "Enter an executable.") : nil
+    }
+
+    var environmentValidationMessage: String? {
+        let invalidLine = parsedEnvironmentLines.first(where: { !$0.contains("=") })
+        guard invalidLine != nil else { return nil }
+        return String(localized: "Environment values must use KEY=value format.")
+    }
+
+    var portValidationMessage: String? {
+        var seenMappings = Set<String>()
+
+        for entry in ports where !entry.isBlank {
+            guard !entry.hostPort.trimmed.isEmpty, !entry.containerPort.trimmed.isEmpty else {
+                return String(localized: "Port mappings need both a host and container port.")
+            }
+            guard let hostPort = UInt16(entry.hostPort.trimmed), hostPort > 0,
+                  let containerPort = UInt16(entry.containerPort.trimmed), containerPort > 0 else {
+                return String(localized: "Ports must be numbers between 1 and 65535.")
+            }
+
+            let key = "\(hostPort)-\(entry.proto.rawValue)"
+            if !seenMappings.insert(key).inserted {
+                return String(localized: "Each host port can only be published once per protocol.")
+            }
+            _ = containerPort
         }
-        if let imageLabels = config.labels, !imageLabels.isEmpty {
-            labels = imageLabels.map { KeyValueEntry(key: $0.key, value: $0.value) }
+
+        return nil
+    }
+
+    var mountValidationMessage: String? {
+        for entry in mounts where !entry.isBlank {
+            guard !entry.destination.trimmed.isEmpty else {
+                return String(localized: "Every mount needs a destination path in the container.")
+            }
+
+            switch entry.type {
+            case .bind, .volume:
+                guard !entry.source.trimmed.isEmpty else {
+                    return String(localized: "Folder and volume mounts need a source.")
+                }
+            case .tmpfs:
+                break
+            }
         }
+
+        return nil
+    }
+
+    var socketValidationMessage: String? {
+        for entry in sockets where !entry.isBlank {
+            guard !entry.hostPath.trimmed.isEmpty, !entry.containerPath.trimmed.isEmpty else {
+                return String(localized: "Socket forwards need both host and container paths.")
+            }
+        }
+        return nil
+    }
+
+    var validationMessage: String? {
+        imageValidationMessage
+            ?? nameValidationMessage
+            ?? commandValidationMessage
+            ?? environmentValidationMessage
+            ?? portValidationMessage
+            ?? mountValidationMessage
+            ?? socketValidationMessage
+    }
+
+    var canRun: Bool {
+        selectedImageID != nil && validationMessage == nil && !isCreating
+    }
+
+    func bootstrapSelection(initialImageID: String?, fallbackImageID: String?) {
+        guard !didBootstrapSelection else { return }
+        if let imageID = initialImageID ?? fallbackImageID {
+            didBootstrapSelection = true
+            selectImage(imageID)
+        }
+    }
+
+    func selectImage(_ imageID: String?) {
+        selectedImageID = imageID
+        clearStatus()
+        applyImageDefaults()
+    }
+
+    func updateName(_ value: String) {
+        name = value
+        nameWasCustomized = true
+        clearStatus()
+    }
+
+    func updateUseImageDefaultCommand(_ value: Bool) {
+        useImageDefaultCommand = value
+        commandWasCustomized = true
+        clearStatus()
+    }
+
+    func updateExecutable(_ value: String) {
+        executable = value
+        commandWasCustomized = true
+        clearStatus()
+    }
+
+    func updateArguments(_ value: String) {
+        arguments = value
+        commandWasCustomized = true
+        clearStatus()
+    }
+
+    func updateEnvironment(_ value: String) {
+        environment = value
+        environmentWasCustomized = true
+        clearStatus()
+    }
+
+    func updateWorkingDirectory(_ value: String) {
+        workingDirectory = value
+        workingDirectoryWasCustomized = true
+        clearStatus()
+    }
+
+    func updateUserString(_ value: String) {
+        userString = value
+        userWasCustomized = true
+        clearStatus()
+    }
+
+    func addPort() {
+        ports.append(PortEntry())
+    }
+
+    func addBindMount() {
+        mounts.append(MountEntry(type: .bind))
+    }
+
+    func addVolumeMount() {
+        mounts.append(MountEntry(type: .volume))
+    }
+
+    func addTmpfsMount() {
+        mounts.append(MountEntry(type: .tmpfs))
+    }
+
+    func addSocket() {
+        sockets.append(SocketEntry())
     }
 
     @MainActor
     func run() async {
+        if let validationMessage {
+            error = validationMessage
+            success = false
+            return
+        }
+
         guard let imageID = selectedImageID,
               let image = ImagesStore.shared.images.first(where: { $0.id == imageID }),
               let clientImage = image.image else {
-            error = "No image selected or image not available"
+            error = String(localized: "No image selected or image not available")
             return
         }
 
@@ -128,123 +304,65 @@ class RunContainerViewModel {
         success = false
 
         do {
-            // Build ProcessConfiguration
-            let envLines = environment.split(separator: "\n").map(String.init)
-            let user: ProcessConfiguration.User = userString.isEmpty
-                ? .id(uid: 0, gid: 0)
-                : .raw(userString: userString)
+            let processConfig = try buildProcessConfiguration()
+            let containerName = name.trimmed
 
-            let cmdParts = command.split(separator: " ", maxSplits: 1)
-            let exe = cmdParts.first.map(String.init) ?? ""
-            let args = cmdParts.dropFirst().first.map { $0.split(separator: " ").map(String.init) } ?? []
-
-            let processConfig = ProcessConfiguration(
-                executable: exe,
-                arguments: args,
-                environment: envLines,
-                workingDirectory: workingDirectory.isEmpty ? "/" : workingDirectory,
-                terminal: terminal,
-                user: user
-            )
-
-            // Build ContainerConfiguration
             var config = ContainerConfiguration(
-                id: name,
+                id: containerName,
                 image: clientImage.description,
                 process: processConfig
             )
 
-            // Published ports
-            config.publishedPorts = ports.compactMap { entry -> PublishPort? in
-                guard let hp = UInt16(entry.hostPort),
-                      let cp = UInt16(entry.containerPort),
-                      let addr = try? IPAddress("0.0.0.0") else { return nil }
-                return PublishPort(
-                    hostAddress: addr,
-                    hostPort: hp,
-                    containerPort: cp,
-                    proto: entry.proto,
-                    count: 1
+            config.publishedPorts = try buildPublishedPorts()
+            config.publishedSockets = buildPublishedSockets()
+            config.mounts = buildMounts()
+
+            if let selectedNetworkID = selectedNetworkID?.trimmed, !selectedNetworkID.isEmpty {
+                config.networks = [
+                    AttachmentConfiguration(
+                        network: selectedNetworkID,
+                        options: AttachmentOptions(hostname: containerName)
+                    )
+                ]
+            }
+
+            let labelPairs = labels.filter { !$0.key.trimmed.isEmpty }
+            if !labelPairs.isEmpty {
+                config.labels = Dictionary(
+                    labelPairs.map { ($0.key.trimmed, $0.value) },
+                    uniquingKeysWith: { _, last in last }
                 )
             }
 
-            // Published sockets
-            config.publishedSockets = sockets.compactMap { entry in
-                guard !entry.hostPath.isEmpty, !entry.containerPath.isEmpty else { return nil }
-                return PublishSocket(
-                    containerPath: URL(fileURLWithPath: entry.containerPath),
-                    hostPath: URL(fileURLWithPath: entry.hostPath)
+            let sysctlPairs = sysctls.filter { !$0.key.trimmed.isEmpty }
+            if !sysctlPairs.isEmpty {
+                config.sysctls = Dictionary(
+                    sysctlPairs.map { ($0.key.trimmed, $0.value) },
+                    uniquingKeysWith: { _, last in last }
                 )
             }
 
-            // Mounts
-            config.mounts = mounts.compactMap { entry in
-                guard !entry.destination.isEmpty else { return nil }
-                let opts: [String] = entry.readOnly ? ["ro"] : []
-                switch entry.type {
-                case .bind:
-                    guard !entry.source.isEmpty else { return nil }
-                    return Filesystem.virtiofs(
-                        source: entry.source,
-                        destination: entry.destination,
-                        options: opts
-                    )
-                case .volume:
-                    guard !entry.source.isEmpty else { return nil }
-                    return Filesystem.volume(
-                        name: entry.source,
-                        format: "raw",
-                        source: entry.source,
-                        destination: entry.destination,
-                        options: opts
-                    )
-                case .tmpfs:
-                    return Filesystem.tmpfs(
-                        destination: entry.destination,
-                        options: opts
-                    )
-                }
-            }
-
-            // Networks
-            config.networks = NetworksStore.shared.networks
-                .filter { selectedNetworks.contains($0.id) }
-                .map { AttachmentConfiguration(network: $0.id, options: AttachmentOptions(hostname: $0.id)) }
-
-            // Labels & Sysctls
-            config.labels = Dictionary(
-                labels.filter { !$0.key.isEmpty }.map { ($0.key, $0.value) },
-                uniquingKeysWith: { _, last in last }
-            )
-            config.sysctls = Dictionary(
-                sysctls.filter { !$0.key.isEmpty }.map { ($0.key, $0.value) },
-                uniquingKeysWith: { _, last in last }
-            )
-
-            // DNS
-            let hasAnyDNS = !dnsNameservers.isEmpty || !dnsDomain.isEmpty || !dnsSearchDomains.isEmpty || !dnsOptions.isEmpty
-            if hasAnyDNS {
+            if hasAnyDNSOverride {
                 config.dns = ContainerConfiguration.DNSConfiguration(
-                    nameservers: dnsNameservers.isEmpty ? ContainerConfiguration.DNSConfiguration.defaultNameservers : dnsNameservers.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) },
-                    domain: dnsDomain.isEmpty ? nil : dnsDomain,
-                    searchDomains: dnsSearchDomains.isEmpty ? [] : dnsSearchDomains.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) },
-                    options: dnsOptions.isEmpty ? [] : dnsOptions.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
+                    nameservers: commaSeparatedValues(from: dnsNameservers).isEmpty
+                        ? ContainerConfiguration.DNSConfiguration.defaultNameservers
+                        : commaSeparatedValues(from: dnsNameservers),
+                    domain: dnsDomain.trimmed.isEmpty ? nil : dnsDomain.trimmed,
+                    searchDomains: commaSeparatedValues(from: dnsSearchDomains),
+                    options: commaSeparatedValues(from: dnsOptions)
                 )
             }
 
-            // Resources
             var resources = ContainerConfiguration.Resources()
             resources.cpus = cpus
-            resources.memoryInBytes = UInt64(memoryGiB).mib() * 1024
+            resources.memoryInBytes = UInt64(memoryGiB).gib()
             config.resources = resources
 
-            // Toggles
             config.rosetta = rosetta
             config.readOnly = readOnly
             config.virtualization = virtualization
             config.ssh = ssh
 
-            // Create
             let options = ContainerCreateOptions(autoRemove: autoRemove)
             let containerClient = ContainerClient()
             try await containerClient.create(
@@ -254,7 +372,7 @@ class RunContainerViewModel {
             )
 
             if !autoRemove {
-                AppSettings.addPersistentContainerID(name)
+                AppSettings.addPersistentContainerID(containerName)
             }
 
             RefreshCoordinator.shared.containerMutated()
@@ -265,5 +383,304 @@ class RunContainerViewModel {
         }
 
         isCreating = false
+    }
+
+    private func clearStatus() {
+        error = nil
+        success = false
+    }
+
+    private func applyImageDefaults() {
+        imageDefaultArguments = []
+        imageDefaultEnvironment = []
+        imageDefaultWorkingDirectory = ""
+        imageDefaultUser = ""
+
+        guard let imageID = selectedImageID else {
+            if !nameWasCustomized { name = "" }
+            if !commandWasCustomized {
+                useImageDefaultCommand = true
+                executable = ""
+                arguments = ""
+            }
+            if !environmentWasCustomized { environment = "" }
+            if !workingDirectoryWasCustomized { workingDirectory = "" }
+            if !userWasCustomized { userString = "" }
+            return
+        }
+
+        if !nameWasCustomized || name.trimmed.isEmpty {
+            name = suggestedName(for: imageID)
+        }
+
+        guard let config = ImagesStore.shared.images.first(where: { $0.id == imageID })?.imageConfiguration?.config else {
+            if !commandWasCustomized {
+                useImageDefaultCommand = false
+                executable = ""
+                arguments = ""
+            }
+            if !environmentWasCustomized { environment = "" }
+            if !workingDirectoryWasCustomized { workingDirectory = "" }
+            if !userWasCustomized { userString = "" }
+            return
+        }
+
+        imageDefaultArguments = (config.entrypoint ?? []) + (config.cmd ?? [])
+        imageDefaultEnvironment = config.env ?? []
+        imageDefaultWorkingDirectory = config.workingDir ?? ""
+        imageDefaultUser = config.user ?? ""
+
+        if !commandWasCustomized {
+            useImageDefaultCommand = !imageDefaultArguments.isEmpty
+            executable = imageDefaultArguments.first ?? ""
+            arguments = shellJoin(Array(imageDefaultArguments.dropFirst()))
+        }
+        if !environmentWasCustomized {
+            environment = imageDefaultEnvironment.joined(separator: "\n")
+        }
+        if !workingDirectoryWasCustomized {
+            workingDirectory = imageDefaultWorkingDirectory
+        }
+        if !userWasCustomized {
+            userString = imageDefaultUser
+        }
+    }
+
+    private func suggestedName(for imageID: String) -> String {
+        let withoutDigest = imageID.split(separator: "@").first.map(String.init) ?? imageID
+        let lastPathComponent = withoutDigest.split(separator: "/").last.map(String.init) ?? withoutDigest
+        let sanitized = lastPathComponent
+            .lowercased()
+            .replacingOccurrences(of: ":", with: "-")
+            .map { char -> Character in
+                if char.isLetter || char.isNumber || char == "-" || char == "_" || char == "." {
+                    return char
+                }
+                return "-"
+            }
+        let base = String(sanitized)
+            .replacingOccurrences(of: "--+", with: "-", options: .regularExpression)
+            .trimmingCharacters(in: CharacterSet(charactersIn: "-."))
+        let resolvedBase = base.isEmpty ? "container" : base
+
+        let existingNames = Set(ContainersStore.shared.containers.map(\.id))
+        if !existingNames.contains(resolvedBase) {
+            return resolvedBase
+        }
+
+        var suffix = 2
+        while existingNames.contains("\(resolvedBase)-\(suffix)") {
+            suffix += 1
+        }
+        return "\(resolvedBase)-\(suffix)"
+    }
+
+    private func buildProcessConfiguration() throws -> ProcessConfiguration {
+        let processArguments: [String]
+        if useImageDefaultCommand {
+            processArguments = imageDefaultArguments
+        } else {
+            processArguments = [executable.trimmed] + shellSplit(arguments)
+        }
+
+        guard let executable = processArguments.first, !executable.isEmpty else {
+            throw RunContainerFormError(String(localized: "Enter an executable."))
+        }
+
+        let finalEnvironment = environmentWasCustomized ? parsedEnvironmentLines : imageDefaultEnvironment
+        let resolvedWorkingDirectory = workingDirectoryWasCustomized
+            ? (workingDirectory.trimmed.isEmpty ? "/" : workingDirectory.trimmed)
+            : (imageDefaultWorkingDirectory.isEmpty ? "/" : imageDefaultWorkingDirectory)
+        let resolvedUserString = userWasCustomized ? userString.trimmed : imageDefaultUser.trimmed
+        let user: ProcessConfiguration.User = resolvedUserString.isEmpty
+            ? .id(uid: 0, gid: 0)
+            : .raw(userString: resolvedUserString)
+
+        return ProcessConfiguration(
+            executable: executable,
+            arguments: Array(processArguments.dropFirst()),
+            environment: finalEnvironment,
+            workingDirectory: resolvedWorkingDirectory,
+            terminal: terminal,
+            user: user
+        )
+    }
+
+    private func buildPublishedPorts() throws -> [PublishPort] {
+        try ports.compactMap { entry -> PublishPort? in
+            guard !entry.isBlank else { return nil }
+            guard let hostPort = UInt16(entry.hostPort.trimmed),
+                  let containerPort = UInt16(entry.containerPort.trimmed),
+                  let hostAddress = try? IPAddress("0.0.0.0") else {
+                throw RunContainerFormError(String(localized: "Ports must be numbers between 1 and 65535."))
+            }
+
+            return PublishPort(
+                hostAddress: hostAddress,
+                hostPort: hostPort,
+                containerPort: containerPort,
+                proto: entry.proto,
+                count: 1
+            )
+        }
+    }
+
+    private func buildPublishedSockets() -> [PublishSocket] {
+        sockets.compactMap { entry in
+            guard !entry.isBlank else { return nil }
+            return PublishSocket(
+                containerPath: URL(fileURLWithPath: entry.containerPath.trimmed),
+                hostPath: URL(fileURLWithPath: entry.hostPath.trimmed)
+            )
+        }
+    }
+
+    private func buildMounts() -> [Filesystem] {
+        mounts.compactMap { entry in
+            guard !entry.isBlank else { return nil }
+            let options = entry.readOnly ? ["ro"] : []
+
+            switch entry.type {
+            case .bind:
+                return Filesystem.virtiofs(
+                    source: entry.source.trimmed,
+                    destination: entry.destination.trimmed,
+                    options: options
+                )
+            case .volume:
+                return Filesystem.volume(
+                    name: entry.source.trimmed,
+                    format: "raw",
+                    source: entry.source.trimmed,
+                    destination: entry.destination.trimmed,
+                    options: options
+                )
+            case .tmpfs:
+                return Filesystem.tmpfs(
+                    destination: entry.destination.trimmed,
+                    options: options
+                )
+            }
+        }
+    }
+
+    private var parsedEnvironmentLines: [String] {
+        environment
+            .split(separator: "\n")
+            .map { String($0).trimmed }
+            .filter { !$0.isEmpty }
+    }
+
+    private var hasAnyDNSOverride: Bool {
+        !dnsNameservers.trimmed.isEmpty
+            || !dnsDomain.trimmed.isEmpty
+            || !dnsSearchDomains.trimmed.isEmpty
+            || !dnsOptions.trimmed.isEmpty
+    }
+
+    private func commaSeparatedValues(from value: String) -> [String] {
+        value
+            .split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+    }
+
+    private func shellSplit(_ input: String) -> [String] {
+        var values: [String] = []
+        var current = ""
+        var isEscaping = false
+        var quote: Character?
+
+        for char in input {
+            if isEscaping {
+                current.append(char)
+                isEscaping = false
+                continue
+            }
+
+            if char == "\\" && quote != "'" {
+                isEscaping = true
+                continue
+            }
+
+            if char == "\"" || char == "'" {
+                if quote == char {
+                    quote = nil
+                } else if quote == nil {
+                    quote = char
+                } else {
+                    current.append(char)
+                }
+                continue
+            }
+
+            if char.isWhitespace && quote == nil {
+                if !current.isEmpty {
+                    values.append(current)
+                    current = ""
+                }
+                continue
+            }
+
+            current.append(char)
+        }
+
+        if !current.isEmpty {
+            values.append(current)
+        }
+
+        return values
+    }
+
+    private func shellJoin(_ values: [String]) -> String {
+        values.map { value in
+            if value.contains(where: { $0.isWhitespace || $0 == "\"" || $0 == "'" }) {
+                let escaped = value.replacingOccurrences(of: "\"", with: "\\\"")
+                return "\"\(escaped)\""
+            }
+            return value
+        }
+        .joined(separator: " ")
+    }
+}
+
+private struct RunContainerFormError: LocalizedError {
+    let message: String
+
+    init(_ message: String) {
+        self.message = message
+    }
+
+    var errorDescription: String? {
+        message
+    }
+}
+
+private extension String {
+    var trimmed: String {
+        trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+}
+
+private extension PortEntry {
+    var isBlank: Bool {
+        hostPort.trimmed.isEmpty && containerPort.trimmed.isEmpty
+    }
+}
+
+private extension SocketEntry {
+    var isBlank: Bool {
+        hostPath.trimmed.isEmpty && containerPath.trimmed.isEmpty
+    }
+}
+
+private extension MountEntry {
+    var isBlank: Bool {
+        switch type {
+        case .bind, .volume:
+            return source.trimmed.isEmpty && destination.trimmed.isEmpty
+        case .tmpfs:
+            return destination.trimmed.isEmpty
+        }
     }
 }
