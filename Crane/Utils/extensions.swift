@@ -18,7 +18,7 @@ extension Logger {
     static let crane = Logger(subsystem: "me.rightright.RightCrane", category: "General")
 }
 
-extension ClientContainer: @retroactive Identifiable {}
+extension ContainerSnapshot: @retroactive Identifiable {}
 
 func mountDisplaySource(_ mount: Filesystem) -> String {
     mount.isVolume ? String(mount.source.dropLast(11)) : mount.source

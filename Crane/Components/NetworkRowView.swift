@@ -23,14 +23,14 @@ struct NetworkRowView: View {
             ForEach(children) { container in
                 HStack {
                     Circle()
-                        .fill(container.isExited ? .secondary : container.container.status.getColor())
+                        .fill(container.isExited ? .secondary : container.snapshot.status.getColor())
                         .frame(width: 8, height: 8)
 
                     Text(container.id)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
 
-                    if let attachment = container.container.networks.first(where: { $0.network == network.id }) {
+                    if let attachment = container.snapshot.networks.first(where: { $0.network == network.id }) {
                         Text("\(attachment.ipv4Address)")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)

@@ -6,8 +6,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/swift-server/async-http-client.git",
       "state" : {
-        "revision" : "efb14fec9f79f3f8d4f2a6c0530303efb6fe6533",
-        "version" : "1.29.1"
+        "revision" : "c464bf94eac4273cad7424307a5dc7e44e361905",
+        "version" : "1.30.1"
       }
     },
     {
@@ -15,8 +15,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/container",
       "state" : {
-        "revision" : "3e49dcef4e48121fb26a7e41f8730d7a81f5c3be",
-        "version" : "0.9.0"
+        "revision" : "d9b8a8d197c076a373ece871f3953de0d2a385a8",
+        "version" : "0.11.0"
       }
     },
     {
@@ -24,8 +24,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/containerization.git",
       "state" : {
-        "revision" : "c3fe889a2f739ee4a9b0faccedd9f36f3862dc29",
-        "version" : "0.24.5"
+        "revision" : "420b915d8b4b0bc5d7edc638b985ee8fd32a3fbe",
+        "version" : "0.29.0"
       }
     },
     {
@@ -43,7 +43,7 @@
       "location" : "https://github.com/raspu/Highlightr",
       "state" : {
         "branch" : "master",
-        "revision" : "ae9aa92a70e627298e31172124217c000e30fea3"
+        "revision" : "da9bb2e4604da001f1d1a1adaa55f6a38509b405"
       }
     },
     {

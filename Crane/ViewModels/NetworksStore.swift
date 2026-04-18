@@ -160,7 +160,13 @@ class NetworksStore {
     }
 
     func createNetwork(id: String) async throws {
-        let network = try await ClientNetwork.create(configuration: try .init(id: id, mode: NetworkMode.nat))
+        let network = try await ClientNetwork.create(
+            configuration: try .init(
+                id: id,
+                mode: NetworkMode.nat,
+                pluginInfo: NetworkPluginInfo(plugin: "container-network-vmnet")
+            )
+        )
         let networkModel = Network(network: network)
         networks.insert(networkModel)
         RefreshCoordinator.shared.networkMutated()

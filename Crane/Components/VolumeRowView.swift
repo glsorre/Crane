@@ -23,14 +23,14 @@ struct VolumeRowView: View {
             ForEach(children) { container in
                 HStack {
                     Circle()
-                        .fill(container.isExited ? .secondary : container.container.status.getColor())
+                        .fill(container.isExited ? .secondary : container.snapshot.status.getColor())
                         .frame(width: 8, height: 8)
 
                     Text(container.id)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
 
-                    if let mount = container.container.configuration.mounts
+                    if let mount = container.snapshot.configuration.mounts
                         .first(where: { $0.isVolume && $0.volumeName == volume.id }) {
                         Text(mount.destination)
                             .font(.subheadline)

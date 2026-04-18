@@ -16,7 +16,7 @@ struct ContainerRowView: View {
             // Line 1: status dot + name + actions
             HStack {
                 Circle()
-                    .fill(container.isExited ? .secondary : container.container.status.getColor())
+                    .fill(container.isExited ? .secondary : container.snapshot.status.getColor())
                     .frame(width: 8, height: 8)
 
                 Text(container.id)
@@ -41,11 +41,11 @@ struct ContainerRowView: View {
     private var metadataSummary: String {
         var parts: [String] = []
 
-        let cpus = container.container.configuration.resources.cpus
-        let memGiB = container.container.configuration.resources.memoryInBytes / 1024 / 1024 / 1024
+        let cpus = container.snapshot.configuration.resources.cpus
+        let memGiB = container.snapshot.configuration.resources.memoryInBytes / 1024 / 1024 / 1024
         parts.append("\(cpus) CPUs \u{00B7} \(memGiB) GiB")
 
-        let networks = container.container.networks
+        let networks = container.snapshot.networks
         if let first = networks.first {
             if networks.count == 1 {
                 parts.append("\(first.network) (\(first.ipv4Address))")
@@ -54,19 +54,19 @@ struct ContainerRowView: View {
             }
         }
 
-        if container.container.status == .running {
-            let portCount = container.container.configuration.publishedPorts.count
+        if container.snapshot.status == .running {
+            let portCount = container.snapshot.configuration.publishedPorts.count
             if portCount > 0 {
                 parts.append("\(portCount) port\(portCount == 1 ? "" : "s")")
             }
 
-            let socketCount = container.container.configuration.publishedSockets.count
+            let socketCount = container.snapshot.configuration.publishedSockets.count
             if socketCount > 0 {
                 parts.append("\(socketCount) socket\(socketCount == 1 ? "" : "s")")
             }
         }
 
-        let mountCount = container.container.configuration.mounts.count
+        let mountCount = container.snapshot.configuration.mounts.count
         if mountCount > 0 {
             parts.append("\(mountCount) mount\(mountCount == 1 ? "" : "s")")
         }

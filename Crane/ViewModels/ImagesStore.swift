@@ -82,10 +82,11 @@ class Image : Identifiable, Hashable {
         }
         
         let options = ContainerCreateOptions(autoRemove: autoRemove)
-        _ = try await ClientContainer.create(
+        let containerClient = ContainerClient()
+        try await containerClient.create(
             configuration: containerConfiguration,
             options: options,
-            kernel: ClientKernel.getDefaultKernel(for: .current)
+            kernel: try await ClientKernel.getDefaultKernel(for: .current)
         )
 
         if !autoRemove {

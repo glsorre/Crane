@@ -22,7 +22,7 @@ struct ImageRowView: View {
             ForEach(children) { container in
                 HStack {
                     Circle()
-                        .fill(container.isExited ? .secondary : container.container.status.getColor())
+                        .fill(container.isExited ? .secondary : container.snapshot.status.getColor())
                         .frame(width: 8, height: 8)
 
                     Text(container.id)

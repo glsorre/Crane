@@ -1,10 +1,14 @@
 @testable import Crane
 import ContainerAPIClient
 import ContainerResource
+import Containerization
+import ContainerizationError
 import XCTest
 
 class CraneTestBase: XCTestCase {
     static let testPrefix = "crane-test-"
+
+    let containerClient = ContainerClient()
 
     func uniqueName() -> String {
         Self.testPrefix + UUID().uuidString.prefix(8).lowercased()
@@ -18,15 +22,15 @@ class CraneTestBase: XCTestCase {
         NetworksStore.shared.stop()
         VolumesStore.shared.stop()
         // Fail fast if apiserver is not reachable
-        _ = try await ClientContainer.list()
+        _ = try await containerClient.list()
     }
 
     override func tearDown() async throws {
         // Sweep test containers
-        let containers = try await ClientContainer.list()
+        let containers = try await containerClient.list()
         for c in containers where c.id.hasPrefix(Self.testPrefix) {
-            try? await c.stop()
-            try? await c.delete()
+            try? await containerClient.stop(id: c.id)
+            try? await containerClient.delete(id: c.id)
         }
 
         // Sweep test networks
@@ -42,6 +46,14 @@ class CraneTestBase: XCTestCase {
         }
 
         try await super.tearDown()
+    }
+
+    func defaultKernel() async throws -> Kernel {
+        do {
+            return try await ClientKernel.getDefaultKernel(for: .current)
+        } catch let error as ContainerizationError where error.isCode(.notFound) {
+            throw XCTSkip("Default container kernel is not configured. Run `container system kernel set --recommended`.")
+        }
     }
 
     func waitForCondition(

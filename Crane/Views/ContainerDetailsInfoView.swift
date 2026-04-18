@@ -5,7 +5,6 @@
 //  Created by Giuseppe Lucio Sorrentino on 11/11/25.
 //
 
-import ContainerAPIClient
 import ContainerResource
 import SwiftUI
 
@@ -29,14 +28,14 @@ private struct MetricRow: View {
 }
 
 struct ContainerDetailsInfoView: View {
-    var container: ClientContainer
+    var snapshot: ContainerSnapshot
     var metrics: ContainerMetrics
 
     var body: some View {
         ScrollView {
             VStack(spacing: Spacing.md) {
                 containerDetailsCard
-                if container.status == .running {
+                if snapshot.status == .running {
                     metricsCard
                 }
             }
@@ -46,7 +45,7 @@ struct ContainerDetailsInfoView: View {
 
     private var containerDetailsCard: some View {
         VStack(spacing: Spacing.md) {
-            Label(container.id, systemImage: "shippingbox.fill")
+            Label(snapshot.id, systemImage: "shippingbox.fill")
                 .font(.title3).fontWeight(.semibold)
                 .monospaced()
                 .textSelection(.enabled)
@@ -56,10 +55,10 @@ struct ContainerDetailsInfoView: View {
 
             HStack(spacing: Spacing.xs) {
                 Label {
-                    Text(container.status.getDescription())
+                    Text(snapshot.status.getDescription())
                 } icon: {
-                    SwiftUI.Image(systemName: container.status == .running ? "circle.fill" : "circle")
-                        .foregroundStyle(container.status.getColor())
+                    SwiftUI.Image(systemName: snapshot.status == .running ? "circle.fill" : "circle")
+                        .foregroundStyle(snapshot.status.getColor())
                 }
                 .font(.subheadline)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -70,7 +69,7 @@ struct ContainerDetailsInfoView: View {
                     .font(.subheadline)
                     .foregroundStyle(Color.accentColor)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                Text(container.configuration.image.reference)
+                Text(snapshot.configuration.image.reference)
                     .font(.callout)
                     .monospaced()
                     .textSelection(.enabled)
@@ -84,7 +83,7 @@ struct ContainerDetailsInfoView: View {
                     Label("cpus", systemImage: "cpu.fill")
                         .font(.subheadline)
                         .foregroundStyle(Color.accentColor)
-                    Text("\(container.configuration.resources.cpus) cores")
+                    Text("\(snapshot.configuration.resources.cpus) cores")
                         .font(.callout)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -93,13 +92,13 @@ struct ContainerDetailsInfoView: View {
                     Label("memory", systemImage: "memorychip.fill")
                         .font(.subheadline)
                         .foregroundStyle(Color.accentColor)
-                    Text("\(container.configuration.resources.memoryInBytes / 1024 / 1024 / 1024) GiB")
+                    Text("\(snapshot.configuration.resources.memoryInBytes / 1024 / 1024 / 1024) GiB")
                         .font(.callout)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
 
-            if container.status == .running {
+            if snapshot.status == .running {
                 runningSections
             }
         }
@@ -111,56 +110,56 @@ struct ContainerDetailsInfoView: View {
 
     @ViewBuilder
     private var runningSections: some View {
-        if !container.networks.isEmpty {
+        if !snapshot.networks.isEmpty {
             Divider()
             VStack(spacing: Spacing.xs) {
                 Label("ips", systemImage: "network")
                     .font(.subheadline)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .foregroundStyle(Color.accentColor)
-                ForEach(container.networks, id: \.hostname) { network in
+                ForEach(snapshot.networks, id: \.hostname) { network in
                     IPLabel(ip: "\(network.ipv4Address)", networkName: network.network)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
         }
 
-        if !container.configuration.publishedPorts.isEmpty {
+        if !snapshot.configuration.publishedPorts.isEmpty {
             Divider()
             VStack(spacing: Spacing.xs) {
                 Label("ports", systemImage: "arrow.down.left.topright.rectangle.fill")
                     .font(.subheadline)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .foregroundStyle(Color.accentColor)
-                ForEach(container.configuration.publishedPorts, id: \.containerPort) { publishedPort in
+                ForEach(snapshot.configuration.publishedPorts, id: \.containerPort) { publishedPort in
                     PublishedPortLabel(hostPort: Int(publishedPort.hostPort), containerPort: Int(publishedPort.containerPort))
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
         }
 
-        if !container.configuration.publishedSockets.isEmpty {
+        if !snapshot.configuration.publishedSockets.isEmpty {
             Divider()
             VStack(spacing: Spacing.xs) {
                 Label("sockets", systemImage: "arrow.down.left.topright.rectangle.fill")
                     .font(.subheadline)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .foregroundStyle(Color.accentColor)
-                ForEach(container.configuration.publishedSockets, id: \.containerPath) { publishedSocket in
+                ForEach(snapshot.configuration.publishedSockets, id: \.containerPath) { publishedSocket in
                     PublishedPathLabel(hostPath: publishedSocket.hostPath.absoluteString, containerPath: publishedSocket.containerPath.absoluteString)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
         }
 
-        if !container.configuration.mounts.isEmpty {
+        if !snapshot.configuration.mounts.isEmpty {
             Divider()
             VStack(spacing: Spacing.xs) {
                 Label("mounts", systemImage: "internaldrive.fill")
                     .font(.subheadline)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .foregroundStyle(Color.accentColor)
-                ForEach(container.configuration.mounts, id: \.destination) { mount in
+                ForEach(snapshot.configuration.mounts, id: \.destination) { mount in
                     PublishedPathLabel(hostPath: mountDisplaySource(mount), containerPath: mount.destination)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
