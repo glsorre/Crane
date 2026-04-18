@@ -23,6 +23,8 @@ enum CraneError: LocalizedError {
     case containerShellFailed(String)
     case containerRemoveFailed(String)
     case imageRemoveFailed(String)
+    case imageTagFailed(String)
+    case imageRenameFailed(String)
     case imageFetchFailed(String)
     case networkCreateFailed(String)
     case logStreamFailed(String)
@@ -54,6 +56,10 @@ enum CraneError: LocalizedError {
             return "Failed to remove container: \(detail)"
         case .imageRemoveFailed(let detail):
             return "Failed to remove image: \(detail)"
+        case .imageTagFailed(let detail):
+            return String(localized: "imageTagFailedDetail \(detail)")
+        case .imageRenameFailed(let detail):
+            return String(localized: "imageRenameFailedDetail \(detail)")
         case .imageFetchFailed(let detail):
             return "Failed to fetch image: \(detail)"
         case .networkCreateFailed(let detail):
