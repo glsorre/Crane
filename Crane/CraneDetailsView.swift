@@ -72,6 +72,27 @@ struct CraneDetailsView: View {
                     }
                     .buttonStyle(.glass)
                 }
+                if clientContainer.status == .running {
+                    ToolbarItem {
+                        SpinnerButton(isLoading: viewModel.container.transiting) {
+                            Task {
+                                await viewModel.restartContainer()
+                            }
+                        } label: {
+                            Label(String(localized: "containerActionRestart"), systemImage: "arrow.clockwise")
+                        }
+                        .buttonStyle(.glass)
+                    }
+                    ToolbarItem {
+                        Button {
+                            viewModel.openShellInTerminal()
+                        } label: {
+                            Label(String(localized: "containerActionShell"), systemImage: "terminal.fill")
+                        }
+                        .buttonStyle(.glass)
+                        .disabled(viewModel.container.transiting)
+                    }
+                }
             }
             if clientContainer.status == .stopped || container.isExited {
                 ToolbarItem {

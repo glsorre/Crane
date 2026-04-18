@@ -10,7 +10,6 @@ import SwiftUI
 import ContainerResource
 
 struct ContainerActionsView: View {
-    @State private var appViewModel = AppViewModel.shared
     @State private var containersStore = ContainersStore.shared
     var id: String
     
@@ -37,6 +36,27 @@ struct ContainerActionsView: View {
                 }
                 .buttonStyle(.glassProminent)
                 .frame(width: 50)
+                if clientContainer?.status == .running {
+                    SpinnerButton(isLoading: container?.transiting ?? true) {
+                        Task {
+                            await containersStore.restartContainer(id: id)
+                        }
+                    } label: {
+                        SwiftUI.Image(systemName: "arrow.clockwise")
+                    }
+                    .buttonStyle(.glass)
+                    .frame(width: 44)
+                    .help(String(localized: "containerActionRestart"))
+                    Button {
+                        openShell(containerID: id)
+                    } label: {
+                        SwiftUI.Image(systemName: "terminal.fill")
+                    }
+                    .buttonStyle(.glass)
+                    .frame(width: 44)
+                    .disabled(container?.transiting ?? true)
+                    .help(String(localized: "containerActionShell"))
+                }
             }
             if clientContainer?.status == .stopped || container?.isExited == true {
                 SpinnerButton(isLoading: container?.transiting ?? true) {
@@ -51,6 +71,14 @@ struct ContainerActionsView: View {
                 .foregroundColor(Color(.systemRed))
                 .frame(width: 50)
             }
+        }
+    }
+
+    private func openShell(containerID: String) {
+        do {
+            try ContainerShellLauncher.openInteractiveShell(containerID: containerID)
+        } catch {
+            AppViewModel.shared.showError(.containerShellFailed(error.localizedDescription))
         }
     }
 }

@@ -81,6 +81,11 @@ class Container: Identifiable, Hashable {
         RefreshCoordinator.shared.containerMutated()
     }
 
+    func restart() async throws {
+        try await stop()
+        try await start()
+    }
+
     func remove() async throws {
         self.transiting = true
 
@@ -236,6 +241,15 @@ class ContainersStore {
             try await container.stop()
         } catch {
             AppViewModel.shared.showError(.containerStopFailed(error.localizedDescription))
+        }
+    }
+
+    func restartContainer(id: String) async {
+        guard let container = containers.first(where: { $0.id == id }) else { return }
+        do {
+            try await container.restart()
+        } catch {
+            AppViewModel.shared.showError(.containerRestartFailed(error.localizedDescription))
         }
     }
 

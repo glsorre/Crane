@@ -19,6 +19,8 @@ enum CraneError: LocalizedError {
     case imageFetchingFailed
     case containerStartFailed(String)
     case containerStopFailed(String)
+    case containerRestartFailed(String)
+    case containerShellFailed(String)
     case containerRemoveFailed(String)
     case imageRemoveFailed(String)
     case imageFetchFailed(String)
@@ -44,6 +46,10 @@ enum CraneError: LocalizedError {
             return "Failed to start container: \(detail)"
         case .containerStopFailed(let detail):
             return "Failed to stop container: \(detail)"
+        case .containerRestartFailed(let detail):
+            return String(localized: "containerRestartFailedDetail \(detail)")
+        case .containerShellFailed(let detail):
+            return String(localized: "containerShellFailedDetail \(detail)")
         case .containerRemoveFailed(let detail):
             return "Failed to remove container: \(detail)"
         case .imageRemoveFailed(let detail):
