@@ -89,8 +89,7 @@ struct NetworkCreateView: View {
                     .padding(.vertical, Spacing.sm)
                 }
             }
-            .formStyle(.grouped)
-            .padding(.horizontal, 0)
+            .groupedDialogFormLayout()
 
             if let createError {
                 HStack(alignment: .top, spacing: Spacing.sm) {
@@ -125,7 +124,7 @@ struct NetworkCreateView: View {
                 .buttonStyle(.glassProminent)
                 .disabled(!canCreate)
             }
-            .padding(.horizontal, Spacing.sm)
+            .padding(.horizontal, Spacing.md)
             .padding(.vertical, Spacing.md)
         }
         .frame(width: 520, height: 480)

@@ -98,8 +98,7 @@ struct ImageTagRenameView: View {
                     }
                 }
             }
-            .formStyle(.grouped)
-            .padding(.horizontal, 0)
+            .groupedDialogFormLayout()
 
             HStack {
                 Button(String(localized: "cancel")) {
@@ -119,7 +118,7 @@ struct ImageTagRenameView: View {
                 .buttonStyle(.glassProminent)
                 .disabled(!canApply)
             }
-            .padding(.horizontal, Spacing.sm)
+            .padding(.horizontal, Spacing.md)
             .padding(.vertical, Spacing.md)
         }
         .frame(width: 520, height: mode == .rename ? 500 : 440)

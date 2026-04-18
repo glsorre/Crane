@@ -20,13 +20,16 @@ struct ImagesActionsView: View {
                     .buttonStyle(.glass)
                     .frame(width: 50)
 
+                    // Secondary: borderless + muted tint so tag does not compete with primary run.
                     Button {
                         tagSheetIsVisible = true
                     } label: {
                         SwiftUI.Image(systemName: "tag.fill")
                             .font(Font.system(size: 11))
+                            .foregroundStyle(.secondary)
+                            .symbolRenderingMode(.hierarchical)
                     }
-                    .buttonStyle(.glass)
+                    .buttonStyle(.borderless)
                     .frame(width: 50)
                     .help(String(localized: "imageTagSheetTitle"))
 

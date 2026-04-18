@@ -12,11 +12,28 @@ struct CraneVolumesListView: View {
 
     @State private var createSheetIsVisible = false
 
+    private var listItems: [CraneVolume] {
+        volumesStore.sortedFilteredVolumes
+    }
+
     var body: some View {
-        List(volumesStore.sortedFilteredVolumes) { volume in
-            VolumeRowView(volume: volume)
+        ZStack {
+            List(listItems) { volume in
+                VolumeRowView(volume: volume)
+            }
+            .listStyle(.inset)
+
+            if listItems.isEmpty {
+                MainListEmptyState(
+                    searchText: volumesStore.searchText,
+                    emptyTitle: "listEmptyVolumesTitle",
+                    emptyDescription: "listEmptyVolumesDescription",
+                    systemImage: "externaldrive"
+                )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .allowsHitTesting(false)
+            }
         }
-        .listStyle(.inset)
         .toolbar {
             ToolbarItem(placement: .navigation) {
                 Button(action: {
@@ -28,7 +45,8 @@ struct CraneVolumesListView: View {
                 }
                 .buttonStyle(.glass)
                 .disabled(!volumesStore.hasUnusedVolumes)
-                .help("removeUnusedVolumes")
+                .help(String(localized: "removeUnusedVolumes"))
+                .accessibilityLabel(String(localized: "removeUnusedVolumes"))
             }
             ToolbarItem(placement: .navigation) {
                 Button(action: {
@@ -37,6 +55,8 @@ struct CraneVolumesListView: View {
                     SwiftUI.Image(systemName: "plus")
                 }
                 .buttonStyle(.glass)
+                .help(String(localized: "toolbarHelpAddVolume"))
+                .accessibilityLabel(String(localized: "toolbarHelpAddVolume"))
             }
         }
         .sheet(isPresented: $createSheetIsVisible) {

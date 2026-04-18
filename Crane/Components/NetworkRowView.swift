@@ -8,10 +8,9 @@ import ContainerResource
 import SwiftUI
 
 struct NetworkRowView: View {
-    @State private var appViewModel = AppViewModel.shared
     @State private var containersStore = ContainersStore.shared
     @State private var networksStore = NetworksStore.shared
-    @State private var isExpanded: Bool = true
+    @State private var isExpanded: Bool = false
     var network: Network
 
     private var children: [Container] {
@@ -19,58 +18,55 @@ struct NetworkRowView: View {
     }
 
     var body: some View {
-        DisclosureGroup(isExpanded: $isExpanded) {
-            ForEach(children) { container in
-                HStack {
-                    Circle()
-                        .fill(container.isExited ? .secondary : container.snapshot.status.getColor())
-                        .frame(width: 8, height: 8)
-
-                    Text(container.id)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-
-                    if let attachment = container.snapshot.networks.first(where: { $0.network == network.id }) {
-                        Text("\(attachment.ipv4Address)")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .monospaced()
+        Group {
+            if children.isEmpty {
+                labelRow
+            } else {
+                DisclosureGroup(isExpanded: $isExpanded) {
+                    ForEach(children) { container in
+                        AttachedContainerListRow(
+                            container: container,
+                            detail: networkDetailString(container: container)
+                        )
                     }
-
-                    Spacer()
-
-                    ContainerActionsView(id: container.id)
-                }
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    appViewModel.navigateTo(to: .detail(container: container))
-                }
-            }
-        } label: {
-            HStack {
-                SwiftUI.Image(systemName: "network")
-                    .foregroundStyle(.secondary)
-
-                Text(network.id)
-                    .font(.headline)
-
-                Spacer()
-
-                if !network.network.isBuiltin && children.isEmpty {
-                    SpinnerButton(isLoading: network.transiting) {
-                        Task {
-                            await networksStore.removeNetwork(id: network.id)
-                        }
-                    } label: {
-                        SwiftUI.Image(systemName: "trash.fill")
-                            .font(Font.system(size: 11))
-                    }
-                    .buttonStyle(.glass)
-                    .foregroundColor(Color(.systemRed))
-                    .frame(width: 50)
+                } label: {
+                    labelRow
                 }
             }
         }
         .padding(.vertical, Spacing.xxs)
+    }
+
+    private func networkDetailString(container: Container) -> String? {
+        guard let attachment = container.snapshot.networks.first(where: { $0.network == network.id }) else {
+            return nil
+        }
+        return "\(attachment.ipv4Address)"
+    }
+
+    private var labelRow: some View {
+        HStack {
+            SwiftUI.Image(systemName: "network")
+                .foregroundStyle(.secondary)
+
+            Text(network.id)
+                .font(.headline)
+
+            Spacer()
+
+            if !network.network.isBuiltin && children.isEmpty {
+                SpinnerButton(isLoading: network.transiting) {
+                    Task {
+                        await networksStore.removeNetwork(id: network.id)
+                    }
+                } label: {
+                    SwiftUI.Image(systemName: "trash.fill")
+                        .font(Font.system(size: 11))
+                }
+                .buttonStyle(.glass)
+                .foregroundColor(Color(.systemRed))
+                .frame(width: 50)
+            }
+        }
     }
 }
