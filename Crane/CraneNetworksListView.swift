@@ -12,11 +12,28 @@ struct CraneNetworksListView: View {
 
     @State private var createSheetIsVisible = false
 
+    private var listItems: [Network] {
+        networksStore.sortedFilteredNetworks
+    }
+
     var body: some View {
-        List(networksStore.sortedFilteredNetworks) { network in
-            NetworkRowView(network: network)
+        ZStack {
+            List(listItems) { network in
+                NetworkRowView(network: network)
+            }
+            .listStyle(.inset)
+
+            if listItems.isEmpty {
+                MainListEmptyState(
+                    searchText: networksStore.searchText,
+                    emptyTitle: "listEmptyNetworksTitle",
+                    emptyDescription: "listEmptyNetworksDescription",
+                    systemImage: "network"
+                )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .allowsHitTesting(false)
+            }
         }
-        .listStyle(.inset)
         .toolbar {
             ToolbarItem(placement: .navigation) {
                 Button(action: {
@@ -28,7 +45,8 @@ struct CraneNetworksListView: View {
                 }
                 .buttonStyle(.glass)
                 .disabled(!networksStore.hasEmptyNetworks)
-                .help("removeEmptyNetworks")
+                .help(String(localized: "removeEmptyNetworks"))
+                .accessibilityLabel(String(localized: "removeEmptyNetworks"))
             }
             ToolbarItem(placement: .navigation) {
                 Button(action: {
@@ -37,6 +55,8 @@ struct CraneNetworksListView: View {
                     SwiftUI.Image(systemName: "plus")
                 }
                 .buttonStyle(.glass)
+                .help(String(localized: "toolbarHelpAddNetwork"))
+                .accessibilityLabel(String(localized: "toolbarHelpAddNetwork"))
             }
         }
         .sheet(isPresented: $createSheetIsVisible) {

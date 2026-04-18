@@ -85,8 +85,7 @@ struct ImageFetchView: View {
                     .padding(.vertical, Spacing.sm)
                 }
             }
-            .formStyle(.grouped)
-            .padding(.horizontal, 0)
+            .groupedDialogFormLayout()
 
             if let fetchError {
                 HStack(alignment: .top, spacing: Spacing.sm) {
@@ -121,7 +120,7 @@ struct ImageFetchView: View {
                 .buttonStyle(.glassProminent)
                 .disabled(!canFetch)
             }
-            .padding(.horizontal, Spacing.sm)
+            .padding(.horizontal, Spacing.md)
             .padding(.vertical, Spacing.md)
         }
         .frame(width: 520, height: 420)

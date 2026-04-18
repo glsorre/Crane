@@ -187,8 +187,7 @@ struct ImageBuildView: View {
                     }
                 }
             }
-            .formStyle(.grouped)
-            .padding(.horizontal, 0)
+            .groupedDialogFormLayout()
 
             buildStatusStrip
                 .padding(.horizontal, Spacing.md)
@@ -224,7 +223,7 @@ struct ImageBuildView: View {
                 .buttonStyle(.glassProminent)
                 .disabled(!canBuild)
             }
-            .padding(.horizontal, Spacing.sm)
+            .padding(.horizontal, Spacing.md)
             .padding(.vertical, Spacing.md)
         }
         .frame(width: 720, height: buildSourceMode == .paste ? 640 : 620)

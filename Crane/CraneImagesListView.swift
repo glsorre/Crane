@@ -13,11 +13,28 @@ struct CraneImagesListView: View {
     @State private var fetchSheetIsVisible = false
     @State private var buildSheetIsVisible = false
 
+    private var listItems: [Image] {
+        imagesStore.sortedFilteredImages
+    }
+
     var body: some View {
-        List(imagesStore.sortedFilteredImages) { image in
-            ImageRowView(image: image)
+        ZStack {
+            List(listItems) { image in
+                ImageRowView(image: image)
+            }
+            .listStyle(.inset)
+
+            if listItems.isEmpty {
+                MainListEmptyState(
+                    searchText: imagesStore.searchText,
+                    emptyTitle: "listEmptyImagesTitle",
+                    emptyDescription: "listEmptyImagesDescription",
+                    systemImage: "photo"
+                )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .allowsHitTesting(false)
+            }
         }
-        .listStyle(.inset)
         .toolbar {
             ToolbarItem(placement: .navigation) {
                 Button(action: {
@@ -26,6 +43,8 @@ struct CraneImagesListView: View {
                     SwiftUI.Image(systemName: "hammer.fill")
                 }
                 .buttonStyle(.glass)
+                .help(String(localized: "toolbarHelpBuildImage"))
+                .accessibilityLabel(String(localized: "toolbarHelpBuildImage"))
             }
             ToolbarItem(placement: .navigation) {
                 Button(action: {
@@ -34,6 +53,8 @@ struct CraneImagesListView: View {
                     SwiftUI.Image(systemName: "plus")
                 }
                 .buttonStyle(.glass)
+                .help(String(localized: "toolbarHelpFetchImage"))
+                .accessibilityLabel(String(localized: "toolbarHelpFetchImage"))
             }
         }
         .sheet(isPresented: $fetchSheetIsVisible) {

@@ -1,4 +1,5 @@
 import ContainerResource
+import Foundation
 import Observation
 import SwiftUI
 
@@ -48,6 +49,27 @@ struct ContainerRunView: View {
             }
             .padding(.horizontal, Spacing.md)
             .padding(.vertical, Spacing.lg)
+            // #region agent log
+            .background(alignment: .leading) {
+                GeometryReader { geo in
+                    Color.clear
+                        .onAppear {
+                            let f = geo.frame(in: .global)
+                            agentDebugLog722956(
+                                hypothesisId: "H2_H3",
+                                message: "runDialog_titleRow_globalFrame",
+                                data: [
+                                    "minX": "\(f.minX)",
+                                    "width": "\(f.width)",
+                                    "titleInnerPaddingMd": "\(Spacing.md)",
+                                    "outerVStackPaddingMd": "\(Spacing.md)"
+                                ],
+                                runId: "dialog-align-post"
+                            )
+                        }
+                }
+            }
+            // #endregion
 
             Form {
                 Section("Basics") {
@@ -94,8 +116,39 @@ struct ContainerRunView: View {
                     }
                 }
             }
-            .formStyle(.grouped)
-            .padding(.horizontal, 0)
+            .groupedDialogFormLayout()
+            // #region agent log
+            .onAppear {
+                agentDebugLog722956(
+                    hypothesisId: "VERIFY",
+                    message: "runDialog_form_layout_applied",
+                    data: [
+                        "groupedDialogFormLayout": "true",
+                        "footerHorizontalPadding": "\(Spacing.md)",
+                        "compensateLeading": "\(Spacing.md)pt"
+                    ],
+                    runId: "dialog-align-post"
+                )
+            }
+            .background(alignment: .leading) {
+                GeometryReader { geo in
+                    Color.clear
+                        .onAppear {
+                            let f = geo.frame(in: .global)
+                            agentDebugLog722956(
+                                hypothesisId: "H1_H4_H5",
+                                message: "runDialog_form_globalFrame",
+                                data: [
+                                    "minX": "\(f.minX)",
+                                    "width": "\(f.width)",
+                                    "formHorizontalPadding": "0"
+                                ],
+                                runId: "dialog-align-post"
+                            )
+                        }
+                }
+            }
+            // #endregion
 
             if let statusMessage {
                 HStack(alignment: .top, spacing: Spacing.sm) {
@@ -133,8 +186,28 @@ struct ContainerRunView: View {
                 .buttonStyle(.glassProminent)
                 .disabled(!viewModel.canRun)
             }
-            .padding(.horizontal, Spacing.sm)
+            .padding(.horizontal, Spacing.md)
             .padding(.vertical, Spacing.md)
+            // #region agent log
+            .background(alignment: .leading) {
+                GeometryReader { geo in
+                    Color.clear
+                        .onAppear {
+                            let f = geo.frame(in: .global)
+                            agentDebugLog722956(
+                                hypothesisId: "H2_H3",
+                                message: "runDialog_footerRow_globalFrame",
+                                data: [
+                                    "minX": "\(f.minX)",
+                                    "width": "\(f.width)",
+                                    "footerInnerPaddingMd": "\(Spacing.md)"
+                                ],
+                                runId: "dialog-align-post"
+                            )
+                        }
+                }
+            }
+            // #endregion
         }
         .frame(width: 720, height: 640)
         .padding(Spacing.md)
@@ -169,6 +242,22 @@ private struct ContainerRunBasicsSection: View {
                         Text(image.id).tag(Optional(image.id))
                     }
                 }
+                // #region agent log
+                .background(alignment: .leading) {
+                    GeometryReader { geo in
+                        Color.clear
+                            .onAppear {
+                                let f = geo.frame(in: .global)
+                                agentDebugLog722956(
+                                    hypothesisId: "H1_H5",
+                                    message: "runDialog_firstPicker_globalFrame",
+                                    data: ["minX": "\(f.minX)", "width": "\(f.width)"],
+                                    runId: "dialog-align-post"
+                                )
+                            }
+                    }
+                }
+                // #endregion
             }
 
             TextField("Name", text: nameBinding)
@@ -662,4 +751,36 @@ private struct SocketRowEditor: View {
         .padding(.vertical, Spacing.sm)
     }
 }
+
+// #region agent log
+private func agentDebugLog722956(
+    hypothesisId: String,
+    message: String,
+    data: [String: String],
+    runId: String = "dialog-align-post"
+) {
+    var payload: [String: Any] = [
+        "sessionId": "722956",
+        "hypothesisId": hypothesisId,
+        "location": "ContainerRunView.swift",
+        "message": message,
+        "data": data,
+        "runId": runId,
+        "timestamp": Int(Date().timeIntervalSince1970 * 1000)
+    ]
+    guard let json = try? JSONSerialization.data(withJSONObject: payload),
+          var line = String(data: json, encoding: .utf8) else { return }
+    line += "\n"
+    let path = "/Users/glsorre/repo/Crane/.cursor/debug-722956.log"
+    if !FileManager.default.fileExists(atPath: path) {
+        FileManager.default.createFile(atPath: path, contents: nil, attributes: nil)
+    }
+    guard let handle = FileHandle(forWritingAtPath: path) else { return }
+    defer { try? handle.close() }
+    handle.seekToEndOfFile()
+    if let d = line.data(using: .utf8) {
+        handle.write(d)
+    }
+}
+// #endregion
 

@@ -31,7 +31,7 @@ struct CraneSettingsView: View {
                 }
             }
         }
-        .formStyle(.grouped)
+        .groupedDialogFormLayout(compensateGroupedBodyInset: false)
         .frame(minWidth: 400, minHeight: 280)
         .padding(Spacing.sm)
     }

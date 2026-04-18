@@ -8,9 +8,8 @@ import ContainerResource
 import SwiftUI
 
 struct ImageRowView: View {
-    @State private var appViewModel = AppViewModel.shared
     @State private var containersStore = ContainersStore.shared
-    @State private var isExpanded: Bool = true
+    @State private var isExpanded: Bool = false
     var image: Image
 
     private var children: [Container] {
@@ -18,39 +17,33 @@ struct ImageRowView: View {
     }
 
     var body: some View {
-        DisclosureGroup(isExpanded: $isExpanded) {
-            ForEach(children) { container in
-                HStack {
-                    Circle()
-                        .fill(container.isExited ? .secondary : container.snapshot.status.getColor())
-                        .frame(width: 8, height: 8)
-
-                    Text(container.id)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-
-                    Spacer()
-
-                    ContainerActionsView(id: container.id)
+        Group {
+            if children.isEmpty {
+                labelRow
+            } else {
+                DisclosureGroup(isExpanded: $isExpanded) {
+                    ForEach(children) { container in
+                        AttachedContainerListRow(container: container, detail: nil)
+                    }
+                } label: {
+                    labelRow
                 }
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    appViewModel.navigateTo(to: .detail(container: container))
-                }
-            }
-        } label: {
-            HStack {
-                SwiftUI.Image(systemName: "photo.fill")
-                    .foregroundStyle(.secondary)
-
-                Text(image.id)
-                    .font(.headline)
-
-                Spacer()
-
-                ImagesActionsView(image: image)
             }
         }
         .padding(.vertical, Spacing.xxs)
+    }
+
+    private var labelRow: some View {
+        HStack {
+            SwiftUI.Image(systemName: "photo.fill")
+                .foregroundStyle(.secondary)
+
+            Text(image.id)
+                .font(.headline)
+
+            Spacer()
+
+            ImagesActionsView(image: image)
+        }
     }
 }
