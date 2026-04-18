@@ -5,17 +5,13 @@
 //  Created by Giuseppe Lucio Sorrentino on 11/11/25.
 //
 
-import ContainerAPIClient
-import ContainerResource
 import SwiftUI
 
 struct CraneImagesListView: View {
-    @State private var appViewModel = AppViewModel.shared
     @State private var imagesStore = ImagesStore.shared
 
-    @State private var fetchingPopupIsVisible: Bool = false
-    @State private var buildSheetIsVisible: Bool = false
-    @State private var imageToFetch: String = ""
+    @State private var fetchSheetIsVisible = false
+    @State private var buildSheetIsVisible = false
 
     var body: some View {
         List(imagesStore.sortedFilteredImages) { image in
@@ -33,35 +29,15 @@ struct CraneImagesListView: View {
             }
             ToolbarItem(placement: .navigation) {
                 Button(action: {
-                    fetchingPopupIsVisible.toggle()
+                    fetchSheetIsVisible = true
                 }) {
                     SwiftUI.Image(systemName: "plus")
                 }
                 .buttonStyle(.glass)
-                .popover(isPresented: $fetchingPopupIsVisible) {
-                    Form {
-                        TextField(String(localized: "fetchImageUrl"), text: $imageToFetch)
-                        Button(action: {
-                            Task {
-                                do {
-                                    fetchingPopupIsVisible.toggle()
-                                    try await imagesStore.fetchImage(reference: imageToFetch)
-                                } catch {
-                                    AppViewModel.shared.showError(.imageFetchFailed(error.localizedDescription))
-                                }
-                            }
-                        }) {
-                            Text(String(localized: "fetchImage"))
-                        }
-                        .buttonStyle(.glassProminent)
-                        .controlSize(.regular)
-                        .disabled(imageToFetch.isEmpty)
-                    }
-                    .formStyle(.grouped)
-                    .frame(width: 400)
-                    .padding(Spacing.sm)
-                }
             }
+        }
+        .sheet(isPresented: $fetchSheetIsVisible) {
+            ImageFetchView(isPresented: $fetchSheetIsVisible)
         }
         .sheet(isPresented: $buildSheetIsVisible) {
             ImageBuildView(isPresented: $buildSheetIsVisible)

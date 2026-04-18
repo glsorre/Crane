@@ -5,30 +5,32 @@ struct KeyValueListEditor: View {
     let addLabel: LocalizedStringKey
 
     var body: some View {
-        ForEach(entries) { entry in
-            let eb = entryBinding(for: entry.id)
-            HStack {
-                TextField("Key", text: eb.key)
-                    .textFieldStyle(.plain)
-                    .frame(maxWidth: .infinity)
-                TextField("Value", text: eb.value)
-                    .textFieldStyle(.plain)
-                    .frame(maxWidth: .infinity)
-                Button {
-                    entries.removeAll { $0.id == entry.id }
-                } label: {
-                    SwiftUI.Image(systemName: "minus.circle.fill")
-                        .foregroundStyle(.red)
+        VStack(alignment: .leading, spacing: 8) {
+            ForEach(entries) { entry in
+                let eb = entryBinding(for: entry.id)
+                HStack(spacing: 8) {
+                    TextField("Key", text: eb.key)
+                        .textFieldStyle(.plain)
+                        .frame(maxWidth: .infinity)
+                    TextField("Value", text: eb.value)
+                        .textFieldStyle(.plain)
+                        .frame(maxWidth: .infinity)
+                    Button {
+                        entries.removeAll { $0.id == entry.id }
+                    } label: {
+                        SwiftUI.Image(systemName: "minus.circle.fill")
+                            .foregroundStyle(.red)
+                    }
+                    .buttonStyle(.borderless)
                 }
-                .buttonStyle(.borderless)
             }
+            Button {
+                entries.append(KeyValueEntry())
+            } label: {
+                Label(addLabel, systemImage: "plus")
+            }
+            .buttonStyle(.borderless)
         }
-        Button {
-            entries.append(KeyValueEntry())
-        } label: {
-            Label(addLabel, systemImage: "plus")
-        }
-        .buttonStyle(.borderless)
     }
 
     private func entryBinding(for id: UUID) -> Binding<KeyValueEntry> {

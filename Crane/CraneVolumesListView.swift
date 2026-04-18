@@ -5,16 +5,12 @@
 //  Created by Giuseppe Lucio Sorrentino on 08/02/26.
 //
 
-import ContainerAPIClient
-import ContainerResource
 import SwiftUI
 
 struct CraneVolumesListView: View {
-    @State private var appViewModel = AppViewModel.shared
     @State private var volumesStore = VolumesStore.shared
 
-    @State private var creatingPopupIsVisible: Bool = false
-    @State private var volumeToCreate: String = ""
+    @State private var createSheetIsVisible = false
 
     var body: some View {
         List(volumesStore.sortedFilteredVolumes) { volume in
@@ -36,35 +32,15 @@ struct CraneVolumesListView: View {
             }
             ToolbarItem(placement: .navigation) {
                 Button(action: {
-                    creatingPopupIsVisible.toggle()
+                    createSheetIsVisible = true
                 }) {
                     SwiftUI.Image(systemName: "plus")
                 }
                 .buttonStyle(.glass)
-                .popover(isPresented: $creatingPopupIsVisible) {
-                    Form {
-                        TextField(String(localized: "volumeToCreateName"), text: $volumeToCreate)
-                        Button(action: {
-                            Task {
-                                do {
-                                    creatingPopupIsVisible.toggle()
-                                    try await volumesStore.createVolume(name: volumeToCreate)
-                                } catch {
-                                    AppViewModel.shared.showError(.volumeCreateFailed(error.localizedDescription))
-                                }
-                            }
-                        }) {
-                            Text(String(localized: "volumeToCreate"))
-                        }
-                        .buttonStyle(.glassProminent)
-                        .controlSize(.regular)
-                        .disabled(volumeToCreate.isEmpty)
-                    }
-                    .formStyle(.grouped)
-                    .frame(width: 400)
-                    .padding(Spacing.sm)
-                }
             }
+        }
+        .sheet(isPresented: $createSheetIsVisible) {
+            VolumeCreateView(isPresented: $createSheetIsVisible)
         }
         .searchable(text: $volumesStore.searchText, placement: .toolbar)
     }
