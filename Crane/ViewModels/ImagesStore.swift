@@ -18,6 +18,7 @@ enum ImageStatus {
     case available
     case fetching
     case removing
+    case tagging
 }
 
 @Observable
@@ -156,7 +157,69 @@ class ImagesStore {
         }
         RefreshCoordinator.shared.imageMutated()
     }
-    
+
+    /// Adds another OCI reference pointing at the same image (`container image tag <source> <target>`).
+    @discardableResult
+    func tagImage(sourceReference: String, newReference: String) async -> Bool {
+        await applyTagOrRename(sourceReference: sourceReference, newReference: newReference, deleteSourceAfter: false)
+    }
+
+    /// Tags with a new reference then removes the old reference (containers still using the old name are unchanged).
+    @discardableResult
+    func renameImage(sourceReference: String, newReference: String) async -> Bool {
+        await applyTagOrRename(sourceReference: sourceReference, newReference: newReference, deleteSourceAfter: true)
+    }
+
+    private func applyTagOrRename(sourceReference: String, newReference: String, deleteSourceAfter: Bool) async -> Bool {
+        guard let image = images.first(where: { $0.id == sourceReference }) else { return false }
+        guard let clientImage = image.image else {
+            AppViewModel.shared.showError(.imageTagFailed(String(localized: "imageTagClientMissing")))
+            return false
+        }
+        guard image.status == .available else { return false }
+
+        let normalizedNew: String
+        do {
+            normalizedNew = try ClientImage.normalizeReference(newReference)
+        } catch {
+            AppViewModel.shared.showError(.imageTagFailed(error.localizedDescription))
+            return false
+        }
+
+        let normalizedSource: String
+        do {
+            normalizedSource = try ClientImage.normalizeReference(sourceReference)
+        } catch {
+            AppViewModel.shared.showError(.imageTagFailed(error.localizedDescription))
+            return false
+        }
+
+        guard normalizedNew != normalizedSource else {
+            AppViewModel.shared.showError(.imageTagFailed(String(localized: "imageTagSameReference")))
+            return false
+        }
+
+        image.status = .tagging
+        defer { image.status = .available }
+
+        do {
+            _ = try await clientImage.tag(new: normalizedNew)
+            if deleteSourceAfter {
+                try await ClientImage.delete(reference: normalizedSource)
+            }
+            try? await collect()
+            RefreshCoordinator.shared.imageMutated()
+            return true
+        } catch {
+            if deleteSourceAfter {
+                AppViewModel.shared.showError(.imageRenameFailed(error.localizedDescription))
+            } else {
+                AppViewModel.shared.showError(.imageTagFailed(error.localizedDescription))
+            }
+            return false
+        }
+    }
+
     @discardableResult
     func collect() async throws -> Bool {
         try await collectWithChangeDetection()
