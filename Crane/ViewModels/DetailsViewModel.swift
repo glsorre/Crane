@@ -144,6 +144,22 @@ class DetailsViewModel {
         }
     }
 
+    func restartContainer() async {
+        do {
+            try await container.restart()
+        } catch {
+            AppViewModel.shared.showError(.containerRestartFailed(error.localizedDescription))
+        }
+    }
+
+    func openShellInTerminal() {
+        do {
+            try ContainerShellLauncher.openInteractiveShell(containerID: container.id)
+        } catch {
+            AppViewModel.shared.showError(.containerShellFailed(error.localizedDescription))
+        }
+    }
+
     func removeContainer() async {
         do {
             try await container.remove()

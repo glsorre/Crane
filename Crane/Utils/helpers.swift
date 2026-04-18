@@ -35,7 +35,8 @@ func isServiceLoaded(label: String, domain: String) -> Bool {
     }
 }
 
-private func findContainerCLI() -> URL? {
+/// Resolves the `container` CLI executable using `CONTAINER_INSTALL_ROOT`, `PATH`, then common install locations.
+func containerCLIExecutableURL() -> URL? {
     let fileManager = FileManager.default
     var seen = Set<String>()
     var candidateDirectories: [String] = []
@@ -127,7 +128,7 @@ private func startContainerServiceViaPlistBootstrap() async -> Bool {
 }
 
 func startContainerService() async -> Bool {
-    if let cliURL = findContainerCLI() {
+    if let cliURL = containerCLIExecutableURL() {
         return await startContainerServiceViaCLI(cliURL: cliURL)
     }
 

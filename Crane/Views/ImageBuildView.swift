@@ -6,12 +6,23 @@
 import ContainerAPIClient
 import ContainerResource
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct ImageBuildView: View {
     @Binding var isPresented: Bool
     @State private var buildViewModel = BuildViewModel()
     @State private var tag: String = ""
     @State private var text: String = "FROM alpine:latest\n"
+    @State private var buildSourceMode: BuildSourceMode = .paste
+    @State private var contextFolderURL: URL?
+    @State private var dockerfileRelativePath: String = "Dockerfile"
+    @State private var showFolderImporter = false
+
+    private enum BuildSourceMode: String, CaseIterable, Identifiable, Equatable {
+        case paste
+        case localFolder
+        var id: String { rawValue }
+    }
 
     private var trimmedTag: String {
         tag.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -19,6 +30,10 @@ struct ImageBuildView: View {
 
     private var trimmedDockerfile: String {
         text.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var trimmedDockerfilePath: String {
+        dockerfileRelativePath.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private var tagEmptyValidationMessage: String? {
@@ -36,15 +51,40 @@ struct ImageBuildView: View {
     }
 
     private var dockerfileEmptyValidationMessage: String? {
-        trimmedDockerfile.isEmpty ? String(localized: "imageBuildDockerfileEmpty") : nil
+        guard buildSourceMode == .paste else { return nil }
+        return trimmedDockerfile.isEmpty ? String(localized: "imageBuildDockerfileEmpty") : nil
+    }
+
+    private var localFolderValidationMessage: String? {
+        guard buildSourceMode == .localFolder else { return nil }
+        guard let url = contextFolderURL else {
+            return String(localized: "imageBuildFolderEmpty")
+        }
+        var isDir: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir), isDir.boolValue else {
+            return String(localized: "imageBuildContextNotDirectory")
+        }
+        guard let dockerURL = ImageBuildSource.resolvedDockerfileURL(
+            contextDirectory: url,
+            dockerfileRelativePath: dockerfileRelativePath
+        ) else {
+            return String(localized: "imageBuildDockerfilePathInvalid")
+        }
+        guard FileManager.default.fileExists(atPath: dockerURL.path) else {
+            return String(localized: "imageBuildDockerfileMissing")
+        }
+        return nil
     }
 
     private var canBuild: Bool {
         guard !buildViewModel.status.isBuilding else { return false }
-        guard tagEmptyValidationMessage == nil,
-              dockerfileEmptyValidationMessage == nil,
-              tagInvalidValidationMessage == nil
-        else { return false }
+        guard tagEmptyValidationMessage == nil, tagInvalidValidationMessage == nil else { return false }
+        switch buildSourceMode {
+        case .paste:
+            guard dockerfileEmptyValidationMessage == nil else { return false }
+        case .localFolder:
+            guard localFolderValidationMessage == nil else { return false }
+        }
         return true
     }
 
@@ -60,6 +100,16 @@ struct ImageBuildView: View {
             .padding(.vertical, Spacing.lg)
 
             Form {
+                Section(String(localized: "imageBuildSourceSection")) {
+                    Picker("", selection: $buildSourceMode) {
+                        Text(String(localized: "imageBuildSourcePaste")).tag(BuildSourceMode.paste)
+                        Text(String(localized: "imageBuildSourceLocalFolder")).tag(BuildSourceMode.localFolder)
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.segmented)
+                    .padding(.vertical, Spacing.sm)
+                }
+
                 Section(String(localized: "imageTag")) {
                     VStack(alignment: .leading, spacing: Spacing.subsection) {
                         TextField(String(localized: "imageTag"), text: $tag)
@@ -74,25 +124,67 @@ struct ImageBuildView: View {
                     .padding(.vertical, Spacing.sm)
                 }
 
-                Section(String(localized: "dockerfile")) {
-                    VStack(alignment: .leading, spacing: Spacing.subsection) {
-                        Text(String(localized: "imageBuildDockerfileHint"))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                if buildSourceMode == .paste {
+                    Section(String(localized: "dockerfile")) {
+                        VStack(alignment: .leading, spacing: Spacing.subsection) {
+                            Text(String(localized: "imageBuildDockerfileHint"))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
 
-                        DockerfileEditor(text: $text)
-                            .frame(minHeight: 280)
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(.separator, lineWidth: 0.5)
-                            )
+                            DockerfileEditor(text: $text)
+                                .frame(minHeight: 280)
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(.separator, lineWidth: 0.5)
+                                )
 
-                        if let message = dockerfileEmptyValidationMessage {
-                            InlineErrorText(message: message)
+                            if let message = dockerfileEmptyValidationMessage {
+                                InlineErrorText(message: message)
+                            }
                         }
+                        .padding(.vertical, Spacing.sm)
                     }
-                    .padding(.vertical, Spacing.sm)
+                } else {
+                    Section(String(localized: "imageBuildContextSection")) {
+                        VStack(alignment: .leading, spacing: Spacing.subsection) {
+                            Text(String(localized: "imageBuildContextHint"))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+
+                            HStack(alignment: .center, spacing: Spacing.sm) {
+                                Button(String(localized: "imageBuildChooseFolder")) {
+                                    showFolderImporter = true
+                                }
+                                .buttonStyle(.bordered)
+
+                                if let contextFolderURL {
+                                    PathLabel(path: contextFolderURL.path, host: true)
+                                } else {
+                                    Text("—")
+                                        .foregroundStyle(.secondary)
+                                        .font(.callout)
+                                }
+                            }
+
+                            if let message = localFolderValidationMessage {
+                                InlineErrorText(message: message)
+                            }
+                        }
+                        .padding(.vertical, Spacing.sm)
+                    }
+
+                    Section(String(localized: "imageBuildDockerfilePathLabel")) {
+                        VStack(alignment: .leading, spacing: Spacing.subsection) {
+                            Text(String(localized: "imageBuildDockerfilePathHint"))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+
+                            TextField("Dockerfile", text: $dockerfileRelativePath)
+                                .font(.system(.body, design: .monospaced))
+                        }
+                        .padding(.vertical, Spacing.sm)
+                    }
                 }
             }
             .formStyle(.grouped)
@@ -112,7 +204,19 @@ struct ImageBuildView: View {
 
                 SpinnerButton(isLoading: buildViewModel.status.isBuilding) {
                     Task {
-                        await buildViewModel.build(tag: trimmedTag, dockerfileContent: text)
+                        switch buildSourceMode {
+                        case .paste:
+                            await buildViewModel.build(tag: trimmedTag, dockerfileContent: text)
+                        case .localFolder:
+                            guard let contextFolderURL else { return }
+                            await buildViewModel.build(
+                                tag: trimmedTag,
+                                source: .localContext(
+                                    contextDirectory: contextFolderURL,
+                                    dockerfileRelativePath: trimmedDockerfilePath.isEmpty ? "Dockerfile" : trimmedDockerfilePath
+                                )
+                            )
+                        }
                     }
                 } label: {
                     Label(String(localized: "build"), systemImage: "hammer")
@@ -123,9 +227,24 @@ struct ImageBuildView: View {
             .padding(.horizontal, Spacing.sm)
             .padding(.vertical, Spacing.md)
         }
-        .frame(width: 720, height: 640)
+        .frame(width: 720, height: buildSourceMode == .paste ? 640 : 620)
         .padding(Spacing.md)
         .animation(.easeInOut(duration: 0.25), value: buildViewModel.status)
+        .animation(.easeInOut(duration: 0.2), value: buildSourceMode)
+        .fileImporter(
+            isPresented: $showFolderImporter,
+            allowedContentTypes: [.folder],
+            allowsMultipleSelection: false
+        ) { result in
+            switch result {
+            case .success(let urls):
+                guard let url = urls.first else { return }
+                _ = url.startAccessingSecurityScopedResource()
+                contextFolderURL = url
+            case .failure:
+                break
+            }
+        }
     }
 
     // MARK: - Build status (between form and footer, like ContainerRunView)
