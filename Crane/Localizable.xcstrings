@@ -333,6 +333,17 @@
         }
       }
     },
+    "containerStartMissingVolumePath" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This container references a missing volume path. Recreate it from the image so Crane can bind the named volume correctly."
+          }
+        }
+      }
+    },
     "containerRestartFailedDetail %@" : {
       "extractionState" : "manual",
       "localizations" : {

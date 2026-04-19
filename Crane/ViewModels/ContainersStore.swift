@@ -45,7 +45,7 @@ class Container: Identifiable, Hashable {
     func start() async throws {
         self.transiting = true
         let fileManager = FileManager.default
-        if let invalidVolumeMount = self.snapshot.configuration.mounts.first(where: {
+        if self.snapshot.configuration.mounts.contains(where: {
             $0.isVolume && !fileManager.fileExists(atPath: $0.source)
         }) {
             self.transiting = false
@@ -53,7 +53,7 @@ class Container: Identifiable, Hashable {
                 domain: "Crane",
                 code: 1001,
                 userInfo: [
-                    NSLocalizedDescriptionKey: "This container references a missing volume path (\(invalidVolumeMount.source)). Recreate it from the image so Crane can bind the named volume correctly."
+                    NSLocalizedDescriptionKey: String(localized: "containerStartMissingVolumePath")
                 ]
             )
         }
