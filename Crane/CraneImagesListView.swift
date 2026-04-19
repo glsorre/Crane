@@ -19,8 +19,10 @@ struct CraneImagesListView: View {
 
     var body: some View {
         ZStack {
-            List(listItems) { image in
-                ImageRowView(image: image)
+            List {
+                ForEach(listItems, id: \.objectIdentity) { image in
+                    ImageRowView(image: image)
+                }
             }
             .listStyle(.inset)
 
@@ -52,7 +54,7 @@ struct CraneImagesListView: View {
                 }) {
                     SwiftUI.Image(systemName: "plus")
                 }
-                .buttonStyle(.glass)
+                .buttonStyle(.glassProminent)
                 .help(String(localized: "toolbarHelpFetchImage"))
                 .accessibilityLabel(String(localized: "toolbarHelpFetchImage"))
             }
@@ -63,6 +65,5 @@ struct CraneImagesListView: View {
         .sheet(isPresented: $buildSheetIsVisible) {
             ImageBuildView(isPresented: $buildSheetIsVisible)
         }
-        .searchable(text: $imagesStore.searchText, placement: .toolbar)
     }
 }

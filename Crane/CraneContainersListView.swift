@@ -12,39 +12,89 @@ import SwiftUI
 struct CraneContainersListView: View {
     @State private var appViewModel = AppViewModel.shared
     @State private var containersStore = ContainersStore.shared
-    @State private var selection: Container.ID?
     @State private var runSheetIsVisible: Bool = false
+    @State private var navigationPath: [Container.ID] = []
 
     private var listItems: [Container] {
         containersStore.sortedFilteredContainers
     }
 
-    var body: some View {
-        ZStack {
-            List(listItems, selection: $selection) { container in
-                ContainerRowView(container: container)
-                    .tag(container.id)
-            }
-            .listStyle(.inset)
+    private func container(for id: Container.ID) -> Container? {
+        containersStore.containers.first(where: { $0.id == id })
+    }
 
-            if listItems.isEmpty {
-                MainListEmptyState(
-                    searchText: containersStore.searchText,
-                    emptyTitle: "listEmptyContainersTitle",
-                    emptyDescription: "listEmptyContainersDescription",
-                    systemImage: "shippingbox"
-                )
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .allowsHitTesting(false)
+    private func syncNavigationFromSelection() {
+        guard let selectedID = appViewModel.selectedContainerID else {
+            if !navigationPath.isEmpty {
+                navigationPath.removeAll()
+            }
+            return
+        }
+
+        guard container(for: selectedID) != nil else {
+            if !navigationPath.isEmpty {
+                navigationPath.removeAll()
+            }
+            return
+        }
+
+        if navigationPath.last != selectedID {
+            navigationPath = [selectedID]
+        }
+    }
+
+    var body: some View {
+        NavigationStack(path: $navigationPath) {
+            ZStack {
+                List(listItems) { container in
+                    NavigationLink(value: container.id) {
+                        ContainerRowView(container: container)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .listStyle(.inset)
+
+                if listItems.isEmpty {
+                    MainListEmptyState(
+                        searchText: containersStore.searchText,
+                        emptyTitle: "listEmptyContainersTitle",
+                        emptyDescription: "listEmptyContainersDescription",
+                        systemImage: "shippingbox"
+                    )
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .allowsHitTesting(false)
+                }
+            }
+            .navigationDestination(for: Container.ID.self) { containerID in
+                if let container = container(for: containerID) {
+                    CraneDetailsView(container: container)
+                } else {
+                    ContentUnavailableView(
+                        "containerNotFound",
+                        systemImage: "shippingbox",
+                        description: Text("This container is no longer available.")
+                    )
+                }
             }
         }
-        .onChange(of: selection) { _, newValue in
-            guard let id = newValue else { return }
-            selection = nil
-            guard let container = containersStore.containers.first(where: { $0.id == id }) else { return }
-            appViewModel.navigateTo(to: .detail(container: container))
+        .onAppear {
+            syncNavigationFromSelection()
         }
-        .searchable(text: $containersStore.searchText, placement: .toolbar)
+        .onChange(of: appViewModel.containerDetailNavigationRequest) { _ in
+            syncNavigationFromSelection()
+        }
+        .onChange(of: appViewModel.selectedContainerID) { _ in
+            syncNavigationFromSelection()
+        }
+        .onChange(of: navigationPath) { _ in
+            let currentID = navigationPath.last
+            if appViewModel.selectedContainerID != currentID {
+                appViewModel.selectedContainerID = currentID
+            }
+        }
+        .onChange(of: containersStore.sortedFilteredContainers.map(\.id)) { _ in
+            syncNavigationFromSelection()
+        }
         .toolbar {
             ToolbarItem(placement: .navigation) {
                 Button {
@@ -52,7 +102,7 @@ struct CraneContainersListView: View {
                 } label: {
                     SwiftUI.Image(systemName: "plus")
                 }
-                .buttonStyle(.glass)
+                .buttonStyle(.glassProminent)
                 .help(String(localized: "toolbarHelpAddContainer"))
                 .accessibilityLabel(String(localized: "toolbarHelpAddContainer"))
             }

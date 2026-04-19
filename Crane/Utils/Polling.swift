@@ -36,8 +36,9 @@ func startAdaptivePolling(
             do { changed = try await work() }
             catch { Logger.crane.warning("Polling error: \(error.localizedDescription)") }
 
+            let didChange = changed
             currentInterval.withLock { current in
-                if changed {
+                if didChange {
                     current = base
                 } else {
                     current = min(current * 2, maxI)

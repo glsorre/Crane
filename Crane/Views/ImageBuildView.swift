@@ -5,6 +5,7 @@
 
 import ContainerAPIClient
 import ContainerResource
+import Observation
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -228,6 +229,22 @@ struct ImageBuildView: View {
             .padding(.horizontal, Spacing.md)
             .padding(.vertical, Spacing.md)
         }
+        .alert(
+            String(localized: "rosettaInstallerTitle"),
+            isPresented: Bindable(buildViewModel).rosettaInstallerAlertPresented
+        ) {
+            Button(String(localized: "rosettaInstallerInstallButton")) {
+                buildViewModel.resolveRosettaInstallerPrompt(.installRosetta)
+            }
+            Button(String(localized: "rosettaInstallerContinueWithoutButton")) {
+                buildViewModel.resolveRosettaInstallerPrompt(.continueWithoutRosetta)
+            }
+            Button(String(localized: "cancel"), role: .cancel) {
+                buildViewModel.resolveRosettaInstallerPrompt(.cancel)
+            }
+        } message: {
+            Text(String(localized: "rosettaInstallerMessage"))
+        }
         .frame(width: 720, height: buildSourceMode == .paste ? 640 : 620)
         .padding(Spacing.md)
         .animation(.easeInOut(duration: 0.25), value: buildViewModel.status)
@@ -238,8 +255,18 @@ struct ImageBuildView: View {
                 contextFolderURL = nil
             }
         }
+        .onChange(of: buildViewModel.status) { _, newStatus in
+            if case .success = newStatus {
+                isPresented = false
+            }
+        }
         .onChange(of: isPresented) { _, presented in
-            if !presented {
+            if presented {
+                buildViewModel.status = .idle
+            } else {
+                if buildViewModel.rosettaInstallerAlertPresented {
+                    buildViewModel.resolveRosettaInstallerPrompt(.cancel)
+                }
                 stopSecurityScopedAccessForContextFolder()
                 contextFolderURL = nil
             }

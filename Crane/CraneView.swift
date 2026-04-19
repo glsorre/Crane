@@ -20,32 +20,77 @@ private let logger = Logger(subsystem: "me.rightright.RightCrane", category: "La
 struct CraneView: View {
     @State private var appViewModel = AppViewModel.shared
     @State private var containersStore = ContainersStore.shared
+    @State private var imagesStore = ImagesStore.shared
+    @State private var networksStore = NetworksStore.shared
+    @State private var volumesStore = VolumesStore.shared
     @State private var isStartingService = false
 
-    var body: some View {
-        NavigationStack(path: $appViewModel.path) {
-            TabView {
-                Tab("containers", systemImage: "shippingbox.fill") {
+    private var selectedTabBinding: Binding<CraneTab?> {
+        Binding(
+            get: { appViewModel.selectedTab },
+            set: { newValue in
+                guard let newValue else { return }
+                appViewModel.selectedTab = newValue
+            }
+        )
+    }
+
+    private var activeSearchText: Binding<String> {
+        switch appViewModel.selectedTab {
+        case .containers:
+            return $containersStore.searchText
+        case .images:
+            return $imagesStore.searchText
+        case .networks:
+            return $networksStore.searchText
+        case .volumes:
+            return $volumesStore.searchText
+        }
+    }
+
+    private var shouldShowToolbarSearch: Bool {
+        !(appViewModel.selectedTab == .containers && appViewModel.selectedContainerID != nil)
+    }
+
+    private var splitViewContent: some View {
+        NavigationSplitView(columnVisibility: .constant(.all)) {
+            List(selection: selectedTabBinding) {
+                Label("containers", systemImage: "shippingbox.fill")
+                    .tag(CraneTab.containers)
+                Label("images", systemImage: "photo.fill")
+                    .tag(CraneTab.images)
+                Label("networks", systemImage: "network")
+                    .tag(CraneTab.networks)
+                Label("volumes", systemImage: "externaldrive.fill")
+                    .tag(CraneTab.volumes)
+            }
+            .listStyle(.sidebar)
+            .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 260)
+        } detail: {
+            Group {
+                switch appViewModel.selectedTab {
+                case .containers:
                     CraneContainersListView()
-                }
-                Tab("images", systemImage: "photo.fill") {
+                case .images:
                     CraneImagesListView()
-                }
-                Tab("networks", systemImage: "network") {
+                case .networks:
                     CraneNetworksListView()
-                }
-                Tab("volumes", systemImage: "externaldrive.fill") {
+                case .volumes:
                     CraneVolumesListView()
                 }
             }
-            .tabViewStyle(.sidebarAdaptable)
-            .navigationDestination(for: CraneRoute.self) { route in
-                switch route {
-                case .detail(let container):
-                    CraneDetailsView(container: container)
-                case .list:
-                    CraneContainersListView()
-                }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .navigationSplitViewStyle(.balanced)
+    }
+
+    var body: some View {
+        Group {
+            if shouldShowToolbarSearch {
+                splitViewContent
+                    .searchable(text: activeSearchText, placement: .toolbar)
+            } else {
+                splitViewContent
             }
         }
         .alert(String(localized: "craneError"), isPresented: $appViewModel.errorShow) {
@@ -54,7 +99,7 @@ struct CraneView: View {
             } else {
                 Button("refresh") {
                     Task {
-                        appViewModel.navigateTo(to: .list)
+                        appViewModel.showContainersList()
                         try await ContainersStore.shared.reset()
                         try await ImagesStore.shared.reset()
                         try await NetworksStore.shared.reset()

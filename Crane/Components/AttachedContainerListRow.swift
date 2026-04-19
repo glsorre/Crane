@@ -37,7 +37,7 @@ struct AttachedContainerListRow: View {
         .padding(.leading, Spacing.sm)
         .contentShape(Rectangle())
         .onTapGesture {
-            appViewModel.navigateTo(to: .detail(container: container))
+            appViewModel.openContainerDetail(container)
         }
     }
 }

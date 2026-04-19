@@ -67,6 +67,117 @@ func containerCLIExecutableURL() -> URL? {
     return nil
 }
 
+/// GUI apps often inherit a minimal `PATH`; child processes spawned by the CLI may need Homebrew/system paths.
+private func processEnvironmentWithExtendedPATH() -> [String: String] {
+    var env = ProcessInfo.processInfo.environment
+    let prefix = "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+    if let existing = env["PATH"], !existing.isEmpty {
+        if !existing.contains("/opt/homebrew/bin") || !existing.contains("/usr/local/bin") {
+            env["PATH"] = "\(prefix):\(existing)"
+        }
+    } else {
+        env["PATH"] = prefix
+    }
+    env["NO_COLOR"] = "1"
+    return env
+}
+
+/// Runs the `container` CLI with stdout+stderr merged; same environment as other Crane-driven CLI calls.
+private func runContainerCLI(cliURL: URL, arguments: [String]) -> (status: Int32, output: String) {
+    let process = Process()
+    let pipe = Pipe()
+    process.executableURL = cliURL
+    process.arguments = arguments
+    process.environment = processEnvironmentWithExtendedPATH()
+    process.standardInput = FileHandle.nullDevice
+    process.standardOutput = pipe
+    process.standardError = pipe
+    do {
+        try process.run()
+        process.waitUntilExit()
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        let output = String(data: data, encoding: .utf8) ?? ""
+        return (process.terminationStatus, output.trimmingCharacters(in: .whitespacesAndNewlines))
+    } catch {
+        return (-1, error.localizedDescription)
+    }
+}
+
+/// Outcome of trying to start the BuildKit builder via the `container` CLI after `get(buildkit)` failed.
+enum StartBuilderContainerOutcome: Sendable {
+    /// `container builder start` completed successfully.
+    case builderReady
+    /// CLI missing or `builder start` failed for a reason other than missing Linux VM Rosetta.
+    case failed
+    /// First `builder start` failed with “Rosetta is not installed”; the user should choose to install or continue without Rosetta.
+    case needsRosettaChoice
+}
+
+/// Runs `container builder start` once (no `build.rosetta` changes). Used after the user installs Linux VM Rosetta.
+func runContainerBuilderStartOnly() async -> Bool {
+    guard let cliURL = containerCLIExecutableURL() else {
+        logger.warning("`container` CLI not found; cannot start BuildKit builder")
+        return false
+    }
+    logger.info("Running `container builder start` at \(cliURL.path, privacy: .public)")
+    let (status, output) = runContainerCLI(cliURL: cliURL, arguments: ["builder", "start"])
+    guard status == 0 else {
+        logger.error("`container builder start` failed with status \(status): \(output, privacy: .public)")
+        return false
+    }
+    logger.info("`container builder start` succeeded")
+    return true
+}
+
+/// Sets `build.rosetta` to false and runs `container builder start` (QEMU path). Used when the user opts out of Rosetta.
+func startBuilderContainerWithRosettaDisabledViaCLI() async -> Bool {
+    guard let cliURL = containerCLIExecutableURL() else {
+        logger.warning("`container` CLI not found; cannot start BuildKit builder")
+        return false
+    }
+    return await startBuilderViaCLIWithRosettaDisabled(cliURL: cliURL)
+}
+
+/// First attempt to start the builder: runs `container builder start` only. Does not disable `build.rosetta`.
+func startBuilderContainerViaCLI() async -> StartBuilderContainerOutcome {
+    guard let cliURL = containerCLIExecutableURL() else {
+        logger.warning("`container` CLI not found; cannot start BuildKit builder")
+        return .failed
+    }
+    logger.info("Starting BuildKit builder via CLI at \(cliURL.path, privacy: .public)")
+    let (status, output) = runContainerCLI(cliURL: cliURL, arguments: ["builder", "start"])
+    if status == 0 {
+        logger.info("`container builder start` succeeded")
+        return .builderReady
+    }
+    if output.contains("Rosetta is not installed") {
+        logger.info("BuildKit bootstrap requires Linux VM Rosetta or user choice to disable build.rosetta")
+        return .needsRosettaChoice
+    }
+    logger.error("`container builder start` failed with status \(status): \(output, privacy: .public)")
+    return .failed
+}
+
+private func startBuilderViaCLIWithRosettaDisabled(cliURL: URL) async -> Bool {
+    logger.info("Disabling build.rosetta and starting BuildKit at \(cliURL.path, privacy: .public)")
+    let (propStatus, propOut) = runContainerCLI(
+        cliURL: cliURL,
+        arguments: ["system", "property", "set", "build.rosetta", "false"]
+    )
+    if propStatus != 0 {
+        logger.warning("`container system property set build.rosetta false` failed with status \(propStatus): \(propOut, privacy: .public)")
+    } else {
+        logger.info("Set build.rosetta to false; retrying `container builder start`")
+    }
+    let (status, output) = runContainerCLI(cliURL: cliURL, arguments: ["builder", "start"])
+    guard status == 0 else {
+        logger.error("`container builder start` failed with status \(status): \(output, privacy: .public)")
+        return false
+    }
+    logger.info("`container builder start` succeeded")
+    return true
+}
+
 private func startContainerServiceViaCLI(cliURL: URL) async -> Bool {
     let process = Process()
     let pipe = Pipe()

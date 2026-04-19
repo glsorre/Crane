@@ -45,12 +45,21 @@ struct ContainerRowView: View {
         let memGiB = container.snapshot.configuration.resources.memoryInBytes / 1024 / 1024 / 1024
         parts.append("\(cpus) CPUs \u{00B7} \(memGiB) GiB")
 
-        let networks = container.snapshot.networks
-        if let first = networks.first {
-            if networks.count == 1 {
-                parts.append("\(first.network) (\(first.ipv4Address))")
+        let attachedNetworks = container.snapshot.networks
+        if let firstAttachedNetwork = attachedNetworks.first {
+            if attachedNetworks.count == 1 {
+                parts.append("\(firstAttachedNetwork.network) (\(firstAttachedNetwork.ipv4Address))")
             } else {
-                parts.append("\(networks.count) networks")
+                parts.append("\(attachedNetworks.count) networks")
+            }
+        } else {
+            let configuredNetworks = container.snapshot.configuration.networks
+            if let firstConfiguredNetwork = configuredNetworks.first {
+                if configuredNetworks.count == 1 {
+                    parts.append(firstConfiguredNetwork.network)
+                } else {
+                    parts.append("\(configuredNetworks.count) networks")
+                }
             }
         }
 
