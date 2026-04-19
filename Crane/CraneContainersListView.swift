@@ -80,19 +80,19 @@ struct CraneContainersListView: View {
         .onAppear {
             syncNavigationFromSelection()
         }
-        .onChange(of: appViewModel.containerDetailNavigationRequest) { _ in
+        .onChange(of: appViewModel.containerDetailNavigationRequest) {
             syncNavigationFromSelection()
         }
-        .onChange(of: appViewModel.selectedContainerID) { _ in
+        .onChange(of: appViewModel.selectedContainerID) {
             syncNavigationFromSelection()
         }
-        .onChange(of: navigationPath) { _ in
-            let currentID = navigationPath.last
+        .onChange(of: navigationPath) { _, newPath in
+            let currentID = newPath.last
             if appViewModel.selectedContainerID != currentID {
                 appViewModel.selectedContainerID = currentID
             }
         }
-        .onChange(of: containersStore.sortedFilteredContainers.map(\.id)) { _ in
+        .onChange(of: containersStore.sortedFilteredContainers.map(\.id)) {
             syncNavigationFromSelection()
         }
         .toolbar {
