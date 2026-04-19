@@ -3,7 +3,7 @@ import ContainerizationOCI
 import SwiftUI
 
 struct ImagesActionsView: View {
-    @SwiftUI.State var image: Image
+    let image: Image
     @SwiftUI.State private var runSheetIsVisible = false
     @SwiftUI.State private var tagSheetIsVisible = false
 
@@ -17,12 +17,16 @@ struct ImagesActionsView: View {
                         SwiftUI.Image(systemName: "play.fill")
                             .font(Font.system(size: 11))
                     }
-                    .buttonStyle(.glass)
+                    .buttonStyle(.glassProminent)
                     .frame(width: 50)
 
                     SpinnerButton(isLoading: image.status == .removing) {
                         Task {
-                            try await ImagesStore.shared.removeImage(reference: image.id)
+                            do {
+                                try await ImagesStore.shared.removeImage(reference: image.id)
+                            } catch {
+                                AppViewModel.shared.showError(.imageRemoveFailed(error.localizedDescription))
+                            }
                         }
                     } label: {
                         SwiftUI.Image(systemName: "trash.fill")
@@ -44,6 +48,7 @@ struct ImagesActionsView: View {
                     .buttonStyle(.borderless)
                     .frame(width: 50)
                     .help(String(localized: "imageTagSheetTitle"))
+                    .accessibilityLabel(String(localized: "imageTagSheetTitle"))
                 }
             } else if image.status == .tagging {
                 ProgressView()

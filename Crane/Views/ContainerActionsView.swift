@@ -37,25 +37,31 @@ struct ContainerActionsView: View {
                 .buttonStyle(.glassProminent)
                 .frame(width: 50)
                 if clientContainer?.status == .running {
-                    SpinnerButton(isLoading: container?.transiting ?? true) {
-                        Task {
-                            await containersStore.restartContainer(id: id)
+                    if container?.autoRemove == false {
+                        SpinnerButton(isLoading: container?.transiting ?? true) {
+                            Task {
+                                await containersStore.restartContainer(id: id)
+                            }
+                        } label: {
+                            SwiftUI.Image(systemName: "arrow.clockwise")
                         }
-                    } label: {
-                        SwiftUI.Image(systemName: "arrow.clockwise")
+                        .buttonStyle(.glass)
+                        .frame(width: 44)
+                        .help(String(localized: "containerActionRestart"))
                     }
-                    .buttonStyle(.glass)
-                    .frame(width: 44)
-                    .help(String(localized: "containerActionRestart"))
                     Button {
                         openShell(containerID: id)
                     } label: {
                         SwiftUI.Image(systemName: "terminal.fill")
+                            .font(Font.system(size: 11))
+                            .foregroundStyle(.secondary)
+                            .symbolRenderingMode(.hierarchical)
                     }
-                    .buttonStyle(.glass)
-                    .frame(width: 44)
+                    .buttonStyle(.borderless)
+                    .frame(width: 50)
                     .disabled(container?.transiting ?? true)
                     .help(String(localized: "containerActionShell"))
+                    .accessibilityLabel(String(localized: "containerActionShell"))
                 }
             }
             if clientContainer?.status == .stopped || container?.isExited == true {

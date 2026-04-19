@@ -44,6 +44,19 @@ class Container: Identifiable, Hashable {
 
     func start() async throws {
         self.transiting = true
+        let fileManager = FileManager.default
+        if let invalidVolumeMount = self.snapshot.configuration.mounts.first(where: {
+            $0.isVolume && !fileManager.fileExists(atPath: $0.source)
+        }) {
+            self.transiting = false
+            throw NSError(
+                domain: "Crane",
+                code: 1001,
+                userInfo: [
+                    NSLocalizedDescriptionKey: "This container references a missing volume path (\(invalidVolumeMount.source)). Recreate it from the image so Crane can bind the named volume correctly."
+                ]
+            )
+        }
 
         do {
             try await withTimeout {
@@ -58,7 +71,6 @@ class Container: Identifiable, Hashable {
             self.transiting = false
             throw error
         }
-
         try? await Task.sleep(for: .milliseconds(500))
         self.transiting = false
         RefreshCoordinator.shared.containerMutated()
@@ -193,6 +205,7 @@ class ContainersStore {
     private func collectWithChangeDetection() async throws -> Bool {
         let previousIDs = Set(containers.map { $0.id })
         let previousCount = containers.count
+        let persistentContainerIDs = AppSettings.persistentContainerIDs
 
         let currentSnapshots = try await client.list()
         var currentContainersSet: Set<Container> = []
@@ -203,13 +216,16 @@ class ContainersStore {
             if let container = containers.first(where: { $0.id == newContainer.id }) {
                 container.update(snapshot: snapshot)
                 container.isExited = false
+                container.autoRemove = !persistentContainerIDs.contains(container.id)
             }
             containers.insert(newContainer)
         }
 
         let exitedContainers = containers.subtracting(currentContainersSet)
         exitedContainers.forEach { container in
-            if !container.autoRemove {
+            let shouldPersist = persistentContainerIDs.contains(container.id)
+            container.autoRemove = !shouldPersist
+            if shouldPersist {
                 container.isExited = true
                 container.transiting = false
             } else {
@@ -263,9 +279,12 @@ class ContainersStore {
         do {
             try await container.remove()
             AppSettings.removePersistentContainerID(id)
+            container.autoRemove = true
+            container.isExited = false
+            container.transiting = false
+            containers.remove(container)
         } catch {
             AppViewModel.shared.showError(.containerRemoveFailed(error.localizedDescription))
         }
-        RefreshCoordinator.shared.containerMutated()
     }
 }

@@ -45,14 +45,6 @@ struct ContainerDetailsInfoView: View {
 
     private var containerDetailsCard: some View {
         VStack(spacing: Spacing.md) {
-            Label(snapshot.id, systemImage: "shippingbox.fill")
-                .font(.title3).fontWeight(.semibold)
-                .monospaced()
-                .textSelection(.enabled)
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-            Divider()
-
             HStack(spacing: Spacing.xs) {
                 Label {
                     Text(snapshot.status.getDescription())

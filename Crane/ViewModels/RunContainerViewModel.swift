@@ -302,12 +302,17 @@ class RunContainerViewModel {
         isCreating = true
         error = nil
         success = false
+        defer { isCreating = false }
+
+        let processConfig: ProcessConfiguration
+        let containerName = name.trimmed
+        var config: ContainerConfiguration
+        let options = ContainerCreateOptions(autoRemove: autoRemove)
+        let containerClient = ContainerClient()
 
         do {
-            let processConfig = try buildProcessConfiguration()
-            let containerName = name.trimmed
-
-            var config = ContainerConfiguration(
+            processConfig = try buildProcessConfiguration()
+            config = ContainerConfiguration(
                 id: containerName,
                 image: clientImage.description,
                 process: processConfig
@@ -363,26 +368,39 @@ class RunContainerViewModel {
             config.virtualization = virtualization
             config.ssh = ssh
 
-            let options = ContainerCreateOptions(autoRemove: autoRemove)
-            let containerClient = ContainerClient()
             try await containerClient.create(
                 configuration: config,
                 options: options,
                 kernel: try await ClientKernel.getDefaultKernel(for: .current)
             )
-
-            if !autoRemove {
-                AppSettings.addPersistentContainerID(containerName)
-            }
-
-            RefreshCoordinator.shared.containerMutated()
-            success = true
         } catch {
             self.error = error.localizedDescription
             AppViewModel.shared.showError(.containerCreateFailed(error.localizedDescription))
+            return
         }
 
-        isCreating = false
+        if !autoRemove {
+            AppSettings.addPersistentContainerID(containerName)
+        }
+
+        do {
+            try await withTimeout {
+                let io = try ProcessIO.create(tty: true, interactive: false, detach: true)
+                defer {
+                    _ = try? io.close()
+                }
+                let process = try await containerClient.bootstrap(id: containerName, stdio: io.stdio)
+                try await process.start()
+            }
+        } catch {
+            self.error = error.localizedDescription
+            AppViewModel.shared.showError(.containerStartFailed(error.localizedDescription))
+            RefreshCoordinator.shared.containerMutated()
+            return
+        }
+
+        RefreshCoordinator.shared.containerMutated()
+        success = true
     }
 
     private func clearStatus() {
@@ -548,10 +566,14 @@ class RunContainerViewModel {
                     options: options
                 )
             case .volume:
+                let volumeName = entry.source.trimmed
+                let resolvedVolume = VolumesStore.shared.volumes.first(where: { $0.id == volumeName })?.volume
+                let resolvedSource = resolvedVolume?.source ?? volumeName
+                let resolvedFormat = resolvedVolume?.format ?? "raw"
                 return Filesystem.volume(
-                    name: entry.source.trimmed,
-                    format: "raw",
-                    source: entry.source.trimmed,
+                    name: volumeName,
+                    format: resolvedFormat,
+                    source: resolvedSource,
                     destination: entry.destination.trimmed,
                     options: options
                 )

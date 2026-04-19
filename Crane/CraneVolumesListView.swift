@@ -54,7 +54,7 @@ struct CraneVolumesListView: View {
                 }) {
                     SwiftUI.Image(systemName: "plus")
                 }
-                .buttonStyle(.glass)
+                .buttonStyle(.glassProminent)
                 .help(String(localized: "toolbarHelpAddVolume"))
                 .accessibilityLabel(String(localized: "toolbarHelpAddVolume"))
             }
@@ -62,6 +62,5 @@ struct CraneVolumesListView: View {
         .sheet(isPresented: $createSheetIsVisible) {
             VolumeCreateView(isPresented: $createSheetIsVisible)
         }
-        .searchable(text: $volumesStore.searchText, placement: .toolbar)
     }
 }

@@ -54,7 +54,7 @@ struct CraneNetworksListView: View {
                 }) {
                     SwiftUI.Image(systemName: "plus")
                 }
-                .buttonStyle(.glass)
+                .buttonStyle(.glassProminent)
                 .help(String(localized: "toolbarHelpAddNetwork"))
                 .accessibilityLabel(String(localized: "toolbarHelpAddNetwork"))
             }
@@ -62,6 +62,5 @@ struct CraneNetworksListView: View {
         .sheet(isPresented: $createSheetIsVisible) {
             NetworkCreateView(isPresented: $createSheetIsVisible)
         }
-        .searchable(text: $networksStore.searchText, placement: .toolbar)
     }
 }

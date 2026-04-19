@@ -10,7 +10,6 @@ import ContainerResource
 import ContainerizationOCI
 import Foundation
 import Observation
-import SwiftUI
 
 enum CraneError: LocalizedError {
     case notRegistered
@@ -34,7 +33,7 @@ enum CraneError: LocalizedError {
     case volumeCreateFailed(String)
     case volumeRemoveFailed(String)
 
-    var errorDescription: String {
+    var errorDescription: String? {
         switch self {
         case .notRegistered:
             return String(localized: "notRegistered")
@@ -89,29 +88,41 @@ enum CraneError: LocalizedError {
     }
 }
 
-enum CraneRoute: Hashable {
-    case detail(container: Container)
-    case list
+enum CraneTab: Hashable {
+    case containers
+    case images
+    case networks
+    case volumes
 }
     
 @Observable
 class AppViewModel {
     static let shared = AppViewModel()
-    
-    var path: NavigationPath = NavigationPath()
-    
+
+    var selectedTab: CraneTab = .containers
+    var selectedContainerID: Container.ID?
+    var containerDetailNavigationRequest: Int = 0
+
     var error: CraneError?
     var errorShow: Bool = false
-    
+
     func showError(_ error: CraneError) {
         self.error = error
         self.errorShow = true
     }
-    
-    func navigateTo(to route: CraneRoute, removeStack: Bool = false) {
-        self.path.append(route)
-        if removeStack {
-            self.path.removeLast(self.path.count - 1)
-        }
+
+    func openContainerDetail(_ container: Container) {
+        selectedTab = .containers
+        selectedContainerID = container.id
+        containerDetailNavigationRequest &+= 1
+    }
+
+    func showContainersList() {
+        selectedTab = .containers
+        clearContainerSelection()
+    }
+
+    func clearContainerSelection() {
+        selectedContainerID = nil
     }
 }

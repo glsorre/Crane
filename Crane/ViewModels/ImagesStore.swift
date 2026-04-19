@@ -42,6 +42,7 @@ class Image : Identifiable, Hashable {
     var id: String
     var image: ClientImage?
     var imageConfiguration: ContainerizationOCI.Image?
+    var objectIdentity: ObjectIdentifier { ObjectIdentifier(self) }
     var status: ImageStatus
     
     init(id: String) {
@@ -113,7 +114,7 @@ class ImagesStore {
             .sorted { $0.id < $1.id }
             .filter { self.searchText.isEmpty || ($0.id.contains(self.searchText)) }
     }
-    
+
     private init() {
         self.start()
     }
@@ -152,8 +153,13 @@ class ImagesStore {
     func removeImage(reference: String) async throws {
         if let existingImage = self.images.first(where: { $0.id == reference }) {
             existingImage.status = .removing
-            try await existingImage.remove()
-            images.remove(existingImage)
+            do {
+                try await existingImage.remove()
+                images.remove(existingImage)
+            } catch {
+                existingImage.status = .available
+                throw error
+            }
         }
         RefreshCoordinator.shared.imageMutated()
     }
@@ -207,7 +213,7 @@ class ImagesStore {
             if deleteSourceAfter {
                 try await ClientImage.delete(reference: normalizedSource)
             }
-            try? await collect()
+            _ = try? await collect()
             RefreshCoordinator.shared.imageMutated()
             return true
         } catch {
@@ -229,23 +235,20 @@ class ImagesStore {
         let previousIDs = Set(images.map { $0.id })
 
         let currentImages = try await ClientImage.list()
-        var currentImagesSet: Set<Image> = Set()
+        var currentIDs: Set<String> = []
 
         for clientImage in currentImages {
-            let newImage = Image(image: clientImage)
-            currentImagesSet.insert(newImage)
-            if let image = images.first(where: { $0.id == newImage.id }) {
-                try await image.setImage(image: clientImage)
+            currentIDs.insert(clientImage.reference)
+            if let existing = images.first(where: { $0.id == clientImage.reference }) {
+                try await existing.setImage(image: clientImage)
+            } else {
+                let newImage = Image(image: clientImage)
+                images.insert(newImage)
             }
-            images.insert(newImage)
         }
 
-        let imagesToRemove = images.subtracting(currentImagesSet)
-        imagesToRemove.forEach { imageToRemove in
-            if imageToRemove.status != .fetching {
-                images.remove(imageToRemove)
-            }
-        }
+        let imagesToRemove = images.filter { !currentIDs.contains($0.id) && $0.status != .fetching }
+        imagesToRemove.forEach { images.remove($0) }
 
         let newIDs = Set(images.map { $0.id })
         return previousIDs != newIDs

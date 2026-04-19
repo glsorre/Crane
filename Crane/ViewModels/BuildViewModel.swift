@@ -47,11 +47,39 @@ extension ImageBuildSource {
     }
 }
 
+@MainActor
 @Observable
 class BuildViewModel {
     private let containerClient = ContainerClient()
 
+    /// Upper bound for `Builder.build` (gRPC stream); avoids indefinite UI when BuildKit never closes the stream.
+    private static let buildInvocationTimeout: Duration = .seconds(45 * 60)
+
     var status: BuildStatus = .idle
+
+    /// Shown when the builder VM needs Linux Rosetta; user can install it or continue with QEMU (`build.rosetta` off).
+    var rosettaInstallerAlertPresented = false
+
+    private var rosettaInstallerContinuation: CheckedContinuation<RosettaInstallerChoice, Never>?
+
+    enum RosettaInstallerChoice: Sendable {
+        case installRosetta
+        case continueWithoutRosetta
+        case cancel
+    }
+
+    func resolveRosettaInstallerPrompt(_ choice: RosettaInstallerChoice) {
+        rosettaInstallerAlertPresented = false
+        rosettaInstallerContinuation?.resume(returning: choice)
+        rosettaInstallerContinuation = nil
+    }
+
+    private func waitForRosettaInstallerChoice() async -> RosettaInstallerChoice {
+        await withCheckedContinuation { cont in
+            rosettaInstallerContinuation = cont
+            rosettaInstallerAlertPresented = true
+        }
+    }
 
     /// Builds from pasted Dockerfile text (legacy single-field flow).
     func build(tag: String, dockerfileContent: String) async {
@@ -153,16 +181,86 @@ class BuildViewModel {
     }
 
     private func runBuildKitPipeline(tag: String, contextDirPath: String, dockerfileData: Data) async throws {
-        // 1. Ensure builder running
+        // 1. Ensure builder running (may run `container builder start` via helpers when missing)
         let container: ContainerSnapshot
         do {
             container = try await containerClient.get(id: "buildkit")
         } catch {
-            throw NSError(
-                domain: "Build",
-                code: 6,
-                userInfo: [NSLocalizedDescriptionKey: String(localized: "builderNotFound")]
-            )
+            switch await startBuilderContainerViaCLI() {
+            case .builderReady:
+                do {
+                    container = try await containerClient.get(id: "buildkit")
+                } catch {
+                    throw NSError(
+                        domain: "Build",
+                        code: 6,
+                        userInfo: [NSLocalizedDescriptionKey: String(localized: "builderNotFound")]
+                    )
+                }
+            case .failed:
+                throw NSError(
+                    domain: "Build",
+                    code: 6,
+                    userInfo: [NSLocalizedDescriptionKey: String(localized: "builderNotFound")]
+                )
+            case .needsRosettaChoice:
+                let choice = await waitForRosettaInstallerChoice()
+                switch choice {
+                case .cancel:
+                    throw NSError(
+                        domain: "Build",
+                        code: 8,
+                        userInfo: [NSLocalizedDescriptionKey: String(localized: "buildCancelled")]
+                    )
+                case .continueWithoutRosetta:
+                    guard await startBuilderContainerWithRosettaDisabledViaCLI() else {
+                        throw NSError(
+                            domain: "Build",
+                            code: 6,
+                            userInfo: [NSLocalizedDescriptionKey: String(localized: "builderNotFound")]
+                        )
+                    }
+                    do {
+                        container = try await containerClient.get(id: "buildkit")
+                    } catch {
+                        throw NSError(
+                            domain: "Build",
+                            code: 6,
+                            userInfo: [NSLocalizedDescriptionKey: String(localized: "builderNotFound")]
+                        )
+                    }
+                case .installRosetta:
+                    do {
+                        if #available(macOS 13.0, *) {
+                            try await LinuxVMRosettaInstaller.installIfNeeded()
+                        } else {
+                            throw RosettaInstallError.requiresMacOS13
+                        }
+                    } catch {
+                        throw NSError(
+                            domain: "Build",
+                            code: 10,
+                            userInfo: [NSLocalizedDescriptionKey: error.localizedDescription]
+                        )
+                    }
+                    guard await runContainerBuilderStartOnly() else {
+                        throw NSError(
+                            domain: "Build",
+                            code: 6,
+                            userInfo: [NSLocalizedDescriptionKey: String(localized: "builderNotFound")]
+                        )
+                    }
+                    do {
+                        container = try await containerClient.get(id: "buildkit")
+                    } catch {
+                        throw NSError(
+                            domain: "Build",
+                            code: 6,
+                            userInfo: [NSLocalizedDescriptionKey: String(localized: "builderNotFound")]
+                        )
+                    }
+                }
+            }
         }
 
         let fh: FileHandle
@@ -188,20 +286,25 @@ class BuildViewModel {
         // 2. Builder session: keep `Builder` scoped so it releases the socket before we shut down the
         //    event loop group and close the dial `FileHandle`.
         let threadGroup = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount)
-        defer {
-            try? threadGroup.syncShutdownGracefully()
+        do {
+            try await runBuildKitClientSession(
+                fh: fh,
+                threadGroup: threadGroup,
+                tag: tag,
+                contextDirPath: contextDirPath,
+                dockerfileData: dockerfileData
+            )
+        } catch {
+            try? await shutdownThreadGroupGracefully(threadGroup)
             try? fh.close()
+            throw error
         }
 
-        try await runBuildKitClientSession(
-            fh: fh,
-            threadGroup: threadGroup,
-            tag: tag,
-            contextDirPath: contextDirPath,
-            dockerfileData: dockerfileData
-        )
+        try? await shutdownThreadGroupGracefully(threadGroup)
+        try? fh.close()
     }
 
+    /// `quiet: false` is required: with `quiet: true`, ContainerBuild's `BuildStdio` skips IO packets without sending `ClientStream` replies, which can stall the build stream indefinitely.
     private func runBuildKitClientSession(
         fh: FileHandle,
         threadGroup: MultiThreadedEventLoopGroup,
@@ -241,15 +344,33 @@ class BuildViewModel {
             terminal: nil,
             tags: [normalizedTag],
             target: "",
-            quiet: true,
+            quiet: false,
             exports: [export],
             cacheIn: [],
             cacheOut: [],
-            pull: false
+            pull: true
         )
 
         status = .building
-        try await builder.build(config)
+        let buildKitBuilder = builder
+        let buildKitConfig = config
+        try await withThrowingTaskGroup(of: Void.self) { group in
+            group.addTask {
+                try await Task.detached(priority: .userInitiated) {
+                    try await buildKitBuilder.build(buildKitConfig)
+                }.value
+            }
+            group.addTask {
+                try await Task.sleep(for: Self.buildInvocationTimeout)
+                throw NSError(
+                    domain: "Build",
+                    code: 11,
+                    userInfo: [NSLocalizedDescriptionKey: String(localized: "imageBuildTimedOut")]
+                )
+            }
+            try await group.next()
+            group.cancelAll()
+        }
 
         status = .unpacking
         guard let dest = export.destination else {
@@ -261,6 +382,18 @@ class BuildViewModel {
             _ = try await image.tag(new: normalizedTag)
         }
 
-        try? await ImagesStore.shared.collect()
+        _ = try? await ImagesStore.shared.collect()
+    }
+
+    private func shutdownThreadGroupGracefully(_ threadGroup: MultiThreadedEventLoopGroup) async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            threadGroup.shutdownGracefully { error in
+                if let error {
+                    continuation.resume(throwing: error)
+                } else {
+                    continuation.resume()
+                }
+            }
+        }
     }
 }

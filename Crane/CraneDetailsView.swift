@@ -52,6 +52,7 @@ struct CraneDetailsView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(Spacing.md)
+        .navigationTitle(clientContainer.id)
         .toolbar {
             if !container.isExited {
                 ToolbarItem {
@@ -70,18 +71,20 @@ struct CraneDetailsView: View {
                             Label("start", systemImage: "play.fill")
                         }
                     }
-                    .buttonStyle(.glass)
+                    .buttonStyle(.glassProminent)
                 }
                 if clientContainer.status == .running {
-                    ToolbarItem {
-                        SpinnerButton(isLoading: viewModel.container.transiting) {
-                            Task {
-                                await viewModel.restartContainer()
+                    if viewModel.container.autoRemove == false {
+                        ToolbarItem {
+                            SpinnerButton(isLoading: viewModel.container.transiting) {
+                                Task {
+                                    await viewModel.restartContainer()
+                                }
+                            } label: {
+                                Label(String(localized: "containerActionRestart"), systemImage: "arrow.clockwise")
                             }
-                        } label: {
-                            Label(String(localized: "containerActionRestart"), systemImage: "arrow.clockwise")
+                            .buttonStyle(.glass)
                         }
-                        .buttonStyle(.glass)
                     }
                     ToolbarItem {
                         Button {
@@ -89,7 +92,7 @@ struct CraneDetailsView: View {
                         } label: {
                             Label(String(localized: "containerActionShell"), systemImage: "terminal.fill")
                         }
-                        .buttonStyle(.glass)
+                        .buttonStyle(.borderless)
                         .disabled(viewModel.container.transiting)
                     }
                 }

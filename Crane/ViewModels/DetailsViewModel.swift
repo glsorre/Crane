@@ -161,13 +161,8 @@ class DetailsViewModel {
     }
 
     func removeContainer() async {
-        do {
-            try await container.remove()
-        } catch {
-            AppViewModel.shared.showError(.containerRemoveFailed(error.localizedDescription))
-        }
-
-        AppViewModel.shared.navigateTo(to: CraneRoute.list, removeStack: true)
+        await ContainersStore.shared.removeContainer(id: container.id)
+        AppViewModel.shared.showContainersList()
     }
 
     func getHandleName(handleIndex: Int) -> String {
