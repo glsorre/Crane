@@ -168,9 +168,10 @@ class BuildViewModel {
             )
         }
         let candidate = URL(fileURLWithPath: rel, isDirectory: false, relativeTo: base).standardizedFileURL
-        let basePath = base.path
-        let resolvedPath = candidate.path
-        guard resolvedPath.hasPrefix(basePath + "/") else {
+        let baseComponents = base.pathComponents
+        let resolvedComponents = candidate.pathComponents
+        guard resolvedComponents.starts(with: baseComponents),
+              resolvedComponents.count > baseComponents.count else {
             throw NSError(
                 domain: "Build",
                 code: 5,
