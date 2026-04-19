@@ -15,6 +15,8 @@ struct ImageBuildView: View {
     @State private var text: String = "FROM alpine:latest\n"
     @State private var buildSourceMode: BuildSourceMode = .paste
     @State private var contextFolderURL: URL?
+    /// True when `contextFolderURL` has an active `startAccessingSecurityScopedResource` that must be balanced with `stopAccessingSecurityScopedResource`.
+    @State private var contextFolderHasSecurityScopedAccess = false
     @State private var dockerfileRelativePath: String = "Dockerfile"
     @State private var showFolderImporter = false
 
@@ -230,6 +232,21 @@ struct ImageBuildView: View {
         .padding(Spacing.md)
         .animation(.easeInOut(duration: 0.25), value: buildViewModel.status)
         .animation(.easeInOut(duration: 0.2), value: buildSourceMode)
+        .onChange(of: buildSourceMode) { _, newMode in
+            if newMode != .localFolder {
+                stopSecurityScopedAccessForContextFolder()
+                contextFolderURL = nil
+            }
+        }
+        .onChange(of: isPresented) { _, presented in
+            if !presented {
+                stopSecurityScopedAccessForContextFolder()
+                contextFolderURL = nil
+            }
+        }
+        .onDisappear {
+            stopSecurityScopedAccessForContextFolder()
+        }
         .fileImporter(
             isPresented: $showFolderImporter,
             allowedContentTypes: [.folder],
@@ -238,12 +255,19 @@ struct ImageBuildView: View {
             switch result {
             case .success(let urls):
                 guard let url = urls.first else { return }
-                _ = url.startAccessingSecurityScopedResource()
+                stopSecurityScopedAccessForContextFolder()
                 contextFolderURL = url
+                contextFolderHasSecurityScopedAccess = url.startAccessingSecurityScopedResource()
             case .failure:
                 break
             }
         }
+    }
+
+    private func stopSecurityScopedAccessForContextFolder() {
+        guard contextFolderHasSecurityScopedAccess, let url = contextFolderURL else { return }
+        url.stopAccessingSecurityScopedResource()
+        contextFolderHasSecurityScopedAccess = false
     }
 
     // MARK: - Build status (between form and footer, like ContainerRunView)

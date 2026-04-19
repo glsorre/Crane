@@ -40,6 +40,14 @@ enum ContainerShellLauncher {
         let scriptURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("crane-shell-\(UUID().uuidString).command")
 
+        /// If we return without handing the script to Terminal, delete the temp file synchronously.
+        var terminalLaunchedWithScript = false
+        defer {
+            if !terminalLaunchedWithScript {
+                try? FileManager.default.removeItem(at: scriptURL)
+            }
+        }
+
         let script = """
         #!/bin/bash
         exec \(bashSingleQuoted(cliURL.path)) exec --interactive --tty \(bashSingleQuoted(trimmed)) /bin/sh
@@ -56,6 +64,14 @@ enum ContainerShellLauncher {
                 code: 4,
                 userInfo: [NSLocalizedDescriptionKey: String(localized: "containerShellOpenFailed")]
             )
+        }
+        terminalLaunchedWithScript = true
+
+        // `NSWorkspace.open` returns before the terminal may finish reading the script; remove after a short delay.
+        let urlToRemove = scriptURL
+        Task.detached(priority: .utility) {
+            try? await Task.sleep(for: .seconds(5))
+            try? FileManager.default.removeItem(at: urlToRemove)
         }
     }
 

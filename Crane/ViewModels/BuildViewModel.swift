@@ -185,8 +185,30 @@ class BuildViewModel {
             }
         }
 
-        // 2. Create Builder
+        // 2. Builder session: keep `Builder` scoped so it releases the socket before we shut down the
+        //    event loop group and close the dial `FileHandle`.
         let threadGroup = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount)
+        defer {
+            try? threadGroup.syncShutdownGracefully()
+            try? fh.close()
+        }
+
+        try await runBuildKitClientSession(
+            fh: fh,
+            threadGroup: threadGroup,
+            tag: tag,
+            contextDirPath: contextDirPath,
+            dockerfileData: dockerfileData
+        )
+    }
+
+    private func runBuildKitClientSession(
+        fh: FileHandle,
+        threadGroup: MultiThreadedEventLoopGroup,
+        tag: String,
+        contextDirPath: String,
+        dockerfileData: Data
+    ) async throws {
         let builder = try Builder(socket: fh, group: threadGroup)
         let _ = try await builder.info()
 

@@ -20,6 +20,18 @@ struct ImagesActionsView: View {
                     .buttonStyle(.glass)
                     .frame(width: 50)
 
+                    SpinnerButton(isLoading: image.status == .removing) {
+                        Task {
+                            try await ImagesStore.shared.removeImage(reference: image.id)
+                        }
+                    } label: {
+                        SwiftUI.Image(systemName: "trash.fill")
+                            .font(Font.system(size: 11))
+                    }
+                    .buttonStyle(.glass)
+                    .foregroundColor(Color(.systemRed))
+                    .frame(width: 50)
+
                     // Secondary: borderless + muted tint so tag does not compete with primary run.
                     Button {
                         tagSheetIsVisible = true
@@ -32,18 +44,6 @@ struct ImagesActionsView: View {
                     .buttonStyle(.borderless)
                     .frame(width: 50)
                     .help(String(localized: "imageTagSheetTitle"))
-
-                    SpinnerButton(isLoading: image.status == .removing) {
-                        Task {
-                            try await ImagesStore.shared.removeImage(reference: image.id)
-                        }
-                    } label: {
-                        SwiftUI.Image(systemName: "trash.fill")
-                            .font(Font.system(size: 11))
-                    }
-                    .buttonStyle(.glass)
-                    .foregroundColor(Color(.systemRed))
-                    .frame(width: 50)
                 }
             } else if image.status == .tagging {
                 ProgressView()
