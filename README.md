@@ -1,8 +1,8 @@
-# Crane
+# Apple Containers, with a real UI
 
-Native macOS GUI for [Apple Containers](https://github.com/apple/container).
+Apple's `container` tool brings lightweight, native containerization to macOS — but it ships CLI-only. Crane fills the gap: a polished, purpose-built app that makes container management visual, fast, and Mac-native.
 
-Also known as **Right Crane**.
+No terminal required. No Electron. No subscription.
 
 !["containers list"](screenshots/screenshot_001.png)
 
@@ -23,6 +23,10 @@ Also known as **Right Crane**.
 - macOS 26 (Tahoe)
 - Apple silicon
 - [Apple container cli tool](https://github.com/apple/container)
+
+## Getting Started
+
+- download and install from [https://github.com/glsorre/Crane/releases/latest](https://github.com/glsorre/Crane/releases/latest)
 
 ## Building
 
