@@ -11,55 +11,49 @@ struct ImagesActionsView: View {
         Group {
             if image.status == .available {
                 HStack(spacing: 4) {
-                    Button {
-                        runSheetIsVisible = true
-                    } label: {
-                        SwiftUI.Image(systemName: "play.fill")
-                            .font(Font.system(size: 11))
-                    }
-                    .buttonStyle(.glassProminent)
-                    .frame(width: 50)
-
-                    SpinnerButton(isLoading: image.status == .removing) {
-                        Task {
-                            do {
-                                try await ImagesStore.shared.removeImage(reference: image.id)
-                            } catch {
-                                AppViewModel.shared.showError(.imageRemoveFailed(error.localizedDescription))
-                            }
+                    RowActionButton(
+                        .primary,
+                        action: { runSheetIsVisible = true },
+                        label: {
+                            SwiftUI.Image(systemName: "play.fill")
                         }
-                    } label: {
-                        SwiftUI.Image(systemName: "trash.fill")
-                            .font(Font.system(size: 11))
-                    }
-                    .buttonStyle(.glass)
-                    .foregroundColor(Color(.systemRed))
-                    .frame(width: 50)
+                    )
 
-                    // Secondary: borderless + muted tint so tag does not compete with primary run.
-                    Button {
-                        tagSheetIsVisible = true
-                    } label: {
-                        SwiftUI.Image(systemName: "tag.fill")
-                            .font(Font.system(size: 11))
-                            .foregroundStyle(.secondary)
-                            .symbolRenderingMode(.hierarchical)
-                    }
-                    .buttonStyle(.borderless)
-                    .frame(width: 50)
-                    .help(String(localized: "imageTagSheetTitle"))
-                    .accessibilityLabel(String(localized: "imageTagSheetTitle"))
+                    RowActionButton(
+                        .destructive,
+                        isLoading: image.status == .removing,
+                        action: {
+                            Task {
+                                do {
+                                    try await ImagesStore.shared.removeImage(reference: image.id)
+                                } catch {
+                                    AppViewModel.shared.showError(.imageRemoveFailed(error.localizedDescription))
+                                }
+                            }
+                        },
+                        label: {
+                            SwiftUI.Image(systemName: "trash.fill")
+                        }
+                    )
+
+                    RowActionButton(
+                        .tertiary,
+                        help: String(localized: "imageTagSheetTitle"),
+                        action: { tagSheetIsVisible = true },
+                        label: {
+                            SwiftUI.Image(systemName: "tag.fill")
+                        }
+                    )
                 }
-            } else if image.status == .tagging {
+            } else if image.status == .tagging || image.status == .fetching {
                 ProgressView()
                     .progressViewStyle(.linear)
-            } else if image.status == .fetching {
-                ProgressView()
-                    .progressViewStyle(.linear)
+                    .frame(width: 158)
             } else if image.status == .removing {
                 ProgressView()
-                    .background(Color(.systemRed))
                     .progressViewStyle(.linear)
+                    .frame(width: 158)
+                    .background(Color(.systemRed))
             }
         }
         .sheet(isPresented: $runSheetIsVisible) {

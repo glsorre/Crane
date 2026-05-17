@@ -34,7 +34,6 @@ struct VolumeRowView: View {
                 }
             }
         }
-        .padding(.vertical, Spacing.xxs)
     }
 
     private func volumeMountDetailString(container: Container) -> String? {
@@ -45,34 +44,40 @@ struct VolumeRowView: View {
     }
 
     private var labelRow: some View {
-        HStack {
-            SwiftUI.Image(systemName: "externaldrive.fill")
-                .foregroundStyle(.secondary)
-
-            VStack(alignment: .leading, spacing: Spacing.xxxs) {
-                Text(volume.id)
-                    .font(.headline)
-
-                Text(volume.volume.driver)
-                    .font(.subheadline)
+        ResourceListRow(
+            title: volume.id,
+            subtitle: subtitle,
+            leading: {
+                SwiftUI.Image(systemName: "externaldrive.fill")
                     .foregroundStyle(.secondary)
-            }
-
-            Spacer()
-
-            if children.isEmpty {
-                SpinnerButton(isLoading: volume.transiting) {
-                    Task {
-                        await volumesStore.removeVolume(name: volume.id)
-                    }
-                } label: {
-                    SwiftUI.Image(systemName: "trash.fill")
-                        .font(Font.system(size: 11))
+            },
+            trailing: {
+                if children.isEmpty {
+                    RowActionButton(
+                        .destructive,
+                        isLoading: volume.transiting,
+                        action: {
+                            Task { await volumesStore.removeVolume(name: volume.id) }
+                        },
+                        label: {
+                            SwiftUI.Image(systemName: "trash.fill")
+                        }
+                    )
                 }
-                .buttonStyle(.glass)
-                .foregroundColor(Color(.systemRed))
-                .frame(width: 50)
             }
+        )
+    }
+
+    private var subtitle: String {
+        let count = children.count
+        let attached: String
+        if count == 0 {
+            attached = String(localized: "volumeMountedNone")
+        } else if count == 1 {
+            attached = String(localized: "volumeMountedOne")
+        } else {
+            attached = String(format: String(localized: "volumeMountedMany"), count)
         }
+        return "\(volume.volume.driver) \u{00B7} \(attached)"
     }
 }

@@ -22,6 +22,7 @@ struct CraneVolumesListView: View {
                 VolumeRowView(volume: volume)
             }
             .listStyle(.inset)
+            .contentMargins(.top, Spacing.lg, for: .scrollContent)
 
             if listItems.isEmpty {
                 MainListEmptyState(

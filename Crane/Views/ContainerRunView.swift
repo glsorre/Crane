@@ -25,31 +25,20 @@ struct ContainerRunView: View {
         volumesStore.sortedFilteredVolumes
     }
 
-    private var statusMessage: (text: String, color: Color, symbol: String)? {
-        if let error = viewModel.error {
-            return (error, .red, "xmark.circle.fill")
-        }
-        if let validation = viewModel.validationMessage {
-            return (validation, .orange, "exclamationmark.triangle.fill")
-        }
-        if viewModel.success {
-            return (String(localized: "runContainerSuccess"), .green, "checkmark.circle.fill")
-        }
-        return nil
-    }
-
     var body: some View {
-        VStack(spacing: Spacing.md) {
-            HStack {
-                Label("runContainer", systemImage: "shippingbox.fill")
-                    .font(.title3)
-                    .fontWeight(.semibold)
-                Spacer()
-            }
-            .padding(.horizontal, Spacing.md)
-            .padding(.vertical, Spacing.lg)
-
-            Form {
+        DialogContainer(
+            isPresented: $isPresented,
+            title: "runContainer",
+            systemImage: "shippingbox.fill",
+            workingLabel: "runContainer",
+            canSubmit: viewModel.canRun,
+            perform: {
+                try await viewModel.run()
+            },
+            primaryLabel: {
+                Label(String(localized: "runContainerRun"), systemImage: "play.fill")
+            },
+            content: {
                 Section("Basics") {
                     ContainerRunBasicsSection(
                         viewModel: viewModel,
@@ -94,47 +83,7 @@ struct ContainerRunView: View {
                     }
                 }
             }
-            .groupedDialogFormLayout()
-
-            if let statusMessage {
-                HStack(alignment: .top, spacing: Spacing.sm) {
-                    SwiftUI.Image(systemName: statusMessage.symbol)
-                        .foregroundStyle(statusMessage.color)
-                    Text(statusMessage.text)
-                        .font(.callout)
-                        .foregroundStyle(statusMessage.color)
-                        .lineLimit(3)
-                        .textSelection(.enabled)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, Spacing.md)
-                .padding(.vertical, Spacing.sm)
-            }
-
-            HStack {
-                Button(String(localized: "cancel")) {
-                    isPresented = false
-                }
-                .buttonStyle(.glass)
-
-                Spacer()
-
-                SpinnerButton(isLoading: viewModel.isCreating) {
-                    Task {
-                        await viewModel.run()
-                        if viewModel.success {
-                            isPresented = false
-                        }
-                    }
-                } label: {
-                    Label(String(localized: "runContainerRun"), systemImage: "play.fill")
-                }
-                .buttonStyle(.glassProminent)
-                .disabled(!viewModel.canRun)
-            }
-            .padding(.horizontal, Spacing.md)
-            .padding(.vertical, Spacing.md)
-        }
+        )
         .frame(width: 720, height: 640)
         .padding(Spacing.md)
         .onAppear {

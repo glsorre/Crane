@@ -53,6 +53,7 @@ struct CraneContainersListView: View {
                     .buttonStyle(.plain)
                 }
                 .listStyle(.inset)
+                .contentMargins(.top, Spacing.lg, for: .scrollContent)
 
                 if listItems.isEmpty {
                     MainListEmptyState(
@@ -96,6 +97,17 @@ struct CraneContainersListView: View {
             syncNavigationFromSelection()
         }
         .toolbar {
+            ToolbarItem(placement: .navigation) {
+                Button {
+                    Task { await containersStore.pruneExitedContainers() }
+                } label: {
+                    SwiftUI.Image(systemName: "xmark.bin")
+                }
+                .buttonStyle(.glass)
+                .disabled(!containersStore.hasExitedContainers)
+                .help(String(localized: "pruneExitedContainers"))
+                .accessibilityLabel(String(localized: "pruneExitedContainers"))
+            }
             ToolbarItem(placement: .navigation) {
                 Button {
                     runSheetIsVisible = true

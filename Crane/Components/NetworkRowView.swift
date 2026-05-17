@@ -34,7 +34,6 @@ struct NetworkRowView: View {
                 }
             }
         }
-        .padding(.vertical, Spacing.xxs)
     }
 
     private func networkDetailString(container: Container) -> String? {
@@ -45,28 +44,43 @@ struct NetworkRowView: View {
     }
 
     private var labelRow: some View {
-        HStack {
-            SwiftUI.Image(systemName: "network")
-                .foregroundStyle(.secondary)
-
-            Text(network.id)
-                .font(.headline)
-
-            Spacer()
-
-            if !network.network.isBuiltin && children.isEmpty {
-                SpinnerButton(isLoading: network.transiting) {
-                    Task {
-                        await networksStore.removeNetwork(id: network.id)
-                    }
-                } label: {
-                    SwiftUI.Image(systemName: "trash.fill")
-                        .font(Font.system(size: 11))
+        ResourceListRow(
+            title: network.id,
+            subtitle: subtitle,
+            leading: {
+                SwiftUI.Image(systemName: "network")
+                    .foregroundStyle(.secondary)
+            },
+            trailing: {
+                if !network.network.isBuiltin && children.isEmpty {
+                    RowActionButton(
+                        .destructive,
+                        isLoading: network.transiting,
+                        action: {
+                            Task { await networksStore.removeNetwork(id: network.id) }
+                        },
+                        label: {
+                            SwiftUI.Image(systemName: "trash.fill")
+                        }
+                    )
                 }
-                .buttonStyle(.glass)
-                .foregroundColor(Color(.systemRed))
-                .frame(width: 50)
             }
+        )
+    }
+
+    private var subtitle: String {
+        let kind: String = network.network.isBuiltin
+            ? String(localized: "networkKindBuiltin")
+            : String(localized: "networkKindUser")
+        let count = children.count
+        let attached: String
+        if count == 0 {
+            attached = String(localized: "networkAttachedNone")
+        } else if count == 1 {
+            attached = String(localized: "networkAttachedOne")
+        } else {
+            attached = String(format: String(localized: "networkAttachedMany"), count)
         }
+        return "\(kind) \u{00B7} \(attached)"
     }
 }

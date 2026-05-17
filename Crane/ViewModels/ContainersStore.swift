@@ -269,6 +269,17 @@ class ContainersStore {
         }
     }
 
+    var hasExitedContainers: Bool {
+        containers.contains { $0.isExited }
+    }
+
+    func pruneExitedContainers() async {
+        let exited = containers.filter { $0.isExited }
+        for container in exited {
+            await removeContainer(id: container.id)
+        }
+    }
+
     func removeContainer(id: String) async {
         guard let container = containers.first(where: { $0.id == id }) else { return }
         if container.isExited {

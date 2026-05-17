@@ -11,8 +11,6 @@ struct ImageFetchView: View {
     @Binding var isPresented: Bool
     @State private var imagesStore = ImagesStore.shared
     @State private var reference: String = ""
-    @State private var isFetching = false
-    @State private var fetchError: String?
 
     private var trimmedReference: String {
         reference.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -38,23 +36,24 @@ struct ImageFetchView: View {
     }
 
     private var canFetch: Bool {
-        guard !isFetching else { return false }
-        guard referenceEmptyMessage == nil, referenceInvalidMessage == nil else { return false }
-        return !trimmedReference.isEmpty
+        referenceEmptyMessage == nil && referenceInvalidMessage == nil && !trimmedReference.isEmpty
     }
 
     var body: some View {
-        VStack(spacing: Spacing.md) {
-            HStack {
-                Label("fetchImage", systemImage: "arrow.down.circle.fill")
-                    .font(.title3)
-                    .fontWeight(.semibold)
-                Spacer()
-            }
-            .padding(.horizontal, Spacing.md)
-            .padding(.vertical, Spacing.lg)
-
-            Form {
+        DialogContainer(
+            isPresented: $isPresented,
+            title: "fetchImage",
+            systemImage: "arrow.down.circle.fill",
+            workingLabel: "fetchImage",
+            canSubmit: canFetch,
+            clearErrorTrigger: AnyHashable(reference),
+            perform: {
+                try await imagesStore.fetchImage(reference: trimmedReference)
+            },
+            primaryLabel: {
+                Label(String(localized: "fetchImage"), systemImage: "arrow.down.circle.fill")
+            },
+            content: {
                 Section(String(localized: "fetchImageUrl")) {
                     VStack(alignment: .leading, spacing: Spacing.subsection) {
                         TextField(String(localized: "fetchImageUrl"), text: $reference)
@@ -85,62 +84,8 @@ struct ImageFetchView: View {
                     .padding(.vertical, Spacing.sm)
                 }
             }
-            .groupedDialogFormLayout()
-
-            if let fetchError {
-                HStack(alignment: .top, spacing: Spacing.sm) {
-                    SwiftUI.Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(.red)
-                    Text(fetchError)
-                        .font(.callout)
-                        .foregroundStyle(.red)
-                        .lineLimit(4)
-                        .textSelection(.enabled)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, Spacing.md)
-                .padding(.vertical, Spacing.sm)
-            }
-
-            HStack {
-                Button(String(localized: "cancel")) {
-                    isPresented = false
-                }
-                .buttonStyle(.glass)
-
-                Spacer()
-
-                SpinnerButton(isLoading: isFetching) {
-                    Task {
-                        await performFetch()
-                    }
-                } label: {
-                    Label(String(localized: "fetchImage"), systemImage: "arrow.down.circle.fill")
-                }
-                .buttonStyle(.glassProminent)
-                .disabled(!canFetch)
-            }
-            .padding(.horizontal, Spacing.md)
-            .padding(.vertical, Spacing.md)
-        }
+        )
         .frame(width: 520, height: 420)
         .padding(Spacing.md)
-        .onChange(of: reference) {
-            fetchError = nil
-        }
-    }
-
-    private func performFetch() async {
-        fetchError = nil
-        isFetching = true
-        defer { isFetching = false }
-
-        do {
-            try await imagesStore.fetchImage(reference: trimmedReference)
-            reference = ""
-            isPresented = false
-        } catch {
-            fetchError = error.localizedDescription
-        }
     }
 }

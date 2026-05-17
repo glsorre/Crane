@@ -166,14 +166,17 @@ class DetailsViewModel {
     }
 
     func getHandleName(handleIndex: Int) -> String {
-        if (handleIndex < logHandles.count - 1) {
-            if (handleIndex == 0) {
+        Self.handleName(handleIndex: handleIndex, handleCount: logHandles.count)
+    }
+
+    static func handleName(handleIndex: Int, handleCount: Int) -> String {
+        if handleIndex < handleCount - 1 {
+            if handleIndex == 0 {
                 return "Process"
             }
             return "Process \(handleIndex + 1)"
-        } else {
-            return "System"
         }
+        return "System"
     }
 
     func startMetricsPolling() {

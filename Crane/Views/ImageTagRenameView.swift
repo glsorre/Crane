@@ -14,7 +14,6 @@ struct ImageTagRenameView: View {
     @State private var imagesStore = ImagesStore.shared
     @State private var newReference: String = ""
     @State private var mode: Mode = .addTag
-    @State private var isWorking = false
 
     private enum Mode: String, CaseIterable, Identifiable, Equatable {
         case addTag
@@ -41,23 +40,29 @@ struct ImageTagRenameView: View {
     }
 
     private var canApply: Bool {
-        guard !isWorking else { return false }
-        guard referenceEmptyMessage == nil, referenceInvalidMessage == nil else { return false }
-        return !trimmedNew.isEmpty
+        referenceEmptyMessage == nil && referenceInvalidMessage == nil && !trimmedNew.isEmpty
     }
 
     var body: some View {
-        VStack(spacing: Spacing.md) {
-            HStack {
-                Label(String(localized: "imageTagSheetTitle"), systemImage: "tag.fill")
-                    .font(.title3)
-                    .fontWeight(.semibold)
-                Spacer()
-            }
-            .padding(.horizontal, Spacing.md)
-            .padding(.vertical, Spacing.lg)
-
-            Form {
+        DialogContainer(
+            isPresented: $isPresented,
+            title: "imageTagSheetTitle",
+            systemImage: "tag.fill",
+            workingLabel: "imageTagSheetTitle",
+            canSubmit: canApply,
+            clearErrorTrigger: AnyHashable("\(newReference)|\(mode.rawValue)"),
+            perform: {
+                switch mode {
+                case .addTag:
+                    try await imagesStore.tagImage(sourceReference: sourceReference, newReference: trimmedNew)
+                case .rename:
+                    try await imagesStore.renameImage(sourceReference: sourceReference, newReference: trimmedNew)
+                }
+            },
+            primaryLabel: {
+                Label(String(localized: "imageTagApply"), systemImage: "checkmark")
+            },
+            content: {
                 Section(String(localized: "imageTagSourceLabel")) {
                     Text(sourceReference)
                         .font(.system(.body, design: .monospaced))
@@ -98,49 +103,9 @@ struct ImageTagRenameView: View {
                     }
                 }
             }
-            .groupedDialogFormLayout()
-
-            HStack {
-                Button(String(localized: "cancel")) {
-                    isPresented = false
-                }
-                .buttonStyle(.glass)
-
-                Spacer()
-
-                SpinnerButton(isLoading: isWorking) {
-                    Task {
-                        await apply()
-                    }
-                } label: {
-                    Label(String(localized: "imageTagApply"), systemImage: "checkmark")
-                }
-                .buttonStyle(.glassProminent)
-                .disabled(!canApply)
-            }
-            .padding(.horizontal, Spacing.md)
-            .padding(.vertical, Spacing.md)
-        }
+        )
         .frame(width: 520, height: mode == .rename ? 500 : 440)
         .padding(Spacing.md)
         .animation(.easeInOut(duration: 0.2), value: mode)
-    }
-
-    private func apply() async {
-        isWorking = true
-        defer { isWorking = false }
-
-        let ok: Bool
-        switch mode {
-        case .addTag:
-            ok = await imagesStore.tagImage(sourceReference: sourceReference, newReference: trimmedNew)
-        case .rename:
-            ok = await imagesStore.renameImage(sourceReference: sourceReference, newReference: trimmedNew)
-        }
-
-        if ok {
-            newReference = ""
-            isPresented = false
-        }
     }
 }

@@ -24,6 +24,7 @@ struct CraneView: View {
     @State private var networksStore = NetworksStore.shared
     @State private var volumesStore = VolumesStore.shared
     @State private var isStartingService = false
+    @State private var columnVisibility: NavigationSplitViewVisibility = .all
 
     private var selectedTabBinding: Binding<CraneTab?> {
         Binding(
@@ -53,7 +54,7 @@ struct CraneView: View {
     }
 
     private var splitViewContent: some View {
-        NavigationSplitView(columnVisibility: .constant(.all)) {
+        NavigationSplitView(columnVisibility: $columnVisibility) {
             List(selection: selectedTabBinding) {
                 Label("containers", systemImage: "shippingbox.fill")
                     .tag(CraneTab.containers)

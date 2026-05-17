@@ -9,6 +9,7 @@ import ContainerImagesServiceClient
 import ContainerResource
 import ContainerizationOCI
 import Foundation
+import Logging
 import NIO
 import Observation
 
@@ -50,12 +51,23 @@ extension ImageBuildSource {
 @MainActor
 @Observable
 class BuildViewModel {
+    static let shared = BuildViewModel()
+
     private let containerClient = ContainerClient()
 
     /// Upper bound for `Builder.build` (gRPC stream); avoids indefinite UI when BuildKit never closes the stream.
     private static let buildInvocationTimeout: Duration = .seconds(45 * 60)
 
+    /// Auto-clear delay for `.success` so the background banner disappears after the new image lands in the list.
+    private static let successBannerDismissDelay: Duration = .seconds(2)
+
+    /// OCI label stamped on locally-built images so the UI can distinguish them from pulled images sharing the same `docker.io/library/...` normalized reference.
+    private static let localBuildLabel = "\(Image.localBuildLabelKey)=true"
+
     var status: BuildStatus = .idle
+
+    /// Tag of the build currently running (or last finished). Drives the background banner label.
+    var currentBuildTag: String?
 
     /// Shown when the builder VM needs Linux Rosetta; user can install it or continue with QEMU (`build.rosetta` off).
     var rosettaInstallerAlertPresented = false
@@ -86,11 +98,15 @@ class BuildViewModel {
         await build(tag: tag, source: .pastedDockerfile(dockerfileContent))
     }
 
-    func build(tag: String, source: ImageBuildSource) async {
+    func build(tag: String, source: ImageBuildSource, securityScopedURL: URL? = nil) async {
+        defer { securityScopedURL?.stopAccessingSecurityScopedResource() }
+        currentBuildTag = tag
         status = .startingBuilder
 
         do {
-            let (contextDirPath, dockerfileData, contextDirToDelete) = try prepareBuildPaths(source: source)
+            let (contextDirPath, dockerfileData, contextDirToDelete) = try await Task.detached(priority: .userInitiated) {
+                try Self.prepareBuildPaths(source: source)
+            }.value
             defer {
                 if let dir = contextDirToDelete {
                     try? FileManager.default.removeItem(at: dir)
@@ -99,13 +115,39 @@ class BuildViewModel {
 
             try await runBuildKitPipeline(tag: tag, contextDirPath: contextDirPath, dockerfileData: dockerfileData)
             status = .success
+            scheduleSuccessBannerDismiss()
         } catch {
             status = .failed(error.localizedDescription)
         }
     }
 
+    /// User-dismissable error banner: clears terminal state and exposes the hammer button again.
+    func dismissTerminalStatus() {
+        guard case .failed = status else {
+            if case .success = status {
+                status = .idle
+                currentBuildTag = nil
+            }
+            return
+        }
+        status = .idle
+        currentBuildTag = nil
+    }
+
+    private func scheduleSuccessBannerDismiss() {
+        Task { [weak self] in
+            try? await Task.sleep(for: Self.successBannerDismissDelay)
+            guard let self else { return }
+            if case .success = self.status {
+                self.status = .idle
+                self.currentBuildTag = nil
+            }
+        }
+    }
+
     /// Resolves context directory and Dockerfile bytes. Returns a temp directory URL to delete after the build when non-nil.
-    private func prepareBuildPaths(source: ImageBuildSource) throws -> (contextDirPath: String, dockerfileData: Data, contextDirToDelete: URL?) {
+    /// Static + sync + nonisolated: caller is expected to invoke from a detached Task so the MainActor doesn't block on disk I/O.
+    nonisolated private static func prepareBuildPaths(source: ImageBuildSource) throws -> (contextDirPath: String, dockerfileData: Data, contextDirToDelete: URL?) {
         switch source {
         case .pastedDockerfile(let dockerfileContent):
             let tempDir = FileManager.default.temporaryDirectory
@@ -156,7 +198,7 @@ class BuildViewModel {
     }
 
     /// Resolves `relativePath` strictly inside `context` (no absolute path, no escape via `..`).
-    static func resolveDockerfileURL(context: URL, relativePath: String) throws -> URL {
+    nonisolated static func resolveDockerfileURL(context: URL, relativePath: String) throws -> URL {
         let trimmed = relativePath.trimmingCharacters(in: .whitespacesAndNewlines)
         let rel = trimmed.isEmpty ? "Dockerfile" : trimmed
         let base = context.standardizedFileURL
@@ -313,7 +355,7 @@ class BuildViewModel {
         contextDirPath: String,
         dockerfileData: Data
     ) async throws {
-        let builder = try Builder(socket: fh, group: threadGroup)
+        let builder = try Builder(socket: fh, group: threadGroup, logger: Logger(label: "BuildViewModel"))
         let _ = try await builder.info()
 
         // 3. Export path
@@ -338,8 +380,8 @@ class BuildViewModel {
             secrets: [:],
             contextDir: contextDirPath,
             dockerfile: dockerfileData,
-            hiddenDockerDir: nil,
-            labels: [],
+            dockerignore: nil,
+            labels: [Self.localBuildLabel],
             noCache: false,
             platforms: [platform],
             terminal: nil,

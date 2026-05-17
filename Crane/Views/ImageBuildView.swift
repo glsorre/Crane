@@ -11,7 +11,7 @@ import UniformTypeIdentifiers
 
 struct ImageBuildView: View {
     @Binding var isPresented: Bool
-    @State private var buildViewModel = BuildViewModel()
+    @State private var buildViewModel = BuildViewModel.shared
     @State private var tag: String = ""
     @State private var text: String = "FROM alpine:latest\n"
     @State private var buildSourceMode: BuildSourceMode = .paste
@@ -92,17 +92,45 @@ struct ImageBuildView: View {
     }
 
     var body: some View {
-        VStack(spacing: Spacing.md) {
-            HStack {
-                Label("buildImage", systemImage: "hammer.fill")
-                    .font(.title3)
-                    .fontWeight(.semibold)
-                Spacer()
-            }
-            .padding(.horizontal, Spacing.md)
-            .padding(.vertical, Spacing.lg)
-
-            Form {
+        DialogContainer(
+            isPresented: $isPresented,
+            title: "buildImage",
+            systemImage: "hammer.fill",
+            workingLabel: "buildInProgress",
+            canSubmit: canBuild,
+            externalStatus: buildViewModel.status.dialogStatus,
+            perform: {
+                switch buildSourceMode {
+                case .paste:
+                    let capturedTag = trimmedTag
+                    let capturedText = text
+                    Task { await buildViewModel.build(tag: capturedTag, dockerfileContent: capturedText) }
+                case .localFolder:
+                    guard let url = contextFolderURL else { return }
+                    let capturedTag = trimmedTag
+                    let capturedPath = trimmedDockerfilePath.isEmpty ? "Dockerfile" : trimmedDockerfilePath
+                    let scopedURL: URL? = contextFolderHasSecurityScopedAccess ? url : nil
+                    // Hand ownership of the security scope to BuildViewModel so the dialog's
+                    // onDisappear/onChange teardown doesn't release it while BuildKit is still
+                    // streaming the context.
+                    contextFolderHasSecurityScopedAccess = false
+                    Task {
+                        await buildViewModel.build(
+                            tag: capturedTag,
+                            source: .localContext(
+                                contextDirectory: url,
+                                dockerfileRelativePath: capturedPath
+                            ),
+                            securityScopedURL: scopedURL
+                        )
+                    }
+                }
+                isPresented = false
+            },
+            primaryLabel: {
+                Label(String(localized: "build"), systemImage: "hammer")
+            },
+            content: {
                 Section(String(localized: "imageBuildSourceSection")) {
                     Picker("", selection: $buildSourceMode) {
                         Text(String(localized: "imageBuildSourcePaste")).tag(BuildSourceMode.paste)
@@ -190,45 +218,7 @@ struct ImageBuildView: View {
                     }
                 }
             }
-            .groupedDialogFormLayout()
-
-            buildStatusStrip
-                .padding(.horizontal, Spacing.md)
-                .padding(.vertical, Spacing.sm)
-
-            HStack {
-                Button(String(localized: "cancel")) {
-                    isPresented = false
-                }
-                .buttonStyle(.glass)
-
-                Spacer()
-
-                SpinnerButton(isLoading: buildViewModel.status.isBuilding) {
-                    Task {
-                        switch buildSourceMode {
-                        case .paste:
-                            await buildViewModel.build(tag: trimmedTag, dockerfileContent: text)
-                        case .localFolder:
-                            guard let contextFolderURL else { return }
-                            await buildViewModel.build(
-                                tag: trimmedTag,
-                                source: .localContext(
-                                    contextDirectory: contextFolderURL,
-                                    dockerfileRelativePath: trimmedDockerfilePath.isEmpty ? "Dockerfile" : trimmedDockerfilePath
-                                )
-                            )
-                        }
-                    }
-                } label: {
-                    Label(String(localized: "build"), systemImage: "hammer")
-                }
-                .buttonStyle(.glassProminent)
-                .disabled(!canBuild)
-            }
-            .padding(.horizontal, Spacing.md)
-            .padding(.vertical, Spacing.md)
-        }
+        )
         .alert(
             String(localized: "rosettaInstallerTitle"),
             isPresented: Bindable(buildViewModel).rosettaInstallerAlertPresented
@@ -255,14 +245,14 @@ struct ImageBuildView: View {
                 contextFolderURL = nil
             }
         }
-        .onChange(of: buildViewModel.status) { _, newStatus in
-            if case .success = newStatus {
-                isPresented = false
-            }
-        }
         .onChange(of: isPresented) { _, presented in
             if presented {
-                buildViewModel.status = .idle
+                // Only clear terminal state on re-open; preserve in-flight background build.
+                if case .failed = buildViewModel.status {
+                    buildViewModel.dismissTerminalStatus()
+                } else if case .success = buildViewModel.status {
+                    buildViewModel.dismissTerminalStatus()
+                }
             } else {
                 if buildViewModel.rosettaInstallerAlertPresented {
                     buildViewModel.resolveRosettaInstallerPrompt(.cancel)
@@ -296,117 +286,17 @@ struct ImageBuildView: View {
         url.stopAccessingSecurityScopedResource()
         contextFolderHasSecurityScopedAccess = false
     }
+}
 
-    // MARK: - Build status (between form and footer, like ContainerRunView)
-
-    @ViewBuilder
-    private var buildStatusStrip: some View {
-        switch buildViewModel.status {
-        case .idle:
-            EmptyView()
-        case .success:
-            HStack(alignment: .top, spacing: Spacing.sm) {
-                SwiftUI.Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(.green)
-                Text(String(localized: "buildSuccess"))
-                    .font(.callout)
-                    .foregroundStyle(.green)
-                    .lineLimit(3)
-                    .textSelection(.enabled)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        case .failed(let message):
-            HStack(alignment: .top, spacing: Spacing.sm) {
-                SwiftUI.Image(systemName: "xmark.circle.fill")
-                    .foregroundStyle(.red)
-                Text("\(String(localized: "buildFailed")): \(message)")
-                    .font(.callout)
-                    .foregroundStyle(.red)
-                    .lineLimit(3)
-                    .textSelection(.enabled)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        default:
-            HStack(spacing: 0) {
-                ForEach(Array(BuildStep.allCases.enumerated()), id: \.offset) { index, step in
-                    if index > 0 {
-                        Rectangle()
-                            .fill(.separator)
-                            .frame(width: 16, height: 1)
-                    }
-                    stepCapsule(step: step, state: stepState(for: step))
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-    }
-
-    private enum BuildStep: Int, CaseIterable {
-        case starting, building, unpacking
-
-        var icon: String {
-            switch self {
-            case .starting: return "gear"
-            case .building: return "hammer"
-            case .unpacking: return "archivebox"
-            }
-        }
-
-        var label: String {
-            switch self {
-            case .starting: return String(localized: "buildStepStarting")
-            case .building: return String(localized: "buildStepBuilding")
-            case .unpacking: return String(localized: "buildStepUnpacking")
-            }
-        }
-    }
-
-    private enum StepState {
-        case pending, active, completed
-    }
-
-    private func stepState(for step: BuildStep) -> StepState {
-        let currentOrder: Int
-        switch buildViewModel.status {
-        case .idle: return .pending
-        case .startingBuilder: currentOrder = 0
-        case .building: currentOrder = 1
-        case .unpacking: currentOrder = 2
-        case .success, .failed: return .completed
-        }
-        if step.rawValue < currentOrder { return .completed }
-        if step.rawValue == currentOrder { return .active }
-        return .pending
-    }
-
-    @ViewBuilder
-    private func stepCapsule(step: BuildStep, state: StepState) -> some View {
-        HStack(spacing: Spacing.xxs) {
-            switch state {
-            case .active:
-                ProgressView()
-                    .controlSize(.mini)
-            case .completed:
-                SwiftUI.Image(systemName: "checkmark")
-                    .font(.caption2)
-            case .pending:
-                SwiftUI.Image(systemName: step.icon)
-                    .font(.caption2)
-            }
-            Text(step.label)
-                .font(.caption)
-        }
-        .padding(.horizontal, Spacing.sm)
-        .padding(.vertical, Spacing.xxxs)
-        .background(stepBackground(for: state))
-        .clipShape(Capsule())
-    }
-
-    private func stepBackground(for state: StepState) -> some ShapeStyle {
-        switch state {
-        case .active: return AnyShapeStyle(.tint)
-        case .completed: return AnyShapeStyle(.green.opacity(0.2))
-        case .pending: return AnyShapeStyle(.quaternary)
+private extension BuildStatus {
+    var dialogStatus: DialogStatus {
+        switch self {
+        case .idle:            return .idle
+        case .startingBuilder: return .working("buildStarting")
+        case .building:        return .working("buildInProgress")
+        case .unpacking:       return .working("buildUnpacking")
+        case .success:         return .success
+        case .failed(let msg): return .error(msg)
         }
     }
 }

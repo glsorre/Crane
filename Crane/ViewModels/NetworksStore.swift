@@ -50,6 +50,7 @@ class Network : Identifiable, Hashable {
 class NetworksStore {
     static let shared = NetworksStore()
     
+    private let networkClient = NetworkClient()
     var networks: Set<Network> = []
     var networksTask: Task<Void, Never>? = nil
     var resetPolling: (() -> Void)?
@@ -94,7 +95,7 @@ class NetworksStore {
     private func collectWithChangeDetection() async throws -> Bool {
         let previousIDs = Set(networks.map { $0.id })
 
-        let currentNetworks = try await ClientNetwork.list()
+        let currentNetworks = try await networkClient.list()
         var currentNetworksSet: Set<Network> = Set()
 
         for networkState in currentNetworks {
@@ -136,7 +137,7 @@ class NetworksStore {
         for network in emptyNetworks {
             network.transiting = true
             do {
-                try await ClientNetwork.delete(id: network.id)
+                try await networkClient.delete(id: network.id)
                 networks.remove(network)
             } catch {
                 network.transiting = false
@@ -150,7 +151,7 @@ class NetworksStore {
         guard let network = networks.first(where: { $0.id == id }) else { return }
         network.transiting = true
         do {
-            try await ClientNetwork.delete(id: network.id)
+            try await networkClient.delete(id: network.id)
             networks.remove(network)
         } catch {
             network.transiting = false
@@ -160,7 +161,7 @@ class NetworksStore {
     }
 
     func createNetwork(id: String) async throws {
-        let network = try await ClientNetwork.create(
+        let network = try await networkClient.create(
             configuration: try .init(
                 id: id,
                 mode: NetworkMode.nat,

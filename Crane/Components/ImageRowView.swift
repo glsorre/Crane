@@ -30,20 +30,38 @@ struct ImageRowView: View {
                 }
             }
         }
-        .padding(.vertical, Spacing.xxs)
     }
 
     private var labelRow: some View {
-        HStack {
-            SwiftUI.Image(systemName: "photo.fill")
-                .foregroundStyle(.secondary)
+        ResourceListRow(
+            title: image.displayName,
+            subtitle: subtitle,
+            leading: {
+                SwiftUI.Image(systemName: image.isLocalBuild ? "hammer.fill" : "photo.fill")
+                    .foregroundStyle(.secondary)
+            },
+            trailing: {
+                ImagesActionsView(image: image)
+            }
+        )
+    }
 
-            Text(image.id)
-                .font(.headline)
-
-            Spacer()
-
-            ImagesActionsView(image: image)
+    private var subtitle: String {
+        switch image.status {
+        case .fetching:
+            return String(localized: "imageStatusFetching")
+        case .removing:
+            return String(localized: "imageStatusRemoving")
+        case .tagging:
+            return String(localized: "imageStatusTagging")
+        case .available:
+            let count = children.count
+            if count == 0 {
+                return String(localized: "imageStatusReady")
+            }
+            return count == 1
+                ? String(localized: "imageStatusOneContainer")
+                : String(format: String(localized: "imageStatusContainers"), count)
         }
     }
 }
