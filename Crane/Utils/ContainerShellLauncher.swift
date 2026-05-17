@@ -76,7 +76,7 @@ enum ContainerShellLauncher {
     }
 
     /// Wraps a string in single quotes for a bash word, escaping embedded single quotes.
-    private static func bashSingleQuoted(_ s: String) -> String {
+    static func bashSingleQuoted(_ s: String) -> String {
         "'" + s.replacingOccurrences(of: "'", with: "'\\''") + "'"
     }
 }

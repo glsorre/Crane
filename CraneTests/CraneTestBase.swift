@@ -9,6 +9,7 @@ class CraneTestBase: XCTestCase {
     static let testPrefix = "crane-test-"
 
     let containerClient = ContainerClient()
+    let networkClient = NetworkClient()
 
     func uniqueName() -> String {
         Self.testPrefix + UUID().uuidString.prefix(8).lowercased()
@@ -34,9 +35,9 @@ class CraneTestBase: XCTestCase {
         }
 
         // Sweep test networks
-        let networks = try await ClientNetwork.list()
+        let networks = try await networkClient.list()
         for n in networks where n.id.hasPrefix(Self.testPrefix) {
-            try? await ClientNetwork.delete(id: n.id)
+            try? await networkClient.delete(id: n.id)
         }
 
         // Sweep test volumes

@@ -9,8 +9,6 @@ struct VolumeCreateView: View {
     @Binding var isPresented: Bool
     @State private var volumesStore = VolumesStore.shared
     @State private var volumeName: String = ""
-    @State private var isCreating = false
-    @State private var createError: String?
 
     private var trimmedName: String {
         volumeName.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -35,23 +33,24 @@ struct VolumeCreateView: View {
     }
 
     private var canCreate: Bool {
-        guard !isCreating else { return false }
-        guard emptyMessage == nil, invalidCharactersMessage == nil, duplicateMessage == nil else { return false }
-        return !trimmedName.isEmpty
+        emptyMessage == nil && invalidCharactersMessage == nil && duplicateMessage == nil && !trimmedName.isEmpty
     }
 
     var body: some View {
-        VStack(spacing: Spacing.md) {
-            HStack {
-                Label("volumeCreateTitle", systemImage: "externaldrive.fill")
-                    .font(.title3)
-                    .fontWeight(.semibold)
-                Spacer()
-            }
-            .padding(.horizontal, Spacing.md)
-            .padding(.vertical, Spacing.lg)
-
-            Form {
+        DialogContainer(
+            isPresented: $isPresented,
+            title: "volumeCreateTitle",
+            systemImage: "externaldrive.fill",
+            workingLabel: "volumeCreateTitle",
+            canSubmit: canCreate,
+            clearErrorTrigger: AnyHashable(volumeName),
+            perform: {
+                try await volumesStore.createVolume(name: trimmedName)
+            },
+            primaryLabel: {
+                Label(String(localized: "volumeToCreate"), systemImage: "plus")
+            },
+            content: {
                 Section(String(localized: "Volume")) {
                     VStack(alignment: .leading, spacing: Spacing.subsection) {
                         TextField(String(localized: "volumeToCreateName"), text: $volumeName)
@@ -72,62 +71,8 @@ struct VolumeCreateView: View {
                     .padding(.vertical, Spacing.sm)
                 }
             }
-            .groupedDialogFormLayout()
-
-            if let createError {
-                HStack(alignment: .top, spacing: Spacing.sm) {
-                    SwiftUI.Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(.red)
-                    Text(createError)
-                        .font(.callout)
-                        .foregroundStyle(.red)
-                        .lineLimit(4)
-                        .textSelection(.enabled)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, Spacing.md)
-                .padding(.vertical, Spacing.sm)
-            }
-
-            HStack {
-                Button(String(localized: "cancel")) {
-                    isPresented = false
-                }
-                .buttonStyle(.glass)
-
-                Spacer()
-
-                SpinnerButton(isLoading: isCreating) {
-                    Task {
-                        await performCreate()
-                    }
-                } label: {
-                    Label(String(localized: "volumeToCreate"), systemImage: "plus")
-                }
-                .buttonStyle(.glassProminent)
-                .disabled(!canCreate)
-            }
-            .padding(.horizontal, Spacing.md)
-            .padding(.vertical, Spacing.md)
-        }
+        )
         .frame(width: 520, height: 380)
         .padding(Spacing.md)
-        .onChange(of: volumeName) {
-            createError = nil
-        }
-    }
-
-    private func performCreate() async {
-        createError = nil
-        isCreating = true
-        defer { isCreating = false }
-
-        do {
-            try await volumesStore.createVolume(name: trimmedName)
-            volumeName = ""
-            isPresented = false
-        } catch {
-            createError = error.localizedDescription
-        }
     }
 }

@@ -12,30 +12,18 @@ struct ContainerRowView: View {
     var container: Container
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.xxxs) {
-            // Line 1: status dot + name + actions
-            HStack {
+        ResourceListRow(
+            title: container.id,
+            subtitle: metadataSummary,
+            leading: {
                 Circle()
                     .fill(container.isExited ? .secondary : container.snapshot.status.getColor())
                     .frame(width: 8, height: 8)
-
-                Text(container.id)
-                    .font(.headline)
-
-                Spacer()
-
+            },
+            trailing: {
                 ContainerActionsView(id: container.id)
             }
-
-            // Line 2: metadata summary
-            HStack(spacing: Spacing.xxs) {
-                Text(metadataSummary)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
-        }
-        .padding(.vertical, Spacing.xxs)
+        )
     }
 
     private var metadataSummary: String {

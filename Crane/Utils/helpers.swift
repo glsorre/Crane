@@ -7,6 +7,7 @@
 
 import ContainerPlugin
 import Foundation
+import os
 import os.log
 
 private let logger = Logger(subsystem: "me.rightright.RightCrane", category: "ServiceHelper")
@@ -83,23 +84,61 @@ private func processEnvironmentWithExtendedPATH() -> [String: String] {
 }
 
 /// Runs the `container` CLI with stdout+stderr merged; same environment as other Crane-driven CLI calls.
-private func runContainerCLI(cliURL: URL, arguments: [String]) -> (status: Int32, output: String) {
-    let process = Process()
-    let pipe = Pipe()
-    process.executableURL = cliURL
-    process.arguments = arguments
-    process.environment = processEnvironmentWithExtendedPATH()
-    process.standardInput = FileHandle.nullDevice
-    process.standardOutput = pipe
-    process.standardError = pipe
-    do {
-        try process.run()
-        process.waitUntilExit()
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        let output = String(data: data, encoding: .utf8) ?? ""
-        return (process.terminationStatus, output.trimmingCharacters(in: .whitespacesAndNewlines))
-    } catch {
-        return (-1, error.localizedDescription)
+/// Async: suspends until the subprocess exits without blocking the calling thread (safe to call from MainActor).
+private func runContainerCLI(cliURL: URL, arguments: [String]) async -> (status: Int32, output: String) {
+    await runProcessCollectingOutput(
+        executableURL: cliURL,
+        arguments: arguments,
+        environment: processEnvironmentWithExtendedPATH()
+    )
+}
+
+/// Runs a Process to completion and returns merged stdout+stderr. Drains the pipe concurrently via
+/// `readabilityHandler` and resumes from `terminationHandler` so the caller never blocks on `waitUntilExit`.
+private func runProcessCollectingOutput(
+    executableURL: URL,
+    arguments: [String],
+    environment: [String: String]? = nil
+) async -> (status: Int32, output: String) {
+    await withCheckedContinuation { (continuation: CheckedContinuation<(status: Int32, output: String), Never>) in
+        let process = Process()
+        let pipe = Pipe()
+        process.executableURL = executableURL
+        process.arguments = arguments
+        if let environment { process.environment = environment }
+        process.standardInput = FileHandle.nullDevice
+        process.standardOutput = pipe
+        process.standardError = pipe
+
+        let outputBox = OSAllocatedUnfairLock(initialState: Data())
+        pipe.fileHandleForReading.readabilityHandler = { handle in
+            let chunk = handle.availableData
+            if chunk.isEmpty {
+                handle.readabilityHandler = nil
+            } else {
+                outputBox.withLock { $0.append(chunk) }
+            }
+        }
+
+        process.terminationHandler = { proc in
+            pipe.fileHandleForReading.readabilityHandler = nil
+            // Drain any bytes still buffered after EOF.
+            let remaining = (try? pipe.fileHandleForReading.readToEnd()) ?? nil
+            let data = outputBox.withLock { box -> Data in
+                if let remaining { box.append(remaining) }
+                return box
+            }
+            let output = String(data: data, encoding: .utf8) ?? ""
+            continuation.resume(returning: (proc.terminationStatus, output.trimmingCharacters(in: .whitespacesAndNewlines)))
+        }
+
+        do {
+            try process.run()
+        } catch {
+            process.terminationHandler = nil
+            pipe.fileHandleForReading.readabilityHandler = nil
+            continuation.resume(returning: (-1, error.localizedDescription))
+        }
     }
 }
 
@@ -120,7 +159,7 @@ func runContainerBuilderStartOnly() async -> Bool {
         return false
     }
     logger.info("Running `container builder start` at \(cliURL.path, privacy: .public)")
-    let (status, output) = runContainerCLI(cliURL: cliURL, arguments: ["builder", "start"])
+    let (status, output) = await runContainerCLI(cliURL: cliURL, arguments: ["builder", "start"])
     guard status == 0 else {
         logger.error("`container builder start` failed with status \(status): \(output, privacy: .public)")
         return false
@@ -145,7 +184,7 @@ func startBuilderContainerViaCLI() async -> StartBuilderContainerOutcome {
         return .failed
     }
     logger.info("Starting BuildKit builder via CLI at \(cliURL.path, privacy: .public)")
-    let (status, output) = runContainerCLI(cliURL: cliURL, arguments: ["builder", "start"])
+    let (status, output) = await runContainerCLI(cliURL: cliURL, arguments: ["builder", "start"])
     if status == 0 {
         logger.info("`container builder start` succeeded")
         return .builderReady
@@ -160,7 +199,7 @@ func startBuilderContainerViaCLI() async -> StartBuilderContainerOutcome {
 
 private func startBuilderViaCLIWithRosettaDisabled(cliURL: URL) async -> Bool {
     logger.info("Disabling build.rosetta and starting BuildKit at \(cliURL.path, privacy: .public)")
-    let (propStatus, propOut) = runContainerCLI(
+    let (propStatus, propOut) = await runContainerCLI(
         cliURL: cliURL,
         arguments: ["system", "property", "set", "build.rosetta", "false"]
     )
@@ -169,7 +208,7 @@ private func startBuilderViaCLIWithRosettaDisabled(cliURL: URL) async -> Bool {
     } else {
         logger.info("Set build.rosetta to false; retrying `container builder start`")
     }
-    let (status, output) = runContainerCLI(cliURL: cliURL, arguments: ["builder", "start"])
+    let (status, output) = await runContainerCLI(cliURL: cliURL, arguments: ["builder", "start"])
     guard status == 0 else {
         logger.error("`container builder start` failed with status \(status): \(output, privacy: .public)")
         return false
@@ -179,36 +218,21 @@ private func startBuilderViaCLIWithRosettaDisabled(cliURL: URL) async -> Bool {
 }
 
 private func startContainerServiceViaCLI(cliURL: URL) async -> Bool {
-    let process = Process()
-    let pipe = Pipe()
-    process.executableURL = cliURL
-    process.arguments = ["system", "start", "--disable-kernel-install"]
-    process.standardInput = FileHandle.nullDevice
-    process.standardOutput = pipe
-    process.standardError = pipe
-
-    do {
-        logger.info("Starting container services via CLI at \(cliURL.path, privacy: .public)")
-        try process.run()
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        process.waitUntilExit()
-
-        guard process.terminationStatus == 0 else {
-            let output = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            if output.isEmpty {
-                logger.error("`container system start --disable-kernel-install` failed with status \(process.terminationStatus)")
-            } else {
-                logger.error("`container system start --disable-kernel-install` failed with status \(process.terminationStatus): \(output, privacy: .public)")
-            }
-            return false
+    logger.info("Starting container services via CLI at \(cliURL.path, privacy: .public)")
+    let (status, output) = await runProcessCollectingOutput(
+        executableURL: cliURL,
+        arguments: ["system", "start", "--disable-kernel-install"]
+    )
+    guard status == 0 else {
+        if output.isEmpty {
+            logger.error("`container system start --disable-kernel-install` failed with status \(status)")
+        } else {
+            logger.error("`container system start --disable-kernel-install` failed with status \(status): \(output, privacy: .public)")
         }
-
-        logger.info("`container system start --disable-kernel-install` succeeded")
-        return true
-    } catch {
-        logger.error("Failed to run container CLI at \(cliURL.path, privacy: .public): \(error.localizedDescription, privacy: .public)")
         return false
     }
+    logger.info("`container system start --disable-kernel-install` succeeded")
+    return true
 }
 
 private func startContainerServiceViaPlistBootstrap() async -> Bool {

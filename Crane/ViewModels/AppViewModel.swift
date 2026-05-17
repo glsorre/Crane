@@ -25,12 +25,9 @@ enum CraneError: LocalizedError {
     case imageTagFailed(String)
     case imageRenameFailed(String)
     case imageFetchFailed(String)
-    case networkCreateFailed(String)
     case logStreamFailed(String)
     case imageBuildFailed(String)
-    case containerCreateFailed(String)
     case networkRemoveFailed(String)
-    case volumeCreateFailed(String)
     case volumeRemoveFailed(String)
 
     var errorDescription: String? {
@@ -61,18 +58,12 @@ enum CraneError: LocalizedError {
             return String(localized: "imageRenameFailedDetail \(detail)")
         case .imageFetchFailed(let detail):
             return "Failed to fetch image: \(detail)"
-        case .networkCreateFailed(let detail):
-            return "Failed to create network: \(detail)"
         case .logStreamFailed(let detail):
             return "Failed to stream logs: \(detail)"
         case .imageBuildFailed(let detail):
             return "Failed to build image: \(detail)"
-        case .containerCreateFailed(let detail):
-            return "Failed to create container: \(detail)"
         case .networkRemoveFailed(let detail):
             return "Failed to remove network: \(detail)"
-        case .volumeCreateFailed(let detail):
-            return "Failed to create volume: \(detail)"
         case .volumeRemoveFailed(let detail):
             return "Failed to remove volume: \(detail)"
         }

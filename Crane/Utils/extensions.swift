@@ -50,30 +50,6 @@ extension RuntimeStatus {
             return .gray
         }
     }
-    
-    func getIcon() -> String {
-        switch self {
-        case .running:
-            return "play.circle.fill"
-        case .stopped:
-            return "stop.circle.fill"
-        case .stopping:
-            return "stop.circle.fill"
-        default:
-            return "questionmark.circle.fill"
-        }
-    }
-    
-    func getAction() -> String? {
-        switch self {
-        case .running:
-            return "Stop"
-        case .stopped:
-            return "Start"
-        default:
-            return nil
-        }
-    }
 }
 
 

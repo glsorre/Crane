@@ -22,6 +22,7 @@ struct CraneNetworksListView: View {
                 NetworkRowView(network: network)
             }
             .listStyle(.inset)
+            .contentMargins(.top, Spacing.lg, for: .scrollContent)
 
             if listItems.isEmpty {
                 MainListEmptyState(

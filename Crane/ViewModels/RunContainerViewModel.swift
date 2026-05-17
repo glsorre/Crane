@@ -86,11 +86,6 @@ class RunContainerViewModel {
     var ssh: Bool = false
     var autoRemove: Bool = true
 
-    // Status
-    var isCreating: Bool = false
-    var error: String?
-    var success: Bool = false
-
     private var didBootstrapSelection = false
     private var nameWasCustomized = false
     private var commandWasCustomized = false
@@ -205,7 +200,7 @@ class RunContainerViewModel {
     }
 
     var canRun: Bool {
-        selectedImageID != nil && validationMessage == nil && !isCreating
+        selectedImageID != nil && validationMessage == nil
     }
 
     func bootstrapSelection(initialImageID: String?, fallbackImageID: String?) {
@@ -218,50 +213,42 @@ class RunContainerViewModel {
 
     func selectImage(_ imageID: String?) {
         selectedImageID = imageID
-        clearStatus()
         applyImageDefaults()
     }
 
     func updateName(_ value: String) {
         name = value
         nameWasCustomized = true
-        clearStatus()
     }
 
     func updateUseImageDefaultCommand(_ value: Bool) {
         useImageDefaultCommand = value
         commandWasCustomized = true
-        clearStatus()
     }
 
     func updateExecutable(_ value: String) {
         executable = value
         commandWasCustomized = true
-        clearStatus()
     }
 
     func updateArguments(_ value: String) {
         arguments = value
         commandWasCustomized = true
-        clearStatus()
     }
 
     func updateEnvironment(_ value: String) {
         environment = value
         environmentWasCustomized = true
-        clearStatus()
     }
 
     func updateWorkingDirectory(_ value: String) {
         workingDirectory = value
         workingDirectoryWasCustomized = true
-        clearStatus()
     }
 
     func updateUserString(_ value: String) {
         userString = value
         userWasCustomized = true
-        clearStatus()
     }
 
     func addPort() {
@@ -285,24 +272,16 @@ class RunContainerViewModel {
     }
 
     @MainActor
-    func run() async {
+    func run() async throws {
         if let validationMessage {
-            error = validationMessage
-            success = false
-            return
+            throw RunContainerFormError(validationMessage)
         }
 
         guard let imageID = selectedImageID,
               let image = ImagesStore.shared.images.first(where: { $0.id == imageID }),
               let clientImage = image.image else {
-            error = String(localized: "No image selected or image not available")
-            return
+            throw RunContainerFormError(String(localized: "No image selected or image not available"))
         }
-
-        isCreating = true
-        error = nil
-        success = false
-        defer { isCreating = false }
 
         let processConfig: ProcessConfiguration
         let containerName = name.trimmed
@@ -310,74 +289,68 @@ class RunContainerViewModel {
         let options = ContainerCreateOptions(autoRemove: autoRemove)
         let containerClient = ContainerClient()
 
-        do {
-            processConfig = try buildProcessConfiguration()
-            config = ContainerConfiguration(
-                id: containerName,
-                image: clientImage.description,
-                process: processConfig
-            )
+        processConfig = try buildProcessConfiguration()
+        config = ContainerConfiguration(
+            id: containerName,
+            image: clientImage.description,
+            process: processConfig
+        )
 
-            config.publishedPorts = try buildPublishedPorts()
-            config.publishedSockets = buildPublishedSockets()
-            config.mounts = buildMounts()
+        config.publishedPorts = try buildPublishedPorts()
+        config.publishedSockets = buildPublishedSockets()
+        config.mounts = buildMounts()
 
-            if let selectedNetworkID = selectedNetworkID?.trimmed, !selectedNetworkID.isEmpty {
-                config.networks = [
-                    AttachmentConfiguration(
-                        network: selectedNetworkID,
-                        options: AttachmentOptions(hostname: containerName)
-                    )
-                ]
-            }
-
-            let labelPairs = labels.filter { !$0.key.trimmed.isEmpty }
-            if !labelPairs.isEmpty {
-                config.labels = Dictionary(
-                    labelPairs.map { ($0.key.trimmed, $0.value) },
-                    uniquingKeysWith: { _, last in last }
+        if let selectedNetworkID = selectedNetworkID?.trimmed, !selectedNetworkID.isEmpty {
+            config.networks = [
+                AttachmentConfiguration(
+                    network: selectedNetworkID,
+                    options: AttachmentOptions(hostname: containerName)
                 )
-            }
-
-            let sysctlPairs = sysctls.filter { !$0.key.trimmed.isEmpty }
-            if !sysctlPairs.isEmpty {
-                config.sysctls = Dictionary(
-                    sysctlPairs.map { ($0.key.trimmed, $0.value) },
-                    uniquingKeysWith: { _, last in last }
-                )
-            }
-
-            if hasAnyDNSOverride {
-                config.dns = ContainerConfiguration.DNSConfiguration(
-                    nameservers: commaSeparatedValues(from: dnsNameservers).isEmpty
-                        ? ContainerConfiguration.DNSConfiguration.defaultNameservers
-                        : commaSeparatedValues(from: dnsNameservers),
-                    domain: dnsDomain.trimmed.isEmpty ? nil : dnsDomain.trimmed,
-                    searchDomains: commaSeparatedValues(from: dnsSearchDomains),
-                    options: commaSeparatedValues(from: dnsOptions)
-                )
-            }
-
-            var resources = ContainerConfiguration.Resources()
-            resources.cpus = cpus
-            resources.memoryInBytes = UInt64(memoryGiB).gib()
-            config.resources = resources
-
-            config.rosetta = rosetta
-            config.readOnly = readOnly
-            config.virtualization = virtualization
-            config.ssh = ssh
-
-            try await containerClient.create(
-                configuration: config,
-                options: options,
-                kernel: try await ClientKernel.getDefaultKernel(for: .current)
-            )
-        } catch {
-            self.error = error.localizedDescription
-            AppViewModel.shared.showError(.containerCreateFailed(error.localizedDescription))
-            return
+            ]
         }
+
+        let labelPairs = labels.filter { !$0.key.trimmed.isEmpty }
+        if !labelPairs.isEmpty {
+            config.labels = Dictionary(
+                labelPairs.map { ($0.key.trimmed, $0.value) },
+                uniquingKeysWith: { _, last in last }
+            )
+        }
+
+        let sysctlPairs = sysctls.filter { !$0.key.trimmed.isEmpty }
+        if !sysctlPairs.isEmpty {
+            config.sysctls = Dictionary(
+                sysctlPairs.map { ($0.key.trimmed, $0.value) },
+                uniquingKeysWith: { _, last in last }
+            )
+        }
+
+        if hasAnyDNSOverride {
+            config.dns = ContainerConfiguration.DNSConfiguration(
+                nameservers: commaSeparatedValues(from: dnsNameservers).isEmpty
+                    ? ContainerConfiguration.DNSConfiguration.defaultNameservers
+                    : commaSeparatedValues(from: dnsNameservers),
+                domain: dnsDomain.trimmed.isEmpty ? nil : dnsDomain.trimmed,
+                searchDomains: commaSeparatedValues(from: dnsSearchDomains),
+                options: commaSeparatedValues(from: dnsOptions)
+            )
+        }
+
+        var resources = ContainerConfiguration.Resources()
+        resources.cpus = cpus
+        resources.memoryInBytes = UInt64(memoryGiB).gib()
+        config.resources = resources
+
+        config.rosetta = rosetta
+        config.readOnly = readOnly
+        config.virtualization = virtualization
+        config.ssh = ssh
+
+        try await containerClient.create(
+            configuration: config,
+            options: options,
+            kernel: try await ClientKernel.getDefaultKernel(for: .current)
+        )
 
         if !autoRemove {
             AppSettings.addPersistentContainerID(containerName)
@@ -393,19 +366,11 @@ class RunContainerViewModel {
                 try await process.start()
             }
         } catch {
-            self.error = error.localizedDescription
-            AppViewModel.shared.showError(.containerStartFailed(error.localizedDescription))
             RefreshCoordinator.shared.containerMutated()
-            return
+            throw error
         }
 
         RefreshCoordinator.shared.containerMutated()
-        success = true
-    }
-
-    private func clearStatus() {
-        error = nil
-        success = false
     }
 
     private func applyImageDefaults() {
@@ -464,7 +429,7 @@ class RunContainerViewModel {
         }
     }
 
-    private func suggestedName(for imageID: String) -> String {
+    func suggestedName(for imageID: String) -> String {
         let withoutDigest = imageID.split(separator: "@").first.map(String.init) ?? imageID
         let lastPathComponent = withoutDigest.split(separator: "/").last.map(String.init) ?? withoutDigest
         let sanitized = lastPathComponent
@@ -607,7 +572,7 @@ class RunContainerViewModel {
             .filter { !$0.isEmpty }
     }
 
-    private func shellSplit(_ input: String) -> [String] {
+    func shellSplit(_ input: String) -> [String] {
         var values: [String] = []
         var current = ""
         var isEscaping = false
@@ -654,7 +619,7 @@ class RunContainerViewModel {
         return values
     }
 
-    private func shellJoin(_ values: [String]) -> String {
+    func shellJoin(_ values: [String]) -> String {
         values.map { value in
             if value.contains(where: { $0.isWhitespace || $0 == "\"" || $0 == "'" }) {
                 let escaped = value.replacingOccurrences(of: "\"", with: "\\\"")

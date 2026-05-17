@@ -1,21 +1,16 @@
 {
   "fill" : {
-    "automatic-gradient" : "extended-srgb:0.79608,0.18824,0.87843,1.00000",
-    "orientation" : {
-      "start" : {
-        "x" : 0.5,
-        "y" : 0
-      },
-      "stop" : {
-        "x" : 0.5,
-        "y" : 0.7
-      }
-    }
+    "solid" : "display-p3:0.68994,0.54443,0.75049,1.00000"
   },
   "groups" : [
     {
       "layers" : [
         {
+          "fill" : {
+            "solid" : "display-p3:0.92090,0.88379,0.93701,1.00000"
+          },
+          "glass" : false,
+          "hidden" : false,
           "image-name" : "rightCrane 2.png",
           "name" : "rightCrane 2",
           "position" : {
