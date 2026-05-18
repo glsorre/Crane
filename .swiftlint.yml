@@ -1,0 +1,52 @@
+included:
+  - Crane
+  - CraneTests
+
+excluded:
+  - Crane.xcodeproj
+  - DerivedData
+  - .build
+
+disabled_rules:
+  - trailing_whitespace
+  - todo
+
+opt_in_rules:
+  - empty_count
+  - explicit_init
+  - first_where
+  - last_where
+  - redundant_nil_coalescing
+  - unneeded_parentheses_in_closure_argument
+
+line_length:
+  warning: 140
+  error: 200
+  ignores_comments: true
+  ignores_urls: true
+
+identifier_name:
+  min_length: 2
+  excluded:
+    - id
+    - io
+    - vm
+    - to
+    - on
+    - fh
+
+file_length:
+  warning: 600
+  error: 1000
+
+type_body_length:
+  warning: 400
+  error: 600
+
+function_body_length:
+  warning: 80
+  error: 160
+
+cyclomatic_complexity:
+  warning: 15
+  error: 25

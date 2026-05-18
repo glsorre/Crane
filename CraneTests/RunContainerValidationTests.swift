@@ -5,19 +5,21 @@ import XCTest
 
 @MainActor
 final class RunContainerValidationTests: XCTestCase {
+    var stores: CraneStores!
+
     override func setUp() async throws {
         try await super.setUp()
-        ContainersStore.shared.stop()
-        ContainersStore.shared.containers = []
-        ImagesStore.shared.stop()
-        VolumesStore.shared.stop()
-        NetworksStore.shared.stop()
+        stores = CraneStores()
+    }
+
+    private func makeVM() -> RunContainerViewModel {
+        RunContainerViewModel(stores: stores)
     }
 
     // MARK: - imageValidationMessage
 
     func testImageValidation() {
-        let vm = RunContainerViewModel()
+        let vm = makeVM()
         XCTAssertNotNil(vm.imageValidationMessage)
 
         vm.selectedImageID = "docker.io/library/alpine:latest"
@@ -27,7 +29,7 @@ final class RunContainerValidationTests: XCTestCase {
     // MARK: - nameValidationMessage
 
     func testNameValidationEmpty() {
-        let vm = RunContainerViewModel()
+        let vm = makeVM()
         XCTAssertNotNil(vm.nameValidationMessage)
 
         vm.name = "   "
@@ -35,7 +37,7 @@ final class RunContainerValidationTests: XCTestCase {
     }
 
     func testNameValidationValid() {
-        let vm = RunContainerViewModel()
+        let vm = makeVM()
         vm.name = "my-container"
         XCTAssertNil(vm.nameValidationMessage)
     }
@@ -43,19 +45,19 @@ final class RunContainerValidationTests: XCTestCase {
     // MARK: - commandValidationMessage
 
     func testCommandValidationNoImageReturnsNil() {
-        let vm = RunContainerViewModel()
+        let vm = makeVM()
         XCTAssertNil(vm.commandValidationMessage)
     }
 
     func testCommandValidationNoDefaultRequiresExecutable() {
-        let vm = RunContainerViewModel()
+        let vm = makeVM()
         vm.selectedImageID = "alpine"
         vm.useImageDefaultCommand = true
         XCTAssertNotNil(vm.commandValidationMessage)
     }
 
     func testCommandValidationCustomExecutable() {
-        let vm = RunContainerViewModel()
+        let vm = makeVM()
         vm.selectedImageID = "alpine"
         vm.useImageDefaultCommand = false
         vm.executable = ""
@@ -68,7 +70,7 @@ final class RunContainerValidationTests: XCTestCase {
     // MARK: - environmentValidationMessage
 
     func testEnvironmentValidation() {
-        let vm = RunContainerViewModel()
+        let vm = makeVM()
         vm.environment = ""
         XCTAssertNil(vm.environmentValidationMessage)
 
@@ -85,19 +87,19 @@ final class RunContainerValidationTests: XCTestCase {
     // MARK: - portValidationMessage
 
     func testPortValidationBlankAllowed() {
-        let vm = RunContainerViewModel()
+        let vm = makeVM()
         vm.addPort()
         XCTAssertNil(vm.portValidationMessage)
     }
 
     func testPortValidationMissingFields() {
-        let vm = RunContainerViewModel()
+        let vm = makeVM()
         vm.ports = [PortEntry(hostPort: "8080", containerPort: "", proto: .tcp)]
         XCTAssertNotNil(vm.portValidationMessage)
     }
 
     func testPortValidationOutOfRange() {
-        let vm = RunContainerViewModel()
+        let vm = makeVM()
         vm.ports = [PortEntry(hostPort: "0", containerPort: "80", proto: .tcp)]
         XCTAssertNotNil(vm.portValidationMessage)
 
@@ -106,7 +108,7 @@ final class RunContainerValidationTests: XCTestCase {
     }
 
     func testPortValidationDuplicate() {
-        let vm = RunContainerViewModel()
+        let vm = makeVM()
         vm.ports = [
             PortEntry(hostPort: "8080", containerPort: "80", proto: .tcp),
             PortEntry(hostPort: "8080", containerPort: "81", proto: .tcp),
@@ -115,7 +117,7 @@ final class RunContainerValidationTests: XCTestCase {
     }
 
     func testPortValidationDifferentProtosOK() {
-        let vm = RunContainerViewModel()
+        let vm = makeVM()
         vm.ports = [
             PortEntry(hostPort: "8080", containerPort: "80", proto: .tcp),
             PortEntry(hostPort: "8080", containerPort: "80", proto: .udp),
@@ -124,7 +126,7 @@ final class RunContainerValidationTests: XCTestCase {
     }
 
     func testPortValidationValid() {
-        let vm = RunContainerViewModel()
+        let vm = makeVM()
         vm.ports = [PortEntry(hostPort: "8080", containerPort: "80", proto: .tcp)]
         XCTAssertNil(vm.portValidationMessage)
     }
@@ -132,19 +134,19 @@ final class RunContainerValidationTests: XCTestCase {
     // MARK: - mountValidationMessage
 
     func testMountValidationBindNeedsSource() {
-        let vm = RunContainerViewModel()
+        let vm = makeVM()
         vm.mounts = [MountEntry(type: .bind, source: "", destination: "/data")]
         XCTAssertNotNil(vm.mountValidationMessage)
     }
 
     func testMountValidationNeedsDestination() {
-        let vm = RunContainerViewModel()
+        let vm = makeVM()
         vm.mounts = [MountEntry(type: .bind, source: "/tmp", destination: "")]
         XCTAssertNotNil(vm.mountValidationMessage)
     }
 
     func testMountValidationTmpfsSourceOptional() {
-        let vm = RunContainerViewModel()
+        let vm = makeVM()
         vm.mounts = [MountEntry(type: .tmpfs, source: "", destination: "/tmp")]
         XCTAssertNil(vm.mountValidationMessage)
     }
@@ -152,7 +154,7 @@ final class RunContainerValidationTests: XCTestCase {
     // MARK: - socketValidationMessage
 
     func testSocketValidation() {
-        let vm = RunContainerViewModel()
+        let vm = makeVM()
         vm.sockets = [SocketEntry(hostPath: "/var/sock", containerPath: "")]
         XCTAssertNotNil(vm.socketValidationMessage)
 
@@ -163,27 +165,27 @@ final class RunContainerValidationTests: XCTestCase {
     // MARK: - shellSplit
 
     func testShellSplitSimple() {
-        let vm = RunContainerViewModel()
+        let vm = makeVM()
         XCTAssertEqual(vm.shellSplit("a b c"), ["a", "b", "c"])
     }
 
     func testShellSplitDoubleQuotes() {
-        let vm = RunContainerViewModel()
+        let vm = makeVM()
         XCTAssertEqual(vm.shellSplit("\"hello world\" foo"), ["hello world", "foo"])
     }
 
     func testShellSplitSingleQuotesPreserveBackslash() {
-        let vm = RunContainerViewModel()
+        let vm = makeVM()
         XCTAssertEqual(vm.shellSplit("'a\\b' c"), ["a\\b", "c"])
     }
 
     func testShellSplitEscape() {
-        let vm = RunContainerViewModel()
+        let vm = makeVM()
         XCTAssertEqual(vm.shellSplit("a\\ b c"), ["a b", "c"])
     }
 
     func testShellSplitEmpty() {
-        let vm = RunContainerViewModel()
+        let vm = makeVM()
         XCTAssertEqual(vm.shellSplit(""), [])
         XCTAssertEqual(vm.shellSplit("   "), [])
     }
@@ -191,35 +193,35 @@ final class RunContainerValidationTests: XCTestCase {
     // MARK: - shellJoin
 
     func testShellJoinNoSpaces() {
-        let vm = RunContainerViewModel()
+        let vm = makeVM()
         XCTAssertEqual(vm.shellJoin(["a", "b", "c"]), "a b c")
     }
 
     func testShellJoinQuotesSpaces() {
-        let vm = RunContainerViewModel()
+        let vm = makeVM()
         XCTAssertEqual(vm.shellJoin(["hello world", "x"]), "\"hello world\" x")
     }
 
     func testShellJoinEscapesDoubleQuotes() {
-        let vm = RunContainerViewModel()
+        let vm = makeVM()
         XCTAssertEqual(vm.shellJoin(["a\"b"]), "\"a\\\"b\"")
     }
 
     // MARK: - suggestedName
 
     func testSuggestedNameStripsRegistryAndTag() {
-        let vm = RunContainerViewModel()
+        let vm = makeVM()
         XCTAssertEqual(vm.suggestedName(for: "docker.io/library/alpine:latest"), "alpine-latest")
     }
 
     func testSuggestedNameStripsDigest() {
-        let vm = RunContainerViewModel()
+        let vm = makeVM()
         let name = vm.suggestedName(for: "alpine@sha256:abcdef")
         XCTAssertEqual(name, "alpine")
     }
 
     func testSuggestedNameSanitizesInvalidChars() {
-        let vm = RunContainerViewModel()
+        let vm = makeVM()
         let name = vm.suggestedName(for: "weird/Image+Name!")
         XCTAssertFalse(name.isEmpty)
         XCTAssertFalse(name.contains("+"))
@@ -228,7 +230,7 @@ final class RunContainerValidationTests: XCTestCase {
     }
 
     func testSuggestedNameFallbackWhenEmpty() {
-        let vm = RunContainerViewModel()
+        let vm = makeVM()
         XCTAssertEqual(vm.suggestedName(for: "---"), "container")
     }
 }

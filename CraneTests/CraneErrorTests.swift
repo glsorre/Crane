@@ -2,25 +2,32 @@
 import XCTest
 
 final class CraneErrorTests: XCTestCase {
+    private func err(_ token: String) -> Error {
+        NSError(domain: "Test", code: 1, userInfo: [NSLocalizedDescriptionKey: token])
+    }
+
     func testErrorDescriptionNonNilForAllCases() {
+        let token = err("x")
         let allCases: [CraneError] = [
-            .notRegistered,
-            .notRunning,
+            .notRegistered(diagnostic: .empty),
+            .notRunning(diagnostic: .empty),
             .containerNotFound,
             .imageFetchingFailed,
-            .containerStartFailed("x"),
-            .containerStopFailed("x"),
-            .containerRestartFailed("x"),
-            .containerShellFailed("x"),
-            .containerRemoveFailed("x"),
-            .imageRemoveFailed("x"),
-            .imageTagFailed("x"),
-            .imageRenameFailed("x"),
-            .imageFetchFailed("x"),
-            .logStreamFailed("x"),
-            .imageBuildFailed("x"),
-            .networkRemoveFailed("x"),
-            .volumeRemoveFailed("x"),
+            .containerStartFailed(underlying: token),
+            .containerStopFailed(underlying: token),
+            .containerRestartFailed(underlying: token),
+            .containerShellFailed(underlying: token),
+            .containerRemoveFailed(underlying: token),
+            .imageRemoveFailed(underlying: token),
+            .imageTagFailed(underlying: token),
+            .imageRenameFailed(underlying: token),
+            .imageFetchFailed(underlying: token),
+            .logStreamFailed(underlying: token),
+            .imageBuildFailed(underlying: token),
+            .networkRemoveFailed(underlying: token),
+            .volumeRemoveFailed(underlying: token),
+            .pollingFailed(resource: .containers, underlying: token),
+            .connectionLost(consecutiveFailures: 3),
         ]
         for error in allCases {
             XCTAssertNotNil(error.errorDescription, "Missing description for \(error)")
@@ -29,30 +36,33 @@ final class CraneErrorTests: XCTestCase {
     }
 
     func testFatalFlag() {
-        XCTAssertTrue(CraneError.notRegistered.fatal)
-        XCTAssertTrue(CraneError.notRunning.fatal)
+        XCTAssertTrue(CraneError.notRegistered(diagnostic: .empty).fatal)
+        XCTAssertTrue(CraneError.notRunning(diagnostic: .empty).fatal)
         XCTAssertFalse(CraneError.containerNotFound.fatal)
         XCTAssertFalse(CraneError.imageFetchingFailed.fatal)
-        XCTAssertFalse(CraneError.containerStartFailed("x").fatal)
-        XCTAssertFalse(CraneError.containerStopFailed("x").fatal)
-        XCTAssertFalse(CraneError.containerRemoveFailed("x").fatal)
-        XCTAssertFalse(CraneError.imageBuildFailed("x").fatal)
-        XCTAssertFalse(CraneError.volumeRemoveFailed("x").fatal)
-        XCTAssertFalse(CraneError.networkRemoveFailed("x").fatal)
+        XCTAssertFalse(CraneError.containerStartFailed(underlying: err("x")).fatal)
+        XCTAssertFalse(CraneError.containerStopFailed(underlying: err("x")).fatal)
+        XCTAssertFalse(CraneError.containerRemoveFailed(underlying: err("x")).fatal)
+        XCTAssertFalse(CraneError.imageBuildFailed(underlying: err("x")).fatal)
+        XCTAssertFalse(CraneError.volumeRemoveFailed(underlying: err("x")).fatal)
+        XCTAssertFalse(CraneError.networkRemoveFailed(underlying: err("x")).fatal)
+        XCTAssertFalse(CraneError.connectionLost(consecutiveFailures: 5).fatal)
     }
 
     func testDetailInterpolation() {
         let token = "unique-detail-token-\(UUID().uuidString)"
+        let underlying = err(token)
         let cases: [CraneError] = [
-            .containerStartFailed(token),
-            .containerStopFailed(token),
-            .containerRemoveFailed(token),
-            .imageRemoveFailed(token),
-            .imageFetchFailed(token),
-            .logStreamFailed(token),
-            .imageBuildFailed(token),
-            .networkRemoveFailed(token),
-            .volumeRemoveFailed(token),
+            .containerStartFailed(underlying: underlying),
+            .containerStopFailed(underlying: underlying),
+            .containerRemoveFailed(underlying: underlying),
+            .imageRemoveFailed(underlying: underlying),
+            .imageFetchFailed(underlying: underlying),
+            .logStreamFailed(underlying: underlying),
+            .imageBuildFailed(underlying: underlying),
+            .networkRemoveFailed(underlying: underlying),
+            .volumeRemoveFailed(underlying: underlying),
+            .pollingFailed(resource: .images, underlying: underlying),
         ]
         for error in cases {
             let desc = error.errorDescription ?? ""

@@ -1,19 +1,34 @@
 import Foundation
 import os.log
 
-func startPolling(interval: @escaping () -> Int, work: @escaping () async throws -> Void) -> Task<Void, Never> {
+func startPolling(
+    interval: @escaping () -> Int,
+    isVisible: @escaping @Sendable () -> Bool = { PollingVisibility.isVisible },
+    onError: @escaping @Sendable (Error) -> Void = { _ in },
+    work: @escaping () async throws -> Void
+) -> Task<Void, Never> {
     Task {
         while !Task.isCancelled {
-            do { try await work() }
-            catch { Logger.crane.warning("Polling error: \(error.localizedDescription)") }
+            if isVisible() {
+                do {
+                    try await work()
+                } catch {
+                    Logger.crane.warning("Polling error: \(error.localizedDescription)")
+                    onError(error)
+                }
+            }
             try? await Task.sleep(for: .seconds(max(interval(), 1)))
         }
     }
 }
 
+// apple/container exposes no lifecycle event stream as of macOS 26 SDK; polling is required.
+// See SPM checkout: Sources/Services/ContainerAPIService/Client/{ContainerClient,ClientImage,NetworkClient,ClientVolume}.swift
 func startAdaptivePolling(
     baseInterval: @escaping () -> Int,
     maxInterval: @escaping () -> Int,
+    isVisible: @escaping @Sendable () -> Bool = { PollingVisibility.isVisible },
+    onError: @escaping @Sendable (Error) -> Void = { _ in },
     work: @escaping () async throws -> Bool
 ) -> (task: Task<Void, Never>, reset: @Sendable () -> Void) {
     let currentInterval = OSAllocatedUnfairLock(initialState: 0)
@@ -32,20 +47,29 @@ func startAdaptivePolling(
                 return current
             }
 
-            var changed = false
-            do { changed = try await work() }
-            catch { Logger.crane.warning("Polling error: \(error.localizedDescription)") }
-
-            let didChange = changed
-            currentInterval.withLock { current in
-                if didChange {
-                    current = base
-                } else {
-                    current = min(current * 2, maxI)
+            if isVisible() {
+                var changed = false
+                do {
+                    changed = try await work()
+                } catch {
+                    Logger.crane.warning("Polling error: \(error.localizedDescription)")
+                    onError(error)
                 }
-            }
 
-            try? await Task.sleep(for: .seconds(interval))
+                let didChange = changed
+                currentInterval.withLock { current in
+                    if didChange {
+                        current = base
+                    } else {
+                        current = min(current * 2, maxI)
+                    }
+                }
+
+                try? await Task.sleep(for: .seconds(interval))
+            } else {
+                // Backgrounded: sleep at max interval, do not advance backoff.
+                try? await Task.sleep(for: .seconds(maxI))
+            }
         }
     }
 

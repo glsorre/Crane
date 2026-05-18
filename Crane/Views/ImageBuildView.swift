@@ -11,7 +11,8 @@ import UniformTypeIdentifiers
 
 struct ImageBuildView: View {
     @Binding var isPresented: Bool
-    @State private var buildViewModel = BuildViewModel.shared
+    @Environment(\.craneStores) private var stores
+    private var buildViewModel: BuildViewModel { stores.build }
     @State private var tag: String = ""
     @State private var text: String = "FROM alpine:latest\n"
     @State private var buildSourceMode: BuildSourceMode = .paste

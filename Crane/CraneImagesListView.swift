@@ -8,8 +8,9 @@
 import SwiftUI
 
 struct CraneImagesListView: View {
-    @State private var imagesStore = ImagesStore.shared
-    @State private var buildViewModel = BuildViewModel.shared
+    @Environment(\.craneStores) private var stores
+    private var imagesStore: ImagesStore { stores.images }
+    private var buildViewModel: BuildViewModel { stores.build }
 
     @State private var fetchSheetIsVisible = false
     @State private var buildSheetIsVisible = false

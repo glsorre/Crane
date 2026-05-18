@@ -10,6 +10,7 @@ class CraneTestBase: XCTestCase {
 
     let containerClient = ContainerClient()
     let networkClient = NetworkClient()
+    @MainActor var stores: CraneStores!
 
     func uniqueName() -> String {
         Self.testPrefix + UUID().uuidString.prefix(8).lowercased()
@@ -17,11 +18,9 @@ class CraneTestBase: XCTestCase {
 
     override func setUp() async throws {
         try await super.setUp()
-        // Stop any polling that singleton inits may have started
-        ContainersStore.shared.stop()
-        ImagesStore.shared.stop()
-        NetworksStore.shared.stop()
-        VolumesStore.shared.stop()
+        await MainActor.run {
+            stores = CraneStores()
+        }
         // Fail fast if apiserver is not reachable
         _ = try await containerClient.list()
     }

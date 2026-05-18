@@ -10,8 +10,9 @@ import ContainerResource
 import SwiftUI
 
 struct CraneContainersListView: View {
-    @State private var appViewModel = AppViewModel.shared
-    @State private var containersStore = ContainersStore.shared
+    @Environment(\.craneStores) private var stores
+    private var appViewModel: AppViewModel { stores.app }
+    private var containersStore: ContainersStore { stores.containers }
     @State private var runSheetIsVisible: Bool = false
     @State private var navigationPath: [Container.ID] = []
 
@@ -68,7 +69,7 @@ struct CraneContainersListView: View {
             }
             .navigationDestination(for: Container.ID.self) { containerID in
                 if let container = container(for: containerID) {
-                    CraneDetailsView(container: container)
+                    CraneDetailsView(container: container, stores: stores)
                 } else {
                     ContentUnavailableView(
                         "containerNotFound",
@@ -120,7 +121,7 @@ struct CraneContainersListView: View {
             }
         }
         .sheet(isPresented: $runSheetIsVisible) {
-            ContainerRunView(isPresented: $runSheetIsVisible)
+            ContainerRunView(isPresented: $runSheetIsVisible, stores: stores)
         }
     }
 }

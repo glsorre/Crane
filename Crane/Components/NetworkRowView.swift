@@ -8,8 +8,9 @@ import ContainerResource
 import SwiftUI
 
 struct NetworkRowView: View {
-    @State private var containersStore = ContainersStore.shared
-    @State private var networksStore = NetworksStore.shared
+    @Environment(\.craneStores) private var stores
+    private var containersStore: ContainersStore { stores.containers }
+    private var networksStore: NetworksStore { stores.networks }
     @State private var isExpanded: Bool = false
     var network: Network
 

@@ -52,6 +52,7 @@ class Image : Identifiable, Hashable {
     var imageConfiguration: ContainerizationOCI.Image?
     var objectIdentity: ObjectIdentifier { ObjectIdentifier(self) }
     var status: ImageStatus
+    var fetchProgress: FetchProgress?
 
     var isLocalBuild: Bool {
         imageConfiguration?.config?.labels?[Self.localBuildLabelKey] == "true"
@@ -67,6 +68,7 @@ class Image : Identifiable, Hashable {
     init(id: String) {
         self.id = id
         self.status = .fetching
+        self.fetchProgress = FetchProgress()
     }
     
     init(image: ClientImage) {
@@ -81,7 +83,12 @@ class Image : Identifiable, Hashable {
     
     func setImage(image: ClientImage) async throws {
         self.image = image
-        self.imageConfiguration = try? await image.config(for: .current)
+        do {
+            self.imageConfiguration = try await image.config(for: .current)
+        } catch {
+            self.imageConfiguration = nil
+            Log.images.error("config(for: .current) failed for \(self.id, privacy: .public): \(error.localizedDescription, privacy: .public)")
+        }
     }
     
     func createContainer(id: String, executable: String, arguments: [String], environment: [String], networks: [Network], autoRemove: Bool = true) async throws {
@@ -114,30 +121,35 @@ class Image : Identifiable, Hashable {
             AppSettings.addPersistentContainerID(id)
         }
 
-        RefreshCoordinator.shared.containerMutated()
+        CraneMutationBus.postContainerMutated()
     }
 }
 
 @Observable
 class ImagesStore {
-    static let shared = ImagesStore()
-    
+    private let onError: @MainActor (CraneError) -> Void
+    private let tracker: ConnectionHealthTracker?
+
     var images: Set<Image> = []
     var imagesTask: Task<Void, Never>? = nil
     var resetPolling: (() -> Void)?
 
     var searchText: String = ""
-    
+
     var sortedFilteredImages: [Image] {
         images
             .sorted { $0.id < $1.id }
             .filter { self.searchText.isEmpty || ($0.id.contains(self.searchText)) }
     }
 
-    private init() {
-        self.start()
+    init(
+        onError: @escaping @MainActor (CraneError) -> Void = { _ in },
+        tracker: ConnectionHealthTracker? = nil
+    ) {
+        self.onError = onError
+        self.tracker = tracker
     }
-    
+
     deinit {
         self.stop()
     }
@@ -148,9 +160,16 @@ class ImagesStore {
 
     func start() {
         guard AppSettings.autoRefresh else { return }
+        let tracker = self.tracker
         let (task, reset) = startAdaptivePolling(
             baseInterval: { AppSettings.refreshInterval },
-            maxInterval: { AppSettings.maxPollingInterval }
+            maxInterval: { AppSettings.maxPollingInterval },
+            isVisible: { PollingVisibility.isVisible(for: .images) },
+            onError: { error in
+                Task { @MainActor in
+                    tracker?.recordFailure(resource: .images, error: error)
+                }
+            }
         ) {
             try await self.collectWithChangeDetection()
         }
@@ -162,16 +181,26 @@ class ImagesStore {
         let normalizedReference = try ClientImage.normalizeReference(reference)
         let image = Image(id: normalizedReference)
         self.images.insert(image)
+        let progress = image.fetchProgress
         Task {
             do {
-                let clientImage = try await ClientImage.fetch(reference: reference)
+                let clientImage = try await ClientImage.fetch(
+                    reference: reference,
+                    progressUpdate: { events in
+                        await MainActor.run {
+                            progress?.apply(events)
+                        }
+                    }
+                )
                 try await image.setImage(image: clientImage)
+                image.fetchProgress = nil
                 image.status = .available
                 images.update(with: image)
-                RefreshCoordinator.shared.imageMutated()
+                CraneMutationBus.postImageMutated()
             } catch {
                 images.remove(image)
-                AppViewModel.shared.showError(.imageFetchFailed(error.localizedDescription))
+                Log.images.error("fetchImage failed for \(normalizedReference): \(error.localizedDescription, privacy: .public)")
+                await onError(.imageFetchFailed(underlying: error))
             }
         }
     }
@@ -184,10 +213,11 @@ class ImagesStore {
                 images.remove(existingImage)
             } catch {
                 existingImage.status = .available
+                Log.images.error("removeImage failed: \(error.localizedDescription, privacy: .public)")
                 throw error
             }
         }
-        RefreshCoordinator.shared.imageMutated()
+        CraneMutationBus.postImageMutated()
     }
 
     /// Adds another OCI reference pointing at the same image (`container image tag <source> <target>`).
@@ -221,12 +251,17 @@ class ImagesStore {
         image.status = .tagging
         defer { image.status = .available }
 
-        _ = try await clientImage.tag(new: normalizedNew)
-        if deleteSourceAfter {
-            try await ClientImage.delete(reference: normalizedSource)
+        do {
+            _ = try await clientImage.tag(new: normalizedNew)
+            if deleteSourceAfter {
+                try await ClientImage.delete(reference: normalizedSource)
+            }
+        } catch {
+            Log.images.error("applyTagOrRename failed: \(error.localizedDescription, privacy: .public)")
+            throw error
         }
         _ = try? await collect()
-        RefreshCoordinator.shared.imageMutated()
+        CraneMutationBus.postImageMutated()
     }
 
     @discardableResult
@@ -242,21 +277,23 @@ class ImagesStore {
 
         for clientImage in currentImages {
             currentIDs.insert(clientImage.reference)
-            if let existing = images.first(where: { $0.id == clientImage.reference }) {
-                try await existing.setImage(image: clientImage)
-            } else {
-                let newImage = Image(image: clientImage)
-                images.insert(newImage)
-            }
+            let target = images.first(where: { $0.id == clientImage.reference })
+                ?? Image(image: clientImage)
+            try await target.setImage(image: clientImage)
+            images.insert(target)
         }
 
         let imagesToRemove = images.filter { !currentIDs.contains($0.id) && $0.status != .fetching }
         imagesToRemove.forEach { images.remove($0) }
 
         let newIDs = Set(images.map { $0.id })
+        let tracker = self.tracker
+        Task { @MainActor in
+            tracker?.recordSuccess()
+        }
         return previousIDs != newIDs
     }
-    
+
     func reset() async throws {
         images.removeAll()
         try await self.collect()

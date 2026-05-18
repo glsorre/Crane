@@ -8,8 +8,9 @@ import ContainerResource
 import SwiftUI
 
 struct VolumeRowView: View {
-    @State private var containersStore = ContainersStore.shared
-    @State private var volumesStore = VolumesStore.shared
+    @Environment(\.craneStores) private var stores
+    private var containersStore: ContainersStore { stores.containers }
+    private var volumesStore: VolumesStore { stores.volumes }
     @State private var isExpanded: Bool = false
     var volume: CraneVolume
 

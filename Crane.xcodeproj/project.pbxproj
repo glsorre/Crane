@@ -20,6 +20,7 @@
 		1AB8D2972EBE73DB00421B16 /* ContainerCommands in Frameworks */ = {isa = PBXBuildFile; productRef = 1AB8D2962EBE73DB00421B16 /* ContainerCommands */; };
 		1AB8D2992EBE73DB00421B16 /* ContainerImagesService in Frameworks */ = {isa = PBXBuildFile; productRef = 1AB8D2982EBE73DB00421B16 /* ContainerImagesService */; };
 		1AB8D29A2EBE73DB00421B17 /* ContainerResource in Frameworks */ = {isa = PBXBuildFile; productRef = 1AB8D29B2EBE73DB00421B17 /* ContainerResource */; };
+		1AC0E1012F00000000000001 /* TerminalProgress in Frameworks */ = {isa = PBXBuildFile; productRef = 1AC0E1022F00000000000001 /* TerminalProgress */; };
 		1AF136B42EC4DE8800FDF4AC /* LaunchAtLogin in Frameworks */ = {isa = PBXBuildFile; productRef = 1AF136B32EC4DE8800FDF4AC /* LaunchAtLogin */; };
 /* End PBXBuildFile section */
 
@@ -70,6 +71,7 @@
 				1AB8D2932EBE73DB00421B16 /* ContainerBuild in Frameworks */,
 				1AB8D2992EBE73DB00421B16 /* ContainerImagesService in Frameworks */,
 				1A0BD0032F0E800000000003 /* Highlightr in Frameworks */,
+				1AC0E1012F00000000000001 /* TerminalProgress in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -135,6 +137,7 @@
 				1A36E7862EC504C00067D8B3 /* ContainerXPC */,
 				1A36E7882EC504C00067D8B3 /* SocketForwarder */,
 				1A0BD0022F0E800000000002 /* Highlightr */,
+				1AC0E1022F00000000000001 /* TerminalProgress */,
 			);
 			productName = Crane;
 			productReference = 1AB8D2802EBE72D200421B16 /* Right Crane.app */;
@@ -663,6 +666,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 1AB8D28F2EBE73DB00421B16 /* XCRemoteSwiftPackageReference "container" */;
 			productName = ContainerResource;
+		};
+		1AC0E1022F00000000000001 /* TerminalProgress */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1AB8D28F2EBE73DB00421B16 /* XCRemoteSwiftPackageReference "container" */;
+			productName = TerminalProgress;
 		};
 		1AF136B32EC4DE8800FDF4AC /* LaunchAtLogin */ = {
 			isa = XCSwiftPackageProductDependency;

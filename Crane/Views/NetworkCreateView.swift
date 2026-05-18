@@ -7,7 +7,8 @@ import SwiftUI
 
 struct NetworkCreateView: View {
     @Binding var isPresented: Bool
-    @State private var networksStore = NetworksStore.shared
+    @Environment(\.craneStores) private var stores
+    private var networksStore: NetworksStore { stores.networks }
     @State private var networkID: String = ""
 
     private var trimmedID: String {
