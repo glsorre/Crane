@@ -1,5 +1,6 @@
-@testable import Crane
 import XCTest
+
+@testable import Crane
 
 @MainActor
 final class ConnectionHealthTrackerTests: XCTestCase {

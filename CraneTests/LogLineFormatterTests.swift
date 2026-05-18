@@ -1,5 +1,6 @@
-@testable import Crane
 import XCTest
+
+@testable import Crane
 
 final class LogLineFormatterTests: XCTestCase {
     func testDetectsBareLevels() {
@@ -47,7 +48,7 @@ final class LogLineFormatterTests: XCTestCase {
 
     func testTimestampPrefixFormat() {
         // Just verify it produces an HH:mm:ss.SSS-shaped string
-        let s = LogLineFormatter.timestampPrefix(for: Date())
-        XCTAssertEqual(s.count, 12) // "HH:mm:ss.SSS"
+        let prefix = LogLineFormatter.timestampPrefix(for: Date())
+        XCTAssertEqual(prefix.count, 12)  // "HH:mm:ss.SSS"
     }
 }

@@ -14,33 +14,33 @@ import SwiftUI
 import os.log
 
 @Observable
-class Network : Identifiable, Hashable {
+class Network: Identifiable, Hashable {
     static func == (lhs: Network, rhs: Network) -> Bool {
         lhs.id == rhs.id
     }
-    
+
     static func == (lhs: Network, rhs: NetworkState) -> Bool {
         lhs.id == rhs.id
     }
-    
+
     static func == (lhs: NetworkState, rhs: Network) -> Bool {
         lhs.id == rhs.id
     }
-    
+
     func hash(into hasher: inout Hasher) {
         hasher.combine(id)
     }
-    
+
     var id: String
     var network: NetworkState
     var transiting: Bool
-    
+
     init(network: NetworkState) {
         self.id = network.id
         self.network = network
         self.transiting = false
     }
-    
+
     func update(network: NetworkState) {
         self.network = network
     }
@@ -54,7 +54,7 @@ class NetworksStore {
     private let tracker: ConnectionHealthTracker?
 
     var networks: Set<Network> = []
-    var networksTask: Task<Void, Never>? = nil
+    var networksTask: Task<Void, Never>?
     var resetPolling: (() -> Void)?
 
     var searchText: String = ""
@@ -78,7 +78,7 @@ class NetworksStore {
     deinit {
         self.stop()
     }
-    
+
     func stop() {
         self.networksTask?.cancel()
     }
@@ -94,10 +94,11 @@ class NetworksStore {
                 Task { @MainActor in
                     tracker?.recordFailure(resource: .networks, error: error)
                 }
+            },
+            work: {
+                try await self.collectWithChangeDetection()
             }
-        ) {
-            try await self.collectWithChangeDetection()
-        }
+        )
         self.networksTask = task
         self.resetPolling = reset
     }
@@ -134,12 +135,12 @@ class NetworksStore {
         }
         return previousIDs != newIDs
     }
-    
+
     func reset() async throws {
         networks.removeAll()
         try await self.collect()
     }
-    
+
     var hasEmptyNetworks: Bool {
         let containersForNetwork = containersForNetworkProvider()
         return networks.contains { network in

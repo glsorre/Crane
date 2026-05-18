@@ -48,6 +48,7 @@ final class FetchProgress {
         return "\(items)/\(totalItems) \(itemsName)"
     }
 
+    // swiftlint:disable:next cyclomatic_complexity
     func apply(_ events: [ProgressUpdateEvent]) {
         for event in events {
             switch event {

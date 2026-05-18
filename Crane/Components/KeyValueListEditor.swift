@@ -37,8 +37,8 @@ struct KeyValueListEditor: View {
         Binding(
             get: { entries.first { $0.id == id } ?? KeyValueEntry() },
             set: { val in
-                if let i = entries.firstIndex(where: { $0.id == id }) {
-                    entries[i] = val
+                if let index = entries.firstIndex(where: { $0.id == id }) {
+                    entries[index] = val
                 }
             }
         )

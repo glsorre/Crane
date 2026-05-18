@@ -108,11 +108,13 @@ class BuildViewModel {
         status = .startingBuilder
 
         do {
-            let (contextDirPath, dockerfileData, contextDirToDelete) = try await Task.detached(priority: .userInitiated) {
+            let buildPaths = try await Task.detached(priority: .userInitiated) {
                 try Self.prepareBuildPaths(source: source)
             }.value
+            let contextDirPath = buildPaths.contextDirPath
+            let dockerfileData = buildPaths.dockerfileData
             defer {
-                if let dir = contextDirToDelete {
+                if let dir = buildPaths.contextDirToDelete {
                     try? FileManager.default.removeItem(at: dir)
                 }
             }
@@ -152,7 +154,13 @@ class BuildViewModel {
 
     /// Resolves context directory and Dockerfile bytes. Returns a temp directory URL to delete after the build when non-nil.
     /// Static + sync + nonisolated: caller is expected to invoke from a detached Task so the MainActor doesn't block on disk I/O.
-    nonisolated private static func prepareBuildPaths(source: ImageBuildSource) throws -> (contextDirPath: String, dockerfileData: Data, contextDirToDelete: URL?) {
+    private struct BuildPaths {
+        let contextDirPath: String
+        let dockerfileData: Data
+        let contextDirToDelete: URL?
+    }
+
+    nonisolated private static func prepareBuildPaths(source: ImageBuildSource) throws -> BuildPaths {
         switch source {
         case .pastedDockerfile(let dockerfileContent):
             let tempDir = FileManager.default.temporaryDirectory
@@ -162,14 +170,14 @@ class BuildViewModel {
             let dockerfilePath = tempDir.appendingPathComponent("Dockerfile")
             try dockerfileContent.write(to: dockerfilePath, atomically: true, encoding: .utf8)
             let dockerfileData = try Data(contentsOf: dockerfilePath)
-            return (tempDir.path, dockerfileData, tempDir)
+            return BuildPaths(contextDirPath: tempDir.path, dockerfileData: dockerfileData, contextDirToDelete: tempDir)
 
         case .localContext(let contextDirectory, let dockerfileRelativePath):
             // BuildKit receives the host context path as-is; `.dockerignore` at the context root is honored when the runtime supports it. If builds fail for paths outside a known mount, a staged copy (respecting `.dockerignore`) could be added here.
             var isDir: ObjCBool = false
             let standardizedContext = contextDirectory.standardizedFileURL
             guard FileManager.default.fileExists(atPath: standardizedContext.path, isDirectory: &isDir),
-                  isDir.boolValue
+                isDir.boolValue
             else {
                 throw NSError(
                     domain: "Build",
@@ -191,7 +199,7 @@ class BuildViewModel {
             }
             do {
                 let data = try Data(contentsOf: dockerfileURL)
-                return (standardizedContext.path, data, nil)
+                return BuildPaths(contextDirPath: standardizedContext.path, dockerfileData: data, contextDirToDelete: nil)
             } catch {
                 throw NSError(
                     domain: "Build",
@@ -218,7 +226,8 @@ class BuildViewModel {
         let baseComponents = base.pathComponents
         let resolvedComponents = candidate.pathComponents
         guard resolvedComponents.starts(with: baseComponents),
-              resolvedComponents.count > baseComponents.count else {
+            resolvedComponents.count > baseComponents.count
+        else {
             throw NSError(
                 domain: "Build",
                 code: 5,
@@ -228,6 +237,7 @@ class BuildViewModel {
         return candidate
     }
 
+    // swiftlint:disable:next cyclomatic_complexity function_body_length
     private func runBuildKitPipeline(tag: String, contextDirPath: String, dockerfileData: Data) async throws {
         // 1. Ensure builder running (may run `container builder start` via helpers when missing)
         let container: ContainerSnapshot
@@ -361,7 +371,7 @@ class BuildViewModel {
         dockerfileData: Data
     ) async throws {
         let builder = try Builder(socket: fh, group: threadGroup, logger: Logging.Logger(label: "BuildViewModel"))
-        let _ = try await builder.info()
+        _ = try await builder.info()
 
         // 3. Export path
         let systemHealth = try await ClientHealthCheck.ping(timeout: .seconds(10))

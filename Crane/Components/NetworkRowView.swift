@@ -70,7 +70,8 @@ struct NetworkRowView: View {
     }
 
     private var subtitle: String {
-        let kind: String = network.network.isBuiltin
+        let kind: String =
+            network.network.isBuiltin
             ? String(localized: "networkKindBuiltin")
             : String(localized: "networkKindUser")
         let count = children.count

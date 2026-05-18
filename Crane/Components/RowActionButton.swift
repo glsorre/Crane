@@ -6,10 +6,10 @@
 import SwiftUI
 
 enum RowActionVariant {
-    case primary       // .glassProminent — main affordance (run, start)
-    case secondary     // .glass — neutral secondary (restart)
-    case destructive   // .glass with red tint (trash)
-    case tertiary      // .borderless secondary (shell, tag, dismiss)
+    case primary  // .glassProminent — main affordance (run, start)
+    case secondary  // .glass — neutral secondary (restart)
+    case destructive  // .glass with red tint (trash)
+    case tertiary  // .borderless secondary (shell, tag, dismiss)
 }
 
 /// Unified trailing-zone action button for resource rows.
@@ -80,9 +80,9 @@ struct RowActionButton<Label: View>: View {
     }
 }
 
-private extension View {
+extension View {
     @ViewBuilder
-    func ifLet<T, Transform: View>(
+    fileprivate func ifLet<T, Transform: View>(
         _ value: T?,
         transform: (Self, T) -> Transform
     ) -> some View {

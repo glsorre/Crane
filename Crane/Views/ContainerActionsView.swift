@@ -6,8 +6,8 @@
 //
 
 import ContainerAPIClient
-import SwiftUI
 import ContainerResource
+import SwiftUI
 
 struct ContainerActionsView: View {
     @Environment(\.craneStores) private var stores

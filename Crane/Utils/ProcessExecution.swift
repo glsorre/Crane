@@ -35,7 +35,7 @@ func runProcessCollectingOutput(
 
         process.terminationHandler = { proc in
             pipe.fileHandleForReading.readabilityHandler = nil
-            let remaining = (try? pipe.fileHandleForReading.readToEnd()) ?? nil
+            let remaining = (try? pipe.fileHandleForReading.readToEnd())
             let data = outputBox.withLock { box -> Data in
                 if let remaining { box.append(remaining) }
                 return box

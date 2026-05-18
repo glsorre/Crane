@@ -14,12 +14,12 @@ import Foundation
 class StreamReader {
     let encoding: String.Encoding
     let chunkSize: Int
-    
+
     var fileHandle: FileHandle!
     var buffer: Data!
     let delimData: Data!
     var atEof: Bool = false
-    
+
     init?(fileHandle: FileHandle, delimiter: String = "\n", encoding: String.Encoding = .utf8, chunkSize: Int = 4096) {
         self.chunkSize = chunkSize
         self.encoding = encoding
@@ -27,18 +27,18 @@ class StreamReader {
         self.delimData = delimiter.data(using: encoding)
         self.buffer = Data()
     }
-    
+
     deinit {
         close()
     }
-    
+
     func nextLine() -> String? {
         precondition(fileHandle != nil, "Attempt to read from closed file")
-        
+
         if atEof {
             return nil
         }
-        
+
         var range = buffer.range(of: delimData, in: 0..<buffer.count)
         while range == nil {
             let tmpData = fileHandle.readData(ofLength: chunkSize)
@@ -58,32 +58,30 @@ class StreamReader {
             buffer.append(tmpData)
             range = buffer.range(of: delimData, in: 0..<buffer.count)
         }
-        
+
         guard let range = range else { return nil }
-        
+
         if let line = String(data: buffer[0..<range.lowerBound], encoding: encoding) {
             // Remove line (and the delimiter) from the buffer:
             buffer.replaceSubrange(0..<range.upperBound, with: [])
             return line
         }
-        
+
         return nil
     }
-    
+
     func rewind() {
         fileHandle.seek(toFileOffset: 0)
         buffer.removeAll()
         atEof = false
     }
-    
-    func skipLines(_ n: Int) {
-        for _ in 0..<n {
-            guard let _ = nextLine() else {
-                return
-            }
+
+    func skipLines(_ count: Int) {
+        for _ in 0..<count where nextLine() == nil {
+            return
         }
     }
-    
+
     func close() {
         fileHandle?.closeFile()
         fileHandle = nil

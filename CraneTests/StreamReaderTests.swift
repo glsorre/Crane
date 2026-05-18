@@ -1,6 +1,7 @@
-@testable import Crane
 import Foundation
 import XCTest
+
+@testable import Crane
 
 final class StreamReaderTests: XCTestCase {
     private func makeReader(content: String, chunkSize: Int = 4096, delimiter: String = "\n") -> StreamReader? {

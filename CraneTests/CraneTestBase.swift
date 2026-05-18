@@ -1,9 +1,10 @@
-@testable import Crane
 import ContainerAPIClient
 import ContainerResource
 import Containerization
 import ContainerizationError
 import XCTest
+
+@testable import Crane
 
 class CraneTestBase: XCTestCase {
     static let testPrefix = "crane-test-"
@@ -28,21 +29,21 @@ class CraneTestBase: XCTestCase {
     override func tearDown() async throws {
         // Sweep test containers
         let containers = try await containerClient.list()
-        for c in containers where c.id.hasPrefix(Self.testPrefix) {
-            try? await containerClient.stop(id: c.id)
-            try? await containerClient.delete(id: c.id)
+        for container in containers where container.id.hasPrefix(Self.testPrefix) {
+            try? await containerClient.stop(id: container.id)
+            try? await containerClient.delete(id: container.id)
         }
 
         // Sweep test networks
         let networks = try await networkClient.list()
-        for n in networks where n.id.hasPrefix(Self.testPrefix) {
-            try? await networkClient.delete(id: n.id)
+        for network in networks where network.id.hasPrefix(Self.testPrefix) {
+            try? await networkClient.delete(id: network.id)
         }
 
         // Sweep test volumes
         let volumes = try await ClientVolume.list()
-        for v in volumes where v.name.hasPrefix(Self.testPrefix) {
-            try? await ClientVolume.delete(name: v.name)
+        for volume in volumes where volume.name.hasPrefix(Self.testPrefix) {
+            try? await ClientVolume.delete(name: volume.name)
         }
 
         try await super.tearDown()

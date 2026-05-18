@@ -106,16 +106,18 @@ struct ContainerLogsView: View {
 
             overflowMenu(stream: stream)
 
-            Toggle(isOn: Binding(
-                get: { stream.followLogs },
-                set: { newValue in
-                    stream.followLogs = newValue
-                    if newValue {
-                        stream.userScrolled = false
-                        stream.forceScroll = true
+            Toggle(
+                isOn: Binding(
+                    get: { stream.followLogs },
+                    set: { newValue in
+                        stream.followLogs = newValue
+                        if newValue {
+                            stream.userScrolled = false
+                            stream.forceScroll = true
+                        }
                     }
-                }
-            )) {
+                )
+            ) {
                 Label(String(localized: "followLogs"), systemImage: "arrow.down.to.line")
                     .labelStyle(.titleAndIcon)
             }
@@ -132,16 +134,27 @@ struct ContainerLogsView: View {
                 .font(.system(size: 11))
             TextField(
                 String(localized: "logsSearchPlaceholder"),
-                text: Binding(get: { stream.searchQuery }, set: { stream.searchQuery = $0; stream.currentMatchIndex = 0 })
+                text: Binding(
+                    get: { stream.searchQuery },
+                    set: {
+                        stream.searchQuery = $0
+                        stream.currentMatchIndex = 0
+                    })
             )
             .textFieldStyle(.plain)
             .font(.system(.body, design: .monospaced))
             .controlSize(.small)
             if !stream.searchQuery.isEmpty {
-                Button(action: { stream.searchQuery = ""; stream.currentMatchIndex = 0 }) {
-                    SwiftUI.Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(.secondary)
-                }
+                Button(
+                    action: {
+                        stream.searchQuery = ""
+                        stream.currentMatchIndex = 0
+                    },
+                    label: {
+                        SwiftUI.Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.secondary)
+                    }
+                )
                 .buttonStyle(.plain)
             }
         }
@@ -164,16 +177,18 @@ struct ContainerLogsView: View {
             Text(stream.matchCount == 0 ? "0/0" : "\(stream.currentMatchIndex + 1)/\(stream.matchCount)")
                 .font(.caption.monospacedDigit())
                 .foregroundStyle(.secondary)
-            Button(action: { stepMatch(stream: stream, delta: -1) }) {
-                SwiftUI.Image(systemName: "chevron.up")
-            }
+            Button(
+                action: { stepMatch(stream: stream, delta: -1) },
+                label: { SwiftUI.Image(systemName: "chevron.up") }
+            )
             .buttonStyle(.borderless)
             .controlSize(.small)
             .disabled(stream.matchCount == 0)
 
-            Button(action: { stepMatch(stream: stream, delta: +1) }) {
-                SwiftUI.Image(systemName: "chevron.down")
-            }
+            Button(
+                action: { stepMatch(stream: stream, delta: +1) },
+                label: { SwiftUI.Image(systemName: "chevron.down") }
+            )
             .buttonStyle(.borderless)
             .controlSize(.small)
             .disabled(stream.matchCount == 0)
@@ -191,27 +206,33 @@ struct ContainerLogsView: View {
         Menu {
             Section(String(localized: "logsLevelFilter")) {
                 ForEach(LogLevel.allCases, id: \.self) { level in
-                    Toggle(LogLineFormatter.displayName(for: level), isOn: Binding(
-                        get: { stream.levelFilter.isEmpty || stream.levelFilter.contains(level) },
-                        set: { isOn in
-                            if stream.levelFilter.isEmpty {
-                                stream.levelFilter = Set(LogLevel.allCases)
+                    Toggle(
+                        LogLineFormatter.displayName(for: level),
+                        isOn: Binding(
+                            get: { stream.levelFilter.isEmpty || stream.levelFilter.contains(level) },
+                            set: { isOn in
+                                if stream.levelFilter.isEmpty {
+                                    stream.levelFilter = Set(LogLevel.allCases)
+                                }
+                                if isOn {
+                                    stream.levelFilter.insert(level)
+                                } else {
+                                    stream.levelFilter.remove(level)
+                                }
+                                if stream.levelFilter == Set(LogLevel.allCases) {
+                                    stream.levelFilter = []
+                                }
                             }
-                            if isOn {
-                                stream.levelFilter.insert(level)
-                            } else {
-                                stream.levelFilter.remove(level)
-                            }
-                            if stream.levelFilter == Set(LogLevel.allCases) {
-                                stream.levelFilter = []
-                            }
-                        }
-                    ))
+                        ))
                 }
             }
             Section {
-                Toggle(String(localized: "logsShowTimestamps"), isOn: Binding(get: { stream.showTimestamps }, set: { stream.showTimestamps = $0 }))
-                Toggle(String(localized: "logsShowLineNumbers"), isOn: Binding(get: { stream.showLineNumbers }, set: { stream.showLineNumbers = $0 }))
+                Toggle(
+                    String(localized: "logsShowTimestamps"),
+                    isOn: Binding(get: { stream.showTimestamps }, set: { stream.showTimestamps = $0 }))
+                Toggle(
+                    String(localized: "logsShowLineNumbers"),
+                    isOn: Binding(get: { stream.showLineNumbers }, set: { stream.showLineNumbers = $0 }))
             }
             Section {
                 Button {

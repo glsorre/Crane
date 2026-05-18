@@ -1,10 +1,14 @@
+// swiftlint:disable file_length
+// SwiftUI form rendering: splitting subviews further hurts readability of
+// the dialog layout (port/socket/env editors are tightly coupled).
+
 import ContainerResource
 import Observation
 import SwiftUI
 
 struct ContainerRunView: View {
     @Binding var isPresented: Bool
-    var initialImageID: String? = nil
+    var initialImageID: String?
 
     @Environment(\.craneStores) private var stores
     @State private var viewModel: RunContainerViewModel
@@ -617,4 +621,3 @@ private struct SocketRowEditor: View {
         .padding(.vertical, Spacing.sm)
     }
 }
-

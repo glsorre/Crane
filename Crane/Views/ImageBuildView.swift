@@ -68,10 +68,12 @@ struct ImageBuildView: View {
         guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir), isDir.boolValue else {
             return String(localized: "imageBuildContextNotDirectory")
         }
-        guard let dockerURL = ImageBuildSource.resolvedDockerfileURL(
-            contextDirectory: url,
-            dockerfileRelativePath: dockerfileRelativePath
-        ) else {
+        guard
+            let dockerURL = ImageBuildSource.resolvedDockerfileURL(
+                contextDirectory: url,
+                dockerfileRelativePath: dockerfileRelativePath
+            )
+        else {
             return String(localized: "imageBuildDockerfilePathInvalid")
         }
         guard FileManager.default.fileExists(atPath: dockerURL.path) else {
@@ -289,14 +291,14 @@ struct ImageBuildView: View {
     }
 }
 
-private extension BuildStatus {
-    var dialogStatus: DialogStatus {
+extension BuildStatus {
+    fileprivate var dialogStatus: DialogStatus {
         switch self {
-        case .idle:            return .idle
+        case .idle: return .idle
         case .startingBuilder: return .working("buildStarting")
-        case .building:        return .working("buildInProgress")
-        case .unpacking:       return .working("buildUnpacking")
-        case .success:         return .success
+        case .building: return .working("buildInProgress")
+        case .unpacking: return .working("buildUnpacking")
+        case .success: return .success
         case .failed(let msg): return .error(msg)
         }
     }

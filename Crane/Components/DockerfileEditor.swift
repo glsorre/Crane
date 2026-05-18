@@ -39,7 +39,8 @@ struct DockerfileEditor: NSViewRepresentable {
         }
 
         if let highlightr = context.coordinator.highlightr,
-           let highlighted = highlightr.highlight(text, as: "dockerfile") {
+            let highlighted = highlightr.highlight(text, as: "dockerfile")
+        {
             textView.textStorage?.setAttributedString(highlighted)
         } else {
             textView.string = text
@@ -53,7 +54,8 @@ struct DockerfileEditor: NSViewRepresentable {
         if textView.string != text && !context.coordinator.isEditing {
             context.coordinator.isUpdating = true
             if let highlightr = context.coordinator.highlightr,
-               let highlighted = highlightr.highlight(text, as: "dockerfile") {
+                let highlighted = highlightr.highlight(text, as: "dockerfile")
+            {
                 textView.textStorage?.setAttributedString(highlighted)
             } else {
                 textView.string = text
@@ -87,7 +89,8 @@ struct DockerfileEditor: NSViewRepresentable {
             parent.text = textView.string
 
             if let highlightr = highlightr,
-               let highlighted = highlightr.highlight(textView.string, as: "dockerfile") {
+                let highlighted = highlightr.highlight(textView.string, as: "dockerfile")
+            {
                 let selectedRange = textView.selectedRange()
                 isUpdating = true
                 textView.textStorage?.setAttributedString(highlighted)

@@ -10,27 +10,27 @@ import XCTest
 
 final class DialogStatusTests: XCTestCase {
     func testIdleIsNotWorkingNotError() {
-        let s: DialogStatus = .idle
-        XCTAssertFalse(s.isWorking)
-        XCTAssertFalse(s.isError)
+        let status: DialogStatus = .idle
+        XCTAssertFalse(status.isWorking)
+        XCTAssertFalse(status.isError)
     }
 
     func testWorkingIsWorking() {
-        let s: DialogStatus = .working("foo")
-        XCTAssertTrue(s.isWorking)
-        XCTAssertFalse(s.isError)
+        let status: DialogStatus = .working("foo")
+        XCTAssertTrue(status.isWorking)
+        XCTAssertFalse(status.isError)
     }
 
     func testErrorIsError() {
-        let s: DialogStatus = .error("boom")
-        XCTAssertFalse(s.isWorking)
-        XCTAssertTrue(s.isError)
+        let status: DialogStatus = .error("boom")
+        XCTAssertFalse(status.isWorking)
+        XCTAssertTrue(status.isError)
     }
 
     func testSuccessIsNeither() {
-        let s: DialogStatus = .success
-        XCTAssertFalse(s.isWorking)
-        XCTAssertFalse(s.isError)
+        let status: DialogStatus = .success
+        XCTAssertFalse(status.isWorking)
+        XCTAssertFalse(status.isError)
     }
 
     func testEquality() {

@@ -25,13 +25,16 @@ struct PathLabel: View {
                 .monospaced()
                 .help(path)
             if host, let pathUrl {
-                Button(action: {
-                    NSWorkspace.shared.activateFileViewerSelecting([pathUrl])
-                }) {
-                    SwiftUI.Image(systemName: "folder")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
+                Button(
+                    action: {
+                        NSWorkspace.shared.activateFileViewerSelecting([pathUrl])
+                    },
+                    label: {
+                        SwiftUI.Image(systemName: "folder")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                )
                 .buttonStyle(.borderless)
             }
             CopyButton(text: path)

@@ -38,24 +38,22 @@ struct CraneVolumesListView: View {
         }
         .toolbar {
             ToolbarItem(placement: .navigation) {
-                Button(action: {
-                    Task {
-                        await volumesStore.pruneVolumes()
-                    }
-                }) {
-                    SwiftUI.Image(systemName: "xmark.bin")
-                }
+                Button(
+                    action: {
+                        Task { await volumesStore.pruneVolumes() }
+                    },
+                    label: { SwiftUI.Image(systemName: "xmark.bin") }
+                )
                 .buttonStyle(.glass)
                 .disabled(!volumesStore.hasUnusedVolumes)
                 .help(String(localized: "removeUnusedVolumes"))
                 .accessibilityLabel(String(localized: "removeUnusedVolumes"))
             }
             ToolbarItem(placement: .navigation) {
-                Button(action: {
-                    createSheetIsVisible = true
-                }) {
-                    SwiftUI.Image(systemName: "plus")
-                }
+                Button(
+                    action: { createSheetIsVisible = true },
+                    label: { SwiftUI.Image(systemName: "plus") }
+                )
                 .buttonStyle(.glassProminent)
                 .help(String(localized: "toolbarHelpAddVolume"))
                 .accessibilityLabel(String(localized: "toolbarHelpAddVolume"))

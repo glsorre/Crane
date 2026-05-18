@@ -1,5 +1,6 @@
-@testable import Crane
 import XCTest
+
+@testable import Crane
 
 final class CraneErrorTests: XCTestCase {
     private func err(_ token: String) -> Error {

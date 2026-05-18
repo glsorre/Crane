@@ -53,7 +53,7 @@ class VolumesStore {
     private let tracker: ConnectionHealthTracker?
 
     var volumes: Set<CraneVolume> = []
-    var volumesTask: Task<Void, Never>? = nil
+    var volumesTask: Task<Void, Never>?
     var resetPolling: (() -> Void)?
 
     private var pendingDeletionIDs: Set<String> = []
@@ -95,10 +95,11 @@ class VolumesStore {
                 Task { @MainActor in
                     tracker?.recordFailure(resource: .volumes, error: error)
                 }
+            },
+            work: {
+                try await self.collectWithChangeDetection()
             }
-        ) {
-            try await self.collectWithChangeDetection()
-        }
+        )
         self.volumesTask = task
         self.resetPolling = reset
     }

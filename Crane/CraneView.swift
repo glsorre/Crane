@@ -6,10 +6,10 @@
 //
 
 import ContainerAPIClient
-import ContainerizationError
-import ContainerResource
 import ContainerPlugin
+import ContainerResource
 import Containerization
+import ContainerizationError
 import ContainerizationOS
 import Observation
 import SwiftUI
@@ -120,7 +120,8 @@ struct CraneView: View {
                 splitViewContent
             }
         }
-        .alert(String(localized: "craneError"), isPresented: Binding(get: { appViewModel.errorShow }, set: { appViewModel.errorShow = $0 })) {
+        .alert(String(localized: "craneError"), isPresented: Binding(get: { appViewModel.errorShow }, set: { appViewModel.errorShow = $0 }))
+        {
             if appViewModel.error?.fatal == true {
                 Button("quit", role: .destructive) { exit(1) }
             } else {
@@ -234,9 +235,18 @@ private struct LaunchErrorMessage: View {
         if let diagnostic = error?.diagnostic {
             VStack(alignment: .leading, spacing: Spacing.xs) {
                 Text(error?.localizedDescription ?? String(localized: "unknownError"))
-                Text(String(localized: "launchDiagnosticServiceRegistered \(diagnostic.serviceRegistered ? String(localized: "yes") : String(localized: "no"))"))
+                // swiftlint:disable line_length
+                Text(
+                    String(
+                        localized:
+                            "launchDiagnosticServiceRegistered \(diagnostic.serviceRegistered ? String(localized: "yes") : String(localized: "no"))"
+                    ))
+                // swiftlint:enable line_length
                 Text(String(localized: "launchDiagnosticCliPath \(diagnostic.cliPath ?? String(localized: "notFound"))"))
-                Text(String(localized: "launchDiagnosticPlistFound \(diagnostic.plistFound ? String(localized: "yes") : String(localized: "no"))"))
+                Text(
+                    String(
+                        localized:
+                            "launchDiagnosticPlistFound \(diagnostic.plistFound ? String(localized: "yes") : String(localized: "no"))"))
                 if let stderr = diagnostic.startAttemptStderr, !stderr.isEmpty {
                     Text(stderr)
                         .font(.system(.caption, design: .monospaced))
