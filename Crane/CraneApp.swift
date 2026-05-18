@@ -22,9 +22,9 @@ struct CraneApp: App {
         }
 
         #if os(macOS)
-        Settings {
-            CraneSettingsView()
-        }
+            Settings {
+                CraneSettingsView()
+            }
         #endif
     }
 }

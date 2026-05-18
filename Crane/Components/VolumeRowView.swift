@@ -38,8 +38,9 @@ struct VolumeRowView: View {
     }
 
     private func volumeMountDetailString(container: Container) -> String? {
-        guard let mount = container.snapshot.configuration.mounts
-            .first(where: { $0.isVolume && $0.volumeName == volume.id })
+        guard
+            let mount = container.snapshot.configuration.mounts
+                .first(where: { $0.isVolume && $0.volumeName == volume.id })
         else { return nil }
         return "\(mount.destination)"
     }

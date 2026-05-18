@@ -1,13 +1,15 @@
-@testable import Crane
 import Foundation
 import XCTest
+
+@testable import Crane
 
 final class PollingTests: XCTestCase {
     func testStartPollingInvokesWorkAndCancels() async throws {
         let counter = Counter()
-        let task = startPolling(interval: { 1 }) {
-            await counter.increment()
-        }
+        let task = startPolling(
+            interval: { 1 },
+            work: { await counter.increment() }
+        )
 
         // First invocation runs immediately; wait ~2.5s for at least two more.
         try await Task.sleep(for: .seconds(2))
@@ -23,10 +25,13 @@ final class PollingTests: XCTestCase {
 
     func testStartPollingSwallowsErrors() async throws {
         let counter = Counter()
-        let task = startPolling(interval: { 1 }) {
-            await counter.increment()
-            throw NSError(domain: "test", code: 1)
-        }
+        let task = startPolling(
+            interval: { 1 },
+            work: {
+                await counter.increment()
+                throw NSError(domain: "test", code: 1)
+            }
+        )
 
         try await Task.sleep(for: .seconds(2))
         task.cancel()
@@ -39,10 +44,9 @@ final class PollingTests: XCTestCase {
         let visible = AtomicBool(false)
         let task = startPolling(
             interval: { 1 },
-            isVisible: { visible.get() }
-        ) {
-            await counter.increment()
-        }
+            isVisible: { visible.get() },
+            work: { await counter.increment() }
+        )
 
         try await Task.sleep(for: .seconds(2))
         let beforeResume = await counter.value
@@ -71,16 +75,14 @@ final class PollingTests: XCTestCase {
 
         let containersTask = startPolling(
             interval: { 1 },
-            isVisible: { PollingVisibility.isVisible(for: .containers) }
-        ) {
-            await containersCounter.increment()
-        }
+            isVisible: { PollingVisibility.isVisible(for: .containers) },
+            work: { await containersCounter.increment() }
+        )
         let imagesTask = startPolling(
             interval: { 1 },
-            isVisible: { PollingVisibility.isVisible(for: .images) }
-        ) {
-            await imagesCounter.increment()
-        }
+            isVisible: { PollingVisibility.isVisible(for: .images) },
+            work: { await imagesCounter.increment() }
+        )
 
         try await Task.sleep(for: .seconds(2))
         let containersWhileActive = await containersCounter.value
@@ -148,6 +150,14 @@ private final class AtomicBool: @unchecked Sendable {
     private let lock = NSLock()
     private var value: Bool
     init(_ value: Bool) { self.value = value }
-    func get() -> Bool { lock.lock(); defer { lock.unlock() }; return value }
-    func set(_ newValue: Bool) { lock.lock(); defer { lock.unlock() }; value = newValue }
+    func get() -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return value
+    }
+    func set(_ newValue: Bool) {
+        lock.lock()
+        defer { lock.unlock() }
+        value = newValue
+    }
 }

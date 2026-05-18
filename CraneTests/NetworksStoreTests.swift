@@ -1,7 +1,8 @@
-@testable import Crane
 import ContainerAPIClient
 import ContainerResource
 import XCTest
+
+@testable import Crane
 
 final class NetworksStoreTests: CraneTestBase {
     func testCollect() async throws {

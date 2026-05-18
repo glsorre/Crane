@@ -136,7 +136,7 @@ class ContainersStore {
     private let tracker: ConnectionHealthTracker?
 
     var containers: Set<Container> = []
-    var containersTask: Task<Void, Never>? = nil
+    var containersTask: Task<Void, Never>?
     var resetPolling: (() -> Void)?
 
     var searchText: String = ""
@@ -160,20 +160,24 @@ class ContainersStore {
     }
 
     var containersForNetwork: [String: [Container]] {
-        Dictionary(grouping: containers.flatMap { container in
-            container.snapshot.configuration.networks.map { ($0, container) }
-        }, by: { $0.0.network }).mapValues { $0.map(\.1) }
+        Dictionary(
+            grouping: containers.flatMap { container in
+                container.snapshot.configuration.networks.map { ($0, container) }
+            }, by: { $0.0.network }
+        ).mapValues { $0.map(\.1) }
     }
 
     var containersForVolume: [String: [Container]] {
-        Dictionary(grouping: containers.flatMap { container in
-            container.snapshot.configuration.mounts
-                .filter { $0.isVolume }
-                .compactMap { mount -> (String, Container)? in
-                    guard let name = mount.volumeName else { return nil }
-                    return (name, container)
-                }
-        }, by: { $0.0 }).mapValues { $0.map(\.1) }
+        Dictionary(
+            grouping: containers.flatMap { container in
+                container.snapshot.configuration.mounts
+                    .filter { $0.isVolume }
+                    .compactMap { mount -> (String, Container)? in
+                        guard let name = mount.volumeName else { return nil }
+                        return (name, container)
+                    }
+            }, by: { $0.0 }
+        ).mapValues { $0.map(\.1) }
     }
 
     init(
@@ -203,10 +207,11 @@ class ContainersStore {
                 Task { @MainActor in
                     tracker?.recordFailure(resource: .containers, error: error)
                 }
+            },
+            work: {
+                try await self.collectWithChangeDetection()
             }
-        ) {
-            try await self.collectWithChangeDetection()
-        }
+        )
         self.containersTask = task
         self.resetPolling = reset
     }

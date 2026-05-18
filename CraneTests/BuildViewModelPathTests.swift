@@ -1,5 +1,6 @@
-@testable import Crane
 import XCTest
+
+@testable import Crane
 
 final class BuildViewModelPathTests: XCTestCase {
     private var context: URL!

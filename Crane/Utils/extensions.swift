@@ -37,7 +37,7 @@ extension RuntimeStatus {
             return "Unknown"
         }
     }
-    
+
     func getColor() -> Color {
         switch self {
         case .running:
@@ -51,5 +51,3 @@ extension RuntimeStatus {
         }
     }
 }
-
-

@@ -49,10 +49,10 @@ enum ContainerShellLauncher {
         }
 
         let script = """
-        #!/bin/bash
-        exec \(bashSingleQuoted(cliURL.path)) exec --interactive --tty \(bashSingleQuoted(trimmed)) /bin/sh
+            #!/bin/bash
+            exec \(bashSingleQuoted(cliURL.path)) exec --interactive --tty \(bashSingleQuoted(trimmed)) /bin/sh
 
-        """
+            """
 
         try script.data(using: .utf8)?.write(to: scriptURL, options: .atomic)
         try FileManager.default.setAttributes([.posixPermissions: NSNumber(value: 0o755)], ofItemAtPath: scriptURL.path)
@@ -76,7 +76,7 @@ enum ContainerShellLauncher {
     }
 
     /// Wraps a string in single quotes for a bash word, escaping embedded single quotes.
-    static func bashSingleQuoted(_ s: String) -> String {
-        "'" + s.replacingOccurrences(of: "'", with: "'\\''") + "'"
+    static func bashSingleQuoted(_ value: String) -> String {
+        "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'"
     }
 }

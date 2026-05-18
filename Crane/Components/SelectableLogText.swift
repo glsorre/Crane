@@ -101,7 +101,10 @@ struct SelectableLogText: NSViewRepresentable {
                 lastCurrentMatch = -1
             }
 
-            let configSignature = "\(stream.showTimestamps)|\(stream.showLineNumbers)|\(stream.fontSize)|\(stream.levelFilter.map { $0.rawValue }.sorted().joined(separator: ","))"
+            // swiftlint:disable line_length
+            let configSignature =
+                "\(stream.showTimestamps)|\(stream.showLineNumbers)|\(stream.fontSize)|\(stream.levelFilter.map { $0.rawValue }.sorted().joined(separator: ","))"
+            // swiftlint:enable line_length
             let configChanged = configSignature != lastConfigSignature
 
             if fullRebuild || configChanged || streamChanged {
@@ -135,8 +138,8 @@ struct SelectableLogText: NSViewRepresentable {
                     storage.replaceCharacters(in: NSRange(location: 0, length: totalDropLen), with: "")
                     storage.endEditing()
                     // Shift remaining ranges
-                    for i in lineRanges.indices {
-                        lineRanges[i].range.location -= totalDropLen
+                    for index in lineRanges.indices {
+                        lineRanges[index].range.location -= totalDropLen
                     }
                 }
                 lastDroppedCount = stream.droppedCount
@@ -146,7 +149,8 @@ struct SelectableLogText: NSViewRepresentable {
             // Incremental append of new lines
             let newLines: ArraySlice<ContainerLogLine>
             if let last = lastRenderedLineId,
-               let firstNewIdx = stream.logs.firstIndex(where: { $0.id > last }) {
+                let firstNewIdx = stream.logs.firstIndex(where: { $0.id > last })
+            {
                 newLines = stream.logs[firstNewIdx...]
             } else if lastRenderedLineId == nil {
                 newLines = stream.logs[stream.logs.startIndex...]
@@ -199,24 +203,33 @@ struct SelectableLogText: NSViewRepresentable {
 
             if stream.showLineNumbers {
                 let prefix = LogLineFormatter.lineNumberPrefix(line.id) + "  "
-                parts.append(NSAttributedString(string: prefix, attributes: [
-                    .font: font,
-                    .foregroundColor: NSColor.tertiaryLabelColor,
-                ]))
+                parts.append(
+                    NSAttributedString(
+                        string: prefix,
+                        attributes: [
+                            .font: font,
+                            .foregroundColor: NSColor.tertiaryLabelColor,
+                        ]))
             }
             if stream.showTimestamps {
                 let prefix = LogLineFormatter.timestampPrefix(for: line.arrivedAt) + "  "
-                parts.append(NSAttributedString(string: prefix, attributes: [
-                    .font: font,
-                    .foregroundColor: NSColor.secondaryLabelColor,
-                ]))
+                parts.append(
+                    NSAttributedString(
+                        string: prefix,
+                        attributes: [
+                            .font: font,
+                            .foregroundColor: NSColor.secondaryLabelColor,
+                        ]))
             }
 
             let body = line.message + "\n"
-            parts.append(NSAttributedString(string: body, attributes: [
-                .font: font,
-                .foregroundColor: LogLineFormatter.color(for: line.level),
-            ]))
+            parts.append(
+                NSAttributedString(
+                    string: body,
+                    attributes: [
+                        .font: font,
+                        .foregroundColor: LogLineFormatter.color(for: line.level),
+                    ]))
 
             let location = storage.length
             storage.append(parts)
@@ -226,7 +239,10 @@ struct SelectableLogText: NSViewRepresentable {
         // MARK: - Search
 
         private func applySearchHighlight(stream: ContainerLogStream, force: Bool) {
-            let signature = "\(stream.searchQuery)|\(stream.searchIsRegex)|\(stream.searchCaseSensitive)|\(lastRenderedLineId ?? -1)|\(lastDroppedCount)"
+            // swiftlint:disable line_length
+            let signature =
+                "\(stream.searchQuery)|\(stream.searchIsRegex)|\(stream.searchCaseSensitive)|\(lastRenderedLineId ?? -1)|\(lastDroppedCount)"
+            // swiftlint:enable line_length
             if !force && signature == lastSearchSignature { return }
             lastSearchSignature = signature
 
@@ -244,14 +260,15 @@ struct SelectableLogText: NSViewRepresentable {
                     if !stream.searchCaseSensitive { options.insert(.caseInsensitive) }
                     if let regex = try? NSRegularExpression(pattern: query, options: options) {
                         regex.enumerateMatches(in: body as String, options: [], range: fullRange) { match, _, _ in
-                            if let r = match?.range, r.length > 0 { matchRanges.append(r) }
+                            if let range = match?.range, range.length > 0 { matchRanges.append(range) }
                         }
                     }
                 } else {
                     let opts: NSString.CompareOptions = stream.searchCaseSensitive ? [.literal] : [.caseInsensitive, .literal]
                     var searchStart = 0
                     while searchStart < body.length {
-                        let range = body.range(of: query, options: opts, range: NSRange(location: searchStart, length: body.length - searchStart))
+                        let range = body.range(
+                            of: query, options: opts, range: NSRange(location: searchStart, length: body.length - searchStart))
                         if range.location == NSNotFound { break }
                         matchRanges.append(range)
                         searchStart = range.location + max(range.length, 1)
@@ -259,7 +276,9 @@ struct SelectableLogText: NSViewRepresentable {
                 }
 
                 for (idx, range) in matchRanges.enumerated() {
-                    let color = (idx == stream.currentMatchIndex) ? NSColor.systemYellow.withAlphaComponent(0.7) : NSColor.systemYellow.withAlphaComponent(0.35)
+                    let color =
+                        (idx == stream.currentMatchIndex)
+                        ? NSColor.systemYellow.withAlphaComponent(0.7) : NSColor.systemYellow.withAlphaComponent(0.35)
                     storage.addAttribute(.backgroundColor, value: color, range: range)
                 }
             }
@@ -321,11 +340,14 @@ final class LogTextView: NSTextView {
             menu.addItem(.separator())
         }
 
-        let copyAll = NSMenuItem(title: NSLocalizedString("logsCopyAll", comment: ""), action: #selector(copyAllAction(_:)), keyEquivalent: "")
+        let copyAll = NSMenuItem(
+            title: NSLocalizedString("logsCopyAll", comment: ""), action: #selector(copyAllAction(_:)), keyEquivalent: "")
         copyAll.target = self
         menu.addItem(copyAll)
 
-        let copyWithTs = NSMenuItem(title: NSLocalizedString("logsCopyWithTimestamps", comment: ""), action: #selector(copyAllWithTimestampsAction(_:)), keyEquivalent: "")
+        let copyWithTs = NSMenuItem(
+            title: NSLocalizedString("logsCopyWithTimestamps", comment: ""), action: #selector(copyAllWithTimestampsAction(_:)),
+            keyEquivalent: "")
         copyWithTs.target = self
         menu.addItem(copyWithTs)
 

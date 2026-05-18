@@ -32,18 +32,22 @@ final class RefreshCoordinator {
 
     func subscribe() {
         let center = NotificationCenter.default
-        observers.append(center.addObserver(forName: .craneContainerMutated, object: nil, queue: .main) { [weak self] _ in
-            Task { @MainActor in self?.containerMutated() }
-        })
-        observers.append(center.addObserver(forName: .craneImageMutated, object: nil, queue: .main) { [weak self] _ in
-            Task { @MainActor in self?.imageMutated() }
-        })
-        observers.append(center.addObserver(forName: .craneNetworkMutated, object: nil, queue: .main) { [weak self] _ in
-            Task { @MainActor in self?.networkMutated() }
-        })
-        observers.append(center.addObserver(forName: .craneVolumeMutated, object: nil, queue: .main) { [weak self] _ in
-            Task { @MainActor in self?.volumeMutated() }
-        })
+        observers.append(
+            center.addObserver(forName: .craneContainerMutated, object: nil, queue: .main) { [weak self] _ in
+                Task { @MainActor in self?.containerMutated() }
+            })
+        observers.append(
+            center.addObserver(forName: .craneImageMutated, object: nil, queue: .main) { [weak self] _ in
+                Task { @MainActor in self?.imageMutated() }
+            })
+        observers.append(
+            center.addObserver(forName: .craneNetworkMutated, object: nil, queue: .main) { [weak self] _ in
+                Task { @MainActor in self?.networkMutated() }
+            })
+        observers.append(
+            center.addObserver(forName: .craneVolumeMutated, object: nil, queue: .main) { [weak self] _ in
+                Task { @MainActor in self?.volumeMutated() }
+            })
     }
 
     func registerReset(token: ObjectIdentifier, reset: @escaping @Sendable () -> Void) {

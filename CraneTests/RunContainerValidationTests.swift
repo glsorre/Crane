@@ -1,7 +1,8 @@
-@testable import Crane
 import ContainerResource
 import ContainerizationOCI
 import XCTest
+
+@testable import Crane
 
 @MainActor
 final class RunContainerValidationTests: XCTestCase {

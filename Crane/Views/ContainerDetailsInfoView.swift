@@ -138,8 +138,10 @@ struct ContainerDetailsInfoView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .foregroundStyle(Color.accentColor)
                 ForEach(snapshot.configuration.publishedSockets, id: \.containerPath) { publishedSocket in
-                    PublishedPathLabel(hostPath: publishedSocket.hostPath.absoluteString, containerPath: publishedSocket.containerPath.absoluteString)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                    PublishedPathLabel(
+                        hostPath: publishedSocket.hostPath.absoluteString, containerPath: publishedSocket.containerPath.absoluteString
+                    )
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
         }

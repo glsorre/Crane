@@ -10,19 +10,22 @@ struct CopyButton: View {
     @State private var showCheck = false
 
     var body: some View {
-        Button(action: {
-            NSPasteboard.general.clearContents()
-            NSPasteboard.general.setString(text, forType: .string)
-            showCheck = true
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
-                showCheck = false
+        Button(
+            action: {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(text, forType: .string)
+                showCheck = true
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+                    showCheck = false
+                }
+            },
+            label: {
+                SwiftUI.Image(systemName: showCheck ? "checkmark" : "doc.on.doc")
+                    .font(.caption)
+                    .foregroundStyle(showCheck ? .green : .secondary)
+                    .contentTransition(.symbolEffect(.replace))
             }
-        }) {
-            SwiftUI.Image(systemName: showCheck ? "checkmark" : "doc.on.doc")
-                .font(.caption)
-                .foregroundStyle(showCheck ? .green : .secondary)
-                .contentTransition(.symbolEffect(.replace))
-        }
+        )
         .buttonStyle(.borderless)
     }
 }

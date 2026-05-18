@@ -82,11 +82,11 @@ enum CraneError: LocalizedError {
     var underlyingError: Error? {
         switch self {
         case .containerStartFailed(let err), .containerStopFailed(let err), .containerRestartFailed(let err),
-             .containerShellFailed(let err), .containerRemoveFailed(let err),
-             .imageRemoveFailed(let err), .imageTagFailed(let err), .imageRenameFailed(let err),
-             .imageFetchFailed(let err), .logStreamFailed(let err), .imageBuildFailed(let err),
-             .networkRemoveFailed(let err), .volumeRemoveFailed(let err),
-             .pollingFailed(_, let err):
+            .containerShellFailed(let err), .containerRemoveFailed(let err),
+            .imageRemoveFailed(let err), .imageTagFailed(let err), .imageRenameFailed(let err),
+            .imageFetchFailed(let err), .logStreamFailed(let err), .imageBuildFailed(let err),
+            .networkRemoveFailed(let err), .volumeRemoveFailed(let err),
+            .pollingFailed(_, let err):
             return err
         default:
             return nil
@@ -154,9 +154,9 @@ enum CraneTab: Hashable {
     var polledResource: PolledResource {
         switch self {
         case .containers: return .containers
-        case .images:     return .images
-        case .networks:   return .networks
-        case .volumes:    return .volumes
+        case .images: return .images
+        case .networks: return .networks
+        case .volumes: return .volumes
         }
     }
 }

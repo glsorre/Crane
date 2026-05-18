@@ -1,5 +1,6 @@
-@testable import Crane
 import XCTest
+
+@testable import Crane
 
 final class ContainerShellLauncherTests: XCTestCase {
     func testEmptyString() {
@@ -9,8 +10,9 @@ final class ContainerShellLauncherTests: XCTestCase {
     func testNoQuotes() {
         XCTAssertEqual(ContainerShellLauncher.bashSingleQuoted("hello"), "'hello'")
         XCTAssertEqual(ContainerShellLauncher.bashSingleQuoted("a b c"), "'a b c'")
-        XCTAssertEqual(ContainerShellLauncher.bashSingleQuoted("/usr/local/bin/container"),
-                       "'/usr/local/bin/container'")
+        XCTAssertEqual(
+            ContainerShellLauncher.bashSingleQuoted("/usr/local/bin/container"),
+            "'/usr/local/bin/container'")
     }
 
     func testSingleQuoteEscaped() {

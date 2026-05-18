@@ -49,22 +49,20 @@ struct CraneImagesListView: View {
         }
         .toolbar {
             ToolbarItem(placement: .navigation) {
-                Button(action: {
-                    buildSheetIsVisible.toggle()
-                }) {
-                    SwiftUI.Image(systemName: "hammer.fill")
-                }
+                Button(
+                    action: { buildSheetIsVisible.toggle() },
+                    label: { SwiftUI.Image(systemName: "hammer.fill") }
+                )
                 .buttonStyle(.glass)
                 .disabled(buildViewModel.status.isBuilding)
                 .help(String(localized: "toolbarHelpBuildImage"))
                 .accessibilityLabel(String(localized: "toolbarHelpBuildImage"))
             }
             ToolbarItem(placement: .navigation) {
-                Button(action: {
-                    fetchSheetIsVisible = true
-                }) {
-                    SwiftUI.Image(systemName: "plus")
-                }
+                Button(
+                    action: { fetchSheetIsVisible = true },
+                    label: { SwiftUI.Image(systemName: "plus") }
+                )
                 .buttonStyle(.glassProminent)
                 .help(String(localized: "toolbarHelpFetchImage"))
                 .accessibilityLabel(String(localized: "toolbarHelpFetchImage"))

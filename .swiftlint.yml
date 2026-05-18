@@ -10,6 +10,10 @@ excluded:
 disabled_rules:
   - trailing_whitespace
   - todo
+  # swift-format owns these formatting choices and re-introduces them on every
+  # `swift-format format --in-place` run; disabling here avoids a tool tug-of-war.
+  - trailing_comma
+  - opening_brace
 
 opt_in_rules:
   - empty_count

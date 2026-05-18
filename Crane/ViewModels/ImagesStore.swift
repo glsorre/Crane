@@ -27,26 +27,26 @@ struct ImageTagError: LocalizedError {
 }
 
 @Observable
-class Image : Identifiable, Hashable {
+class Image: Identifiable, Hashable {
     /// OCI label key written by `BuildViewModel` onto images built locally via Crane's hammer flow.
     static let localBuildLabelKey = "me.rightright.crane.local-build"
 
     static func == (lhs: Image, rhs: Image) -> Bool {
         lhs.id == rhs.id
     }
-    
+
     static func == (lhs: Image, rhs: ClientImage) -> Bool {
         lhs.id == rhs.reference
     }
-    
+
     static func == (lhs: ClientImage, rhs: Image) -> Bool {
         lhs.reference == rhs.id
     }
-    
+
     func hash(into hasher: inout Hasher) {
         hasher.combine(id)
     }
-    
+
     var id: String
     var image: ClientImage?
     var imageConfiguration: ContainerizationOCI.Image?
@@ -70,45 +70,47 @@ class Image : Identifiable, Hashable {
         self.status = .fetching
         self.fetchProgress = FetchProgress()
     }
-    
+
     init(image: ClientImage) {
         self.id = image.reference
         self.image = image
         self.status = .available
     }
-    
+
     func remove() async throws {
         try await ClientImage.delete(reference: self.id)
     }
-    
+
     func setImage(image: ClientImage) async throws {
         self.image = image
         do {
             self.imageConfiguration = try await image.config(for: .current)
         } catch {
             self.imageConfiguration = nil
-            Log.images.error("config(for: .current) failed for \(self.id, privacy: .public): \(error.localizedDescription, privacy: .public)")
+            Log.images.error(
+                "config(for: .current) failed for \(self.id, privacy: .public): \(error.localizedDescription, privacy: .public)")
         }
     }
-    
-    func createContainer(id: String, executable: String, arguments: [String], environment: [String], networks: [Network], autoRemove: Bool = true) async throws {
+
+    func createContainer(
+        id: String, executable: String, arguments: [String], environment: [String], networks: [Network], autoRemove: Bool = true
+    ) async throws {
         let processConfiguration: ProcessConfiguration = ProcessConfiguration(
             executable: executable,
             arguments: arguments,
             environment: environment,
         )
-        
-        
+
         var containerConfiguration = ContainerConfiguration(
             id: id,
             image: image!.description,
             process: processConfiguration,
         )
-        
+
         containerConfiguration.networks = networks.map { network in
             AttachmentConfiguration(network: network.id, options: AttachmentOptions(hostname: network.id))
         }
-        
+
         let options = ContainerCreateOptions(autoRemove: autoRemove)
         let containerClient = ContainerClient()
         try await containerClient.create(
@@ -131,7 +133,7 @@ class ImagesStore {
     private let tracker: ConnectionHealthTracker?
 
     var images: Set<Image> = []
-    var imagesTask: Task<Void, Never>? = nil
+    var imagesTask: Task<Void, Never>?
     var resetPolling: (() -> Void)?
 
     var searchText: String = ""
@@ -153,7 +155,7 @@ class ImagesStore {
     deinit {
         self.stop()
     }
-    
+
     func stop() {
         self.imagesTask?.cancel()
     }
@@ -169,10 +171,11 @@ class ImagesStore {
                 Task { @MainActor in
                     tracker?.recordFailure(resource: .images, error: error)
                 }
+            },
+            work: {
+                try await self.collectWithChangeDetection()
             }
-        ) {
-            try await self.collectWithChangeDetection()
-        }
+        )
         self.imagesTask = task
         self.resetPolling = reset
     }
@@ -277,7 +280,8 @@ class ImagesStore {
 
         for clientImage in currentImages {
             currentIDs.insert(clientImage.reference)
-            let target = images.first(where: { $0.id == clientImage.reference })
+            let target =
+                images.first(where: { $0.id == clientImage.reference })
                 ?? Image(image: clientImage)
             try await target.setImage(image: clientImage)
             images.insert(target)
@@ -299,4 +303,3 @@ class ImagesStore {
         try await self.collect()
     }
 }
-

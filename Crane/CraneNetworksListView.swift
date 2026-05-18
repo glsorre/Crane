@@ -38,24 +38,22 @@ struct CraneNetworksListView: View {
         }
         .toolbar {
             ToolbarItem(placement: .navigation) {
-                Button(action: {
-                    Task {
-                        await networksStore.pruneNetworks()
-                    }
-                }) {
-                    SwiftUI.Image(systemName: "xmark.bin")
-                }
+                Button(
+                    action: {
+                        Task { await networksStore.pruneNetworks() }
+                    },
+                    label: { SwiftUI.Image(systemName: "xmark.bin") }
+                )
                 .buttonStyle(.glass)
                 .disabled(!networksStore.hasEmptyNetworks)
                 .help(String(localized: "removeEmptyNetworks"))
                 .accessibilityLabel(String(localized: "removeEmptyNetworks"))
             }
             ToolbarItem(placement: .navigation) {
-                Button(action: {
-                    createSheetIsVisible = true
-                }) {
-                    SwiftUI.Image(systemName: "plus")
-                }
+                Button(
+                    action: { createSheetIsVisible = true },
+                    label: { SwiftUI.Image(systemName: "plus") }
+                )
                 .buttonStyle(.glassProminent)
                 .help(String(localized: "toolbarHelpAddNetwork"))
                 .accessibilityLabel(String(localized: "toolbarHelpAddNetwork"))

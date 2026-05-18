@@ -11,13 +11,13 @@ struct SpinnerButton<Label: View>: View {
     let isLoading: Bool
     let action: () -> Void
     let label: () -> Label
-    
+
     init(isLoading: Bool, action: @escaping () -> Void, @ViewBuilder label: @escaping () -> Label) {
         self.isLoading = isLoading
         self.action = action
         self.label = label
     }
-    
+
     var body: some View {
         Button(action: action) {
             HStack {

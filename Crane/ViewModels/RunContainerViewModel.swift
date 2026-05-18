@@ -1,3 +1,8 @@
+// swiftlint:disable file_length
+// `RunContainerViewModel` aggregates form bindings, validation, and the
+// async run pipeline for the Run Container dialog; splitting it would
+// scatter tightly-coupled @MainActor state across several files.
+
 import ContainerAPIClient
 import ContainerResource
 import ContainerizationExtras
@@ -46,6 +51,7 @@ struct KeyValueEntry: Identifiable {
 }
 
 @Observable
+// swiftlint:disable:next type_body_length
 class RunContainerViewModel {
     let stores: CraneStores
 
@@ -154,9 +160,9 @@ class RunContainerViewModel {
 
     private func refreshImageConfigurationIfNeeded(for imageID: String?) {
         guard let imageID,
-              let image = stores.images.images.first(where: { $0.id == imageID }),
-              image.imageConfiguration?.config == nil,
-              let clientImage = image.image
+            let image = stores.images.images.first(where: { $0.id == imageID }),
+            image.imageConfiguration?.config == nil,
+            let clientImage = image.image
         else { return }
 
         Task { @MainActor [weak self, weak image] in
@@ -223,14 +229,16 @@ class RunContainerViewModel {
     }
 
     @MainActor
+    // swiftlint:disable:next function_body_length
     func run() async throws {
         if let validationMessage {
             throw RunContainerFormError(validationMessage)
         }
 
         guard let imageID = selectedImageID,
-              let image = stores.images.images.first(where: { $0.id == imageID }),
-              let clientImage = image.image else {
+            let image = stores.images.images.first(where: { $0.id == imageID }),
+            let clientImage = image.image
+        else {
             throw RunContainerFormError(String(localized: "No image selected or image not available"))
         }
 
@@ -428,6 +436,7 @@ class RunContainerViewModel {
         }
     }
 
+    // swiftlint:disable:next cyclomatic_complexity
     private func applyImageDefaults() {
         imageDefaultArguments = []
         imageDefaultEnvironment = []
@@ -487,7 +496,8 @@ class RunContainerViewModel {
     func suggestedName(for imageID: String) -> String {
         let withoutDigest = imageID.split(separator: "@").first.map(String.init) ?? imageID
         let lastPathComponent = withoutDigest.split(separator: "/").last.map(String.init) ?? withoutDigest
-        let sanitized = lastPathComponent
+        let sanitized =
+            lastPathComponent
             .lowercased()
             .replacingOccurrences(of: ":", with: "-")
             .map { char -> Character in
@@ -526,11 +536,13 @@ class RunContainerViewModel {
         }
 
         let finalEnvironment = environmentWasCustomized ? parsedEnvironmentLines : imageDefaultEnvironment
-        let resolvedWorkingDirectory = workingDirectoryWasCustomized
+        let resolvedWorkingDirectory =
+            workingDirectoryWasCustomized
             ? (workingDirectory.trimmed.isEmpty ? "/" : workingDirectory.trimmed)
             : (imageDefaultWorkingDirectory.isEmpty ? "/" : imageDefaultWorkingDirectory)
         let resolvedUserString = userWasCustomized ? userString.trimmed : imageDefaultUser.trimmed
-        let user: ProcessConfiguration.User = resolvedUserString.isEmpty
+        let user: ProcessConfiguration.User =
+            resolvedUserString.isEmpty
             ? .id(uid: 0, gid: 0)
             : .raw(userString: resolvedUserString)
 
@@ -548,8 +560,9 @@ class RunContainerViewModel {
         try ports.compactMap { entry -> PublishPort? in
             guard !entry.isBlank else { return nil }
             guard let hostPort = UInt16(entry.hostPort.trimmed),
-                  let containerPort = UInt16(entry.containerPort.trimmed),
-                  let hostAddress = try? IPAddress("0.0.0.0") else {
+                let containerPort = UInt16(entry.containerPort.trimmed),
+                let hostAddress = try? IPAddress("0.0.0.0")
+            else {
                 throw RunContainerFormError(String(localized: "Ports must be numbers between 1 and 65535."))
             }
 

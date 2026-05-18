@@ -21,8 +21,8 @@ enum DetailsTab: String, CaseIterable {
 enum LogLevel: String, CaseIterable, Hashable {
     case fatal = "FATAL"
     case error = "ERROR"
-    case warn  = "WARN"
-    case info  = "INFO"
+    case warn = "WARN"
+    case info = "INFO"
     case debug = "DEBUG"
     case trace = "TRACE"
 }
@@ -107,8 +107,8 @@ class DetailsViewModel {
 
     var logHandles: [Int: ContainerLogStream] = [:]
 
-    var streamingTask: Task<Void, Never>? = nil
-    var metricsTask: Task<Void, Never>? = nil
+    var streamingTask: Task<Void, Never>?
+    var metricsTask: Task<Void, Never>?
     private var metricsResetToken: ObjectIdentifier?
     private var previousCPUSampleUsec: UInt64?
     private var previousCPUSampleTime: ContinuousClock.Instant?
@@ -135,10 +135,8 @@ class DetailsViewModel {
         do {
             let handlesCount = try await container.logs().count
 
-            for handleIndex in 0..<handlesCount {
-                if self.logHandles[handleIndex] == nil {
-                    self.logHandles[handleIndex] = ContainerLogStream()
-                }
+            for handleIndex in 0..<handlesCount where self.logHandles[handleIndex] == nil {
+                self.logHandles[handleIndex] = ContainerLogStream()
             }
         } catch {
             Log.logs.error("bootstrap log handles failed for \(self.container.id): \(error.localizedDescription, privacy: .public)")
@@ -185,7 +183,8 @@ class DetailsViewModel {
                     }
                 }
             } catch {
-                Log.logs.error("stream handle \(handleIndex) failed for \(self.container.id): \(error.localizedDescription, privacy: .public)")
+                Log.logs.error(
+                    "stream handle \(handleIndex) failed for \(self.container.id): \(error.localizedDescription, privacy: .public)")
                 await stores.app.showError(.logStreamFailed(underlying: error))
             }
         }
@@ -301,12 +300,14 @@ class DetailsViewModel {
             self.metrics.cpuUsageUsec = sample.cpuUsageUsec
 
             if let prevUsec = self.previousCPUSampleUsec,
-               let prevTime = self.previousCPUSampleTime,
-               let cpuUsec = sample.cpuUsageUsec,
-               cpuUsec >= prevUsec {
+                let prevTime = self.previousCPUSampleTime,
+                let cpuUsec = sample.cpuUsageUsec,
+                cpuUsec >= prevUsec
+            {
                 let deltaUsec = Double(cpuUsec - prevUsec)
                 let elapsed = now - prevTime
-                let elapsedSec = Double(elapsed.components.seconds)
+                let elapsedSec =
+                    Double(elapsed.components.seconds)
                     + Double(elapsed.components.attoseconds) / 1e18
                 if elapsedSec > 0 {
                     self.metrics.cpuPercent = (deltaUsec / 1_000_000) / elapsedSec * 100

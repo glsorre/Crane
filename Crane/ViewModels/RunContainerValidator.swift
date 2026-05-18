@@ -63,7 +63,8 @@ struct RunContainerValidator {
                 return String(localized: "Port mappings need both a host and container port.")
             }
             guard let hostPort = UInt16(entry.hostPort.trimmed), hostPort > 0,
-                  let containerPort = UInt16(entry.containerPort.trimmed), containerPort > 0 else {
+                let containerPort = UInt16(entry.containerPort.trimmed), containerPort > 0
+            else {
                 return String(localized: "Ports must be numbers between 1 and 65535.")
             }
 

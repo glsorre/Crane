@@ -1,5 +1,6 @@
-@testable import Crane
 import XCTest
+
+@testable import Crane
 
 final class AppSettingsTests: XCTestCase {
     private var suiteName: String!

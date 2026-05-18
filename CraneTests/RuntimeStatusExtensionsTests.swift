@@ -1,7 +1,8 @@
-@testable import Crane
 import ContainerResource
 import SwiftUI
 import XCTest
+
+@testable import Crane
 
 final class RuntimeStatusExtensionsTests: XCTestCase {
     func testGetDescription() {
