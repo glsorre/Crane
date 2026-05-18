@@ -6,12 +6,19 @@ struct ContainerRunView: View {
     @Binding var isPresented: Bool
     var initialImageID: String? = nil
 
-    @State private var viewModel = RunContainerViewModel()
-    @State private var imagesStore = ImagesStore.shared
-    @State private var networksStore = NetworksStore.shared
-    @State private var volumesStore = VolumesStore.shared
+    @Environment(\.craneStores) private var stores
+    @State private var viewModel: RunContainerViewModel
+    private var imagesStore: ImagesStore { stores.images }
+    private var networksStore: NetworksStore { stores.networks }
+    private var volumesStore: VolumesStore { stores.volumes }
     @State private var advancedExpanded = false
     @State private var expertExpanded = false
+
+    init(isPresented: Binding<Bool>, initialImageID: String? = nil, stores: CraneStores) {
+        self._isPresented = isPresented
+        self.initialImageID = initialImageID
+        self._viewModel = State(initialValue: RunContainerViewModel(stores: stores))
+    }
 
     private var availableImages: [Image] {
         imagesStore.sortedFilteredImages.filter { $0.status == .available }

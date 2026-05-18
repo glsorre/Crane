@@ -28,6 +28,8 @@ struct DialogContainer<Content: View, PrimaryLabel: View>: View {
     let systemImage: String
     let workingLabel: LocalizedStringKey
     let canSubmit: Bool
+    /// Set for long-running operations that must outlive dialog dismissal (e.g. image builds).
+    /// When `nil`, the dialog drives its own status from `perform`'s throw/return and auto-closes on success.
     let externalStatus: DialogStatus?
     let clearErrorTrigger: AnyHashable?
     let perform: () async throws -> Void

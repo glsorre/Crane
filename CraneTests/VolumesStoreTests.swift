@@ -5,42 +5,45 @@ import XCTest
 
 final class VolumesStoreTests: CraneTestBase {
     func testCollect() async throws {
-        try await VolumesStore.shared.collect()
+        let volumes = await MainActor.run { stores.volumes }
+        try await volumes.collect()
     }
 
     func testCreateAndRemoveVolume() async throws {
         let volumeName = uniqueName()
+        let volumes = await MainActor.run { stores.volumes }
 
         // Create
-        try await VolumesStore.shared.createVolume(name: volumeName)
+        try await volumes.createVolume(name: volumeName)
 
         // Verify present
-        let found = VolumesStore.shared.volumes.contains { $0.id == volumeName }
+        let found = await MainActor.run { volumes.volumes.contains { $0.id == volumeName } }
         XCTAssertTrue(found, "Volume should be in store after creation")
 
         // Remove
-        await VolumesStore.shared.removeVolume(name: volumeName)
+        await volumes.removeVolume(name: volumeName)
 
         // Verify gone
-        let stillThere = VolumesStore.shared.volumes.contains { $0.id == volumeName }
+        let stillThere = await MainActor.run { volumes.volumes.contains { $0.id == volumeName } }
         XCTAssertFalse(stillThere, "Volume should be removed from store")
     }
 
     func testCollectSkipsPendingDeletionVolume() async throws {
         let volumeName = uniqueName()
         _ = try await ClientVolume.create(name: volumeName)
-        defer { VolumesStore.shared.endPendingDeletion(volumeName) }
+        let volumes = await MainActor.run { stores.volumes }
+        defer {
+            Task { @MainActor in volumes.endPendingDeletion(volumeName) }
+        }
 
-        try await VolumesStore.shared.collect()
-        XCTAssertTrue(
-            VolumesStore.shared.volumes.contains { $0.id == volumeName },
-            "Volume should be present before simulating pending deletion"
-        )
+        try await volumes.collect()
+        let initiallyPresent = await MainActor.run { volumes.volumes.contains { $0.id == volumeName } }
+        XCTAssertTrue(initiallyPresent, "Volume should be present before simulating pending deletion")
 
-        VolumesStore.shared.beginPendingDeletion(volumeName)
-        try await VolumesStore.shared.collect()
+        await MainActor.run { volumes.beginPendingDeletion(volumeName) }
+        try await volumes.collect()
 
-        let stillThere = VolumesStore.shared.volumes.contains { $0.id == volumeName }
+        let stillThere = await MainActor.run { volumes.volumes.contains { $0.id == volumeName } }
         XCTAssertFalse(stillThere, "Pending deletion volumes should not be re-added during refresh")
     }
 }

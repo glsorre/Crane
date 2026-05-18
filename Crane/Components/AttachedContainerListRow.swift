@@ -8,7 +8,8 @@ import SwiftUI
 
 /// A nested list row for a container under an image, network, or volume group.
 struct AttachedContainerListRow: View {
-    @State private var appViewModel = AppViewModel.shared
+    @Environment(\.craneStores) private var stores
+    private var appViewModel: AppViewModel { stores.app }
     var container: Container
     /// Optional secondary text (e.g. IP or mount path), shown in secondary style.
     var detail: String?

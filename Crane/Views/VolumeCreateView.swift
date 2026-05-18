@@ -7,7 +7,8 @@ import SwiftUI
 
 struct VolumeCreateView: View {
     @Binding var isPresented: Bool
-    @State private var volumesStore = VolumesStore.shared
+    @Environment(\.craneStores) private var stores
+    private var volumesStore: VolumesStore { stores.volumes }
     @State private var volumeName: String = ""
 
     private var trimmedName: String {

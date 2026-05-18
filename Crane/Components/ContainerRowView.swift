@@ -8,7 +8,8 @@ import ContainerResource
 import SwiftUI
 
 struct ContainerRowView: View {
-    @State private var containersStore = ContainersStore.shared
+    @Environment(\.craneStores) private var stores
+    private var containersStore: ContainersStore { stores.containers }
     var container: Container
 
     var body: some View {

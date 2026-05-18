@@ -14,9 +14,9 @@ struct CraneDetailsView: View {
     @State var viewModel: DetailsViewModel
     var container: Container
 
-    init(container: Container) {
+    init(container: Container, stores: CraneStores) {
         self.container = container
-        self._viewModel = State(initialValue: DetailsViewModel(container: container))
+        self._viewModel = State(initialValue: DetailsViewModel(container: container, stores: stores))
     }
 
     var body: some View {

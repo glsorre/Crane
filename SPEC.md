@@ -137,6 +137,10 @@ Read-only log viewing (no interactive terminal).
 
 ## 5. UI/UX Specifications
 
+### 5.0 Localization
+
+Right Crane ships **English only**. `Localizable.xcstrings` contains every user-visible string for future translation work, but no additional locales are committed. Punctuation, format specifiers, and other strings that legitimately need no translation are marked `"shouldTranslate": false` to silence Xcode's "untranslated" warnings.
+
 ### 5.1 Main Layout
 
 ```

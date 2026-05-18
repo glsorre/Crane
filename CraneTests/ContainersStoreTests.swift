@@ -6,7 +6,8 @@ import XCTest
 
 final class ContainersStoreTests: CraneTestBase {
     func testCollect() async throws {
-        try await ContainersStore.shared.collect()
+        let containers = await MainActor.run { stores.containers }
+        try await containers.collect()
     }
 
     func testContainerLifecycle() async throws {

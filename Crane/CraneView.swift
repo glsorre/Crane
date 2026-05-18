@@ -15,15 +15,23 @@ import Observation
 import SwiftUI
 import os.log
 
-private let logger = Logger(subsystem: "me.rightright.RightCrane", category: "Launch")
+enum LaunchPhase: Equatable {
+    case idle
+    case checking
+    case startingService
+    case waitingForRegistration
+    case waitingForHealth
+}
 
 struct CraneView: View {
-    @State private var appViewModel = AppViewModel.shared
-    @State private var containersStore = ContainersStore.shared
-    @State private var imagesStore = ImagesStore.shared
-    @State private var networksStore = NetworksStore.shared
-    @State private var volumesStore = VolumesStore.shared
-    @State private var isStartingService = false
+    @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.craneStores) private var stores
+    private var appViewModel: AppViewModel { stores.app }
+    private var containersStore: ContainersStore { stores.containers }
+    private var imagesStore: ImagesStore { stores.images }
+    private var networksStore: NetworksStore { stores.networks }
+    private var volumesStore: VolumesStore { stores.volumes }
+    @State private var launchPhase: LaunchPhase = .idle
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
 
     private var selectedTabBinding: Binding<CraneTab?> {
@@ -39,13 +47,13 @@ struct CraneView: View {
     private var activeSearchText: Binding<String> {
         switch appViewModel.selectedTab {
         case .containers:
-            return $containersStore.searchText
+            return Binding(get: { stores.containers.searchText }, set: { stores.containers.searchText = $0 })
         case .images:
-            return $imagesStore.searchText
+            return Binding(get: { stores.images.searchText }, set: { stores.images.searchText = $0 })
         case .networks:
-            return $networksStore.searchText
+            return Binding(get: { stores.networks.searchText }, set: { stores.networks.searchText = $0 })
         case .volumes:
-            return $volumesStore.searchText
+            return Binding(get: { stores.volumes.searchText }, set: { stores.volumes.searchText = $0 })
         }
     }
 
@@ -67,6 +75,11 @@ struct CraneView: View {
             }
             .listStyle(.sidebar)
             .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 260)
+            .safeAreaInset(edge: .bottom) {
+                ConnectionStatusPill(tracker: stores.connectionHealth, stores: stores)
+                    .padding(.horizontal, Spacing.sm)
+                    .padding(.vertical, Spacing.xs)
+            }
         } detail: {
             Group {
                 switch appViewModel.selectedTab {
@@ -85,6 +98,19 @@ struct CraneView: View {
         .navigationSplitViewStyle(.balanced)
     }
 
+    private var launchPhaseLabel: String {
+        switch launchPhase {
+        case .idle, .checking:
+            return String(localized: "launchPhaseChecking")
+        case .startingService:
+            return String(localized: "launchPhaseStartingService")
+        case .waitingForRegistration:
+            return String(localized: "launchPhaseWaitingForRegistration")
+        case .waitingForHealth:
+            return String(localized: "launchPhaseWaitingForHealth")
+        }
+    }
+
     var body: some View {
         Group {
             if shouldShowToolbarSearch {
@@ -94,29 +120,26 @@ struct CraneView: View {
                 splitViewContent
             }
         }
-        .alert(String(localized: "craneError"), isPresented: $appViewModel.errorShow) {
+        .alert(String(localized: "craneError"), isPresented: Binding(get: { appViewModel.errorShow }, set: { appViewModel.errorShow = $0 })) {
             if appViewModel.error?.fatal == true {
                 Button("quit", role: .destructive) { exit(1) }
             } else {
                 Button("refresh") {
                     Task {
                         appViewModel.showContainersList()
-                        try await ContainersStore.shared.reset()
-                        try await ImagesStore.shared.reset()
-                        try await NetworksStore.shared.reset()
-                        try await VolumesStore.shared.reset()
+                        try await stores.resetAll()
                     }
                 }
             }
         } message: {
-            Text(appViewModel.error?.localizedDescription ?? String(localized: "unknownError"))
+            LaunchErrorMessage(error: appViewModel.error)
         }
         .overlay {
-            if isStartingService {
+            if launchPhase != .idle {
                 VStack(spacing: Spacing.sm) {
                     ProgressView()
                         .controlSize(.large)
-                    Text("startingServices")
+                    Text(launchPhaseLabel)
                         .foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -124,56 +147,109 @@ struct CraneView: View {
             }
         }
         .onAppear {
-            Task {
-                guard !AppSettings.isRunningTests else { return }
-                let serviceLabel = "com.apple.container.apiserver"
-                let domain = "gui/\(getuid())"
-                var isRegistered = isServiceLoaded(label: serviceLabel, domain: domain)
+            Task { await runLaunchSequence() }
+        }
+        .onChange(of: scenePhase, initial: true) { _, newPhase in
+            let visible = newPhase == .active
+            PollingVisibility.setSceneActive(visible)
+            if visible {
+                // Only the active tab's store needs a kick — the others are paused.
+                stores.activateTab(appViewModel.selectedTab.polledResource)
+            }
+        }
+        .onChange(of: appViewModel.selectedTab, initial: true) { _, newTab in
+            stores.activateTab(newTab.polledResource)
+        }
+    }
 
-                if !isRegistered && AppSettings.launchContainerizationService {
-                    isStartingService = true
-                    logger.info("Starting container service…")
-                    let started = await startContainerService()
-                    if !started {
-                        logger.warning("startContainerService() failed")
-                    }
-                    logger.info("startContainerService() returned success=\(started)")
-                    // Wait for the service to register (up to 15s)
-                    for _ in 0..<30 {
-                        try await Task.sleep(for: .milliseconds(500))
-                        if isServiceLoaded(label: serviceLabel, domain: domain) {
-                            isRegistered = true
-                            break
-                        }
-                    }
-                }
+    @MainActor
+    private func runLaunchSequence() async {
+        guard !AppSettings.isRunningTests else { return }
+        let serviceLabel = "com.apple.container.apiserver"
+        let domain = "gui/\(getuid())"
+        var diagnostic = LaunchDiagnostic()
 
-                if !isRegistered {
-                    isStartingService = false
-                    appViewModel.showError(CraneError.notRegistered)
-                    return
-                }
+        launchPhase = .checking
+        var registrationState = launchctlState(label: serviceLabel, domain: domain)
+        diagnostic.serviceRegistered = registrationState.loaded
+        diagnostic.launchctlPrintOutput = registrationState.rawOutput
+        diagnostic.cliPath = containerCLIExecutableURL()?.path
 
-                // Wait for the API server to become responsive (up to 30s)
-                if isStartingService {
-                    logger.info("Service registered, waiting for API server…")
-                }
-                var healthy = false
-                for _ in 0..<60 {
-                    do {
-                        let _ = try await ClientHealthCheck.ping(timeout: .seconds(2))
-                        healthy = true
-                        break
-                    } catch {
-                        try await Task.sleep(for: .milliseconds(500))
-                    }
-                }
+        if !registrationState.loaded && AppSettings.launchContainerizationService {
+            launchPhase = .startingService
+            Log.launch.info("Starting container service…")
+            let result = await startContainerService()
+            diagnostic.cliPath = result.cliPath ?? diagnostic.cliPath
+            diagnostic.startAttemptStderr = result.stderr
+            diagnostic.plistFound = result.plistFound
+            Log.launch.info("startContainerService() returned success=\(result.success)")
 
-                isStartingService = false
-                if !healthy {
-                    appViewModel.showError(CraneError.notRunning)
+            launchPhase = .waitingForRegistration
+            for _ in 0..<30 {
+                try? await Task.sleep(for: .milliseconds(500))
+                registrationState = launchctlState(label: serviceLabel, domain: domain)
+                if registrationState.loaded {
+                    diagnostic.serviceRegistered = true
+                    diagnostic.launchctlPrintOutput = registrationState.rawOutput
+                    break
                 }
             }
+            diagnostic.serviceRegistered = registrationState.loaded
+            diagnostic.launchctlPrintOutput = registrationState.rawOutput
+        }
+
+        if !diagnostic.serviceRegistered {
+            launchPhase = .idle
+            appViewModel.showError(.notRegistered(diagnostic: diagnostic))
+            return
+        }
+
+        launchPhase = .waitingForHealth
+        Log.launch.info("Service registered, waiting for API server…")
+        var healthy = false
+        var lastPingError: String?
+        for _ in 0..<60 {
+            do {
+                _ = try await ClientHealthCheck.ping(timeout: .seconds(2))
+                healthy = true
+                break
+            } catch {
+                lastPingError = error.localizedDescription
+                try? await Task.sleep(for: .milliseconds(500))
+            }
+        }
+        diagnostic.pingError = healthy ? nil : lastPingError
+
+        launchPhase = .idle
+        if !healthy {
+            appViewModel.showError(.notRunning(diagnostic: diagnostic))
+        }
+    }
+}
+
+private struct LaunchErrorMessage: View {
+    let error: CraneError?
+
+    var body: some View {
+        if let diagnostic = error?.diagnostic {
+            VStack(alignment: .leading, spacing: Spacing.xs) {
+                Text(error?.localizedDescription ?? String(localized: "unknownError"))
+                Text(String(localized: "launchDiagnosticServiceRegistered \(diagnostic.serviceRegistered ? String(localized: "yes") : String(localized: "no"))"))
+                Text(String(localized: "launchDiagnosticCliPath \(diagnostic.cliPath ?? String(localized: "notFound"))"))
+                Text(String(localized: "launchDiagnosticPlistFound \(diagnostic.plistFound ? String(localized: "yes") : String(localized: "no"))"))
+                if let stderr = diagnostic.startAttemptStderr, !stderr.isEmpty {
+                    Text(stderr)
+                        .font(.system(.caption, design: .monospaced))
+                        .textSelection(.enabled)
+                }
+                if let pingError = diagnostic.pingError, !pingError.isEmpty {
+                    Text(pingError)
+                        .font(.system(.caption, design: .monospaced))
+                        .textSelection(.enabled)
+                }
+            }
+        } else {
+            Text(error?.localizedDescription ?? String(localized: "unknownError"))
         }
     }
 }

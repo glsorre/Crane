@@ -48,25 +48,33 @@ class Network : Identifiable, Hashable {
 
 @Observable
 class NetworksStore {
-    static let shared = NetworksStore()
-    
     private let networkClient = NetworkClient()
+    private let onError: @MainActor (CraneError) -> Void
+    private let containersForNetworkProvider: () -> [String: [Container]]
+    private let tracker: ConnectionHealthTracker?
+
     var networks: Set<Network> = []
     var networksTask: Task<Void, Never>? = nil
     var resetPolling: (() -> Void)?
 
     var searchText: String = ""
-    
+
     var sortedFilteredNetworks: [Network] {
         networks
             .sorted { $0.id < $1.id }
             .filter { self.searchText.isEmpty || ($0.id.contains(self.searchText)) }
     }
-    
-    private init() {
-        self.start()
+
+    init(
+        onError: @escaping @MainActor (CraneError) -> Void = { _ in },
+        containersForNetwork: @escaping () -> [String: [Container]] = { [:] },
+        tracker: ConnectionHealthTracker? = nil
+    ) {
+        self.onError = onError
+        self.containersForNetworkProvider = containersForNetwork
+        self.tracker = tracker
     }
-    
+
     deinit {
         self.stop()
     }
@@ -77,9 +85,16 @@ class NetworksStore {
 
     func start() {
         guard AppSettings.autoRefresh else { return }
+        let tracker = self.tracker
         let (task, reset) = startAdaptivePolling(
             baseInterval: { AppSettings.refreshInterval },
-            maxInterval: { AppSettings.maxPollingInterval }
+            maxInterval: { AppSettings.maxPollingInterval },
+            isVisible: { PollingVisibility.isVisible(for: .networks) },
+            onError: { error in
+                Task { @MainActor in
+                    tracker?.recordFailure(resource: .networks, error: error)
+                }
+            }
         ) {
             try await self.collectWithChangeDetection()
         }
@@ -113,6 +128,10 @@ class NetworksStore {
         }
 
         let newIDs = Set(networks.map { $0.id })
+        let tracker = self.tracker
+        Task { @MainActor in
+            tracker?.recordSuccess()
+        }
         return previousIDs != newIDs
     }
     
@@ -122,14 +141,14 @@ class NetworksStore {
     }
     
     var hasEmptyNetworks: Bool {
-        let containersForNetwork = ContainersStore.shared.containersForNetwork
+        let containersForNetwork = containersForNetworkProvider()
         return networks.contains { network in
             !network.network.isBuiltin && (containersForNetwork[network.id] ?? []).isEmpty
         }
     }
 
     func pruneNetworks() async {
-        let containersForNetwork = ContainersStore.shared.containersForNetwork
+        let containersForNetwork = containersForNetworkProvider()
         let emptyNetworks = networks.filter { network in
             !network.network.isBuiltin && (containersForNetwork[network.id] ?? []).isEmpty
         }
@@ -141,10 +160,11 @@ class NetworksStore {
                 networks.remove(network)
             } catch {
                 network.transiting = false
-                AppViewModel.shared.showError(.networkRemoveFailed(error.localizedDescription))
+                Log.networks.error("network delete failed for \(network.id): \(error.localizedDescription, privacy: .public)")
+                await onError(.networkRemoveFailed(underlying: error))
             }
         }
-        RefreshCoordinator.shared.networkMutated()
+        CraneMutationBus.postNetworkMutated()
     }
 
     func removeNetwork(id: String) async {
@@ -155,9 +175,9 @@ class NetworksStore {
             networks.remove(network)
         } catch {
             network.transiting = false
-            AppViewModel.shared.showError(.networkRemoveFailed(error.localizedDescription))
+            await onError(.networkRemoveFailed(underlying: error))
         }
-        RefreshCoordinator.shared.networkMutated()
+        CraneMutationBus.postNetworkMutated()
     }
 
     func createNetwork(id: String) async throws {
@@ -170,6 +190,6 @@ class NetworksStore {
         )
         let networkModel = Network(network: network)
         networks.insert(networkModel)
-        RefreshCoordinator.shared.networkMutated()
+        CraneMutationBus.postNetworkMutated()
     }
 }

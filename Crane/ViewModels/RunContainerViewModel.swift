@@ -5,6 +5,7 @@ import ContainerizationOCI
 import ContainerizationOS
 import Foundation
 import Observation
+import os.log
 
 struct PortEntry: Identifiable {
     let id = UUID()
@@ -46,6 +47,12 @@ struct KeyValueEntry: Identifiable {
 
 @Observable
 class RunContainerViewModel {
+    let stores: CraneStores
+
+    init(stores: CraneStores) {
+        self.stores = stores
+    }
+
     // Identity
     var name: String = ""
     var selectedImageID: String?
@@ -106,102 +113,30 @@ class RunContainerViewModel {
         shellJoin(imageDefaultArguments)
     }
 
-    var imageValidationMessage: String? {
-        selectedImageID == nil ? String(localized: "Select an image.") : nil
+    private var validator: RunContainerValidator {
+        RunContainerValidator(
+            selectedImageID: selectedImageID,
+            name: name,
+            useImageDefaultCommand: useImageDefaultCommand,
+            imageHasDefaultCommand: availableImageHasDefaultCommand,
+            executable: executable,
+            environment: environment,
+            ports: ports,
+            mounts: mounts,
+            sockets: sockets,
+            nameInUse: { [stores] trimmed in stores.containers.containers.contains { $0.id == trimmed } }
+        )
     }
 
-    var nameValidationMessage: String? {
-        let trimmedName = name.trimmed
-        guard !trimmedName.isEmpty else {
-            return String(localized: "Enter a container name.")
-        }
-        if ContainersStore.shared.containers.contains(where: { $0.id == trimmedName }) {
-            return String(localized: "A container with this name already exists.")
-        }
-        return nil
-    }
-
-    var commandValidationMessage: String? {
-        guard selectedImageID != nil else { return nil }
-
-        if useImageDefaultCommand {
-            return availableImageHasDefaultCommand
-                ? nil
-                : String(localized: "This image doesn’t provide a default command. Enter an executable.")
-        }
-
-        return executable.trimmed.isEmpty ? String(localized: "Enter an executable.") : nil
-    }
-
-    var environmentValidationMessage: String? {
-        let invalidLine = parsedEnvironmentLines.first(where: { !$0.contains("=") })
-        guard invalidLine != nil else { return nil }
-        return String(localized: "Environment values must use KEY=value format.")
-    }
-
-    var portValidationMessage: String? {
-        var seenMappings = Set<String>()
-
-        for entry in ports where !entry.isBlank {
-            guard !entry.hostPort.trimmed.isEmpty, !entry.containerPort.trimmed.isEmpty else {
-                return String(localized: "Port mappings need both a host and container port.")
-            }
-            guard let hostPort = UInt16(entry.hostPort.trimmed), hostPort > 0,
-                  let containerPort = UInt16(entry.containerPort.trimmed), containerPort > 0 else {
-                return String(localized: "Ports must be numbers between 1 and 65535.")
-            }
-
-            let key = "\(hostPort)-\(entry.proto.rawValue)"
-            if !seenMappings.insert(key).inserted {
-                return String(localized: "Each host port can only be published once per protocol.")
-            }
-            _ = containerPort
-        }
-
-        return nil
-    }
-
-    var mountValidationMessage: String? {
-        for entry in mounts where !entry.isBlank {
-            guard !entry.destination.trimmed.isEmpty else {
-                return String(localized: "Every mount needs a destination path in the container.")
-            }
-
-            switch entry.type {
-            case .bind, .volume:
-                guard !entry.source.trimmed.isEmpty else {
-                    return String(localized: "Folder and volume mounts need a source.")
-                }
-            case .tmpfs:
-                break
-            }
-        }
-
-        return nil
-    }
-
-    var socketValidationMessage: String? {
-        for entry in sockets where !entry.isBlank {
-            guard !entry.hostPath.trimmed.isEmpty, !entry.containerPath.trimmed.isEmpty else {
-                return String(localized: "Socket forwards need both host and container paths.")
-            }
-        }
-        return nil
-    }
-
-    var validationMessage: String? {
-        imageValidationMessage
-            ?? nameValidationMessage
-            ?? commandValidationMessage
-            ?? environmentValidationMessage
-            ?? portValidationMessage
-            ?? mountValidationMessage
-            ?? socketValidationMessage
-    }
-
-    var canRun: Bool {
-        selectedImageID != nil && validationMessage == nil
-    }
+    var imageValidationMessage: String? { validator.imageValidationMessage }
+    var nameValidationMessage: String? { validator.nameValidationMessage }
+    var commandValidationMessage: String? { validator.commandValidationMessage }
+    var environmentValidationMessage: String? { validator.environmentValidationMessage }
+    var portValidationMessage: String? { validator.portValidationMessage }
+    var mountValidationMessage: String? { validator.mountValidationMessage }
+    var socketValidationMessage: String? { validator.socketValidationMessage }
+    var validationMessage: String? { validator.validationMessage }
+    var canRun: Bool { validator.canRun }
 
     func bootstrapSelection(initialImageID: String?, fallbackImageID: String?) {
         guard !didBootstrapSelection else { return }
@@ -214,6 +149,22 @@ class RunContainerViewModel {
     func selectImage(_ imageID: String?) {
         selectedImageID = imageID
         applyImageDefaults()
+        refreshImageConfigurationIfNeeded(for: imageID)
+    }
+
+    private func refreshImageConfigurationIfNeeded(for imageID: String?) {
+        guard let imageID,
+              let image = stores.images.images.first(where: { $0.id == imageID }),
+              image.imageConfiguration?.config == nil,
+              let clientImage = image.image
+        else { return }
+
+        Task { @MainActor [weak self, weak image] in
+            guard let image else { return }
+            try? await image.setImage(image: clientImage)
+            guard let self, self.selectedImageID == imageID else { return }
+            self.applyImageDefaults()
+        }
     }
 
     func updateName(_ value: String) {
@@ -278,7 +229,7 @@ class RunContainerViewModel {
         }
 
         guard let imageID = selectedImageID,
-              let image = ImagesStore.shared.images.first(where: { $0.id == imageID }),
+              let image = stores.images.images.first(where: { $0.id == imageID }),
               let clientImage = image.image else {
             throw RunContainerFormError(String(localized: "No image selected or image not available"))
         }
@@ -286,7 +237,11 @@ class RunContainerViewModel {
         let processConfig: ProcessConfiguration
         let containerName = name.trimmed
         var config: ContainerConfiguration
-        let options = ContainerCreateOptions(autoRemove: autoRemove)
+        // Runtime auto-remove is disabled so Crane can inspect early exits before
+        // the container disappears. The user toggle is honored by Crane-side
+        // bookkeeping (AppSettings.persistentContainerIDs) plus a watcher task
+        // that performs the deletion after a clean exit.
+        let options = ContainerCreateOptions(autoRemove: false)
         let containerClient = ContainerClient()
 
         processConfig = try buildProcessConfiguration()
@@ -366,11 +321,111 @@ class RunContainerViewModel {
                 try await process.start()
             }
         } catch {
-            RefreshCoordinator.shared.containerMutated()
+            Log.run.error("bootstrap/start failed for \(containerName): \(error.localizedDescription, privacy: .public)")
+            AppSettings.removePersistentContainerID(containerName)
+            CraneMutationBus.postContainerMutated()
             throw error
         }
 
-        RefreshCoordinator.shared.containerMutated()
+        let exitedDuringWatch = await Self.watchForEarlyExit(
+            client: containerClient,
+            id: containerName
+        )
+
+        if exitedDuringWatch {
+            let tail = await Self.fetchLogTail(
+                client: containerClient,
+                id: containerName,
+                maxLines: 40
+            )
+            AppSettings.removePersistentContainerID(containerName)
+            try? await containerClient.delete(id: containerName)
+            CraneMutationBus.postContainerMutated()
+
+            let baseMessage = String(
+                localized: "runContainerExitedEarly",
+                defaultValue: "Container exited shortly after starting. Check the command, arguments, and environment."
+            )
+            let combined = tail.isEmpty ? baseMessage : "\(baseMessage)\n\n\(tail)"
+            Log.run.error("container \(containerName) exited within watch window")
+            throw RunContainerFormError(combined)
+        }
+
+        if autoRemove {
+            Self.scheduleAutoRemove(client: containerClient, id: containerName)
+        }
+
+        CraneMutationBus.postContainerMutated()
+    }
+
+    private static let earlyExitWatchDuration: Duration = .seconds(2)
+    private static let earlyExitWatchCadence: Duration = .milliseconds(250)
+    private static let autoRemovePollCadence: Duration = .seconds(1)
+
+    nonisolated private static func watchForEarlyExit(
+        client: ContainerClient,
+        id: String
+    ) async -> Bool {
+        let deadline = ContinuousClock.now.advanced(by: earlyExitWatchDuration)
+        while ContinuousClock.now < deadline {
+            try? await Task.sleep(for: earlyExitWatchCadence)
+            guard let snapshots = try? await client.list() else { continue }
+            guard let snapshot = snapshots.first(where: { $0.id == id }) else {
+                return true
+            }
+            if snapshot.status != .running {
+                return true
+            }
+        }
+        return false
+    }
+
+    nonisolated private static func fetchLogTail(
+        client: ContainerClient,
+        id: String,
+        maxLines: Int
+    ) async -> String {
+        do {
+            let handles = try await client.logs(id: id)
+            var lines: [String] = []
+            let trimWhenAbove = max(maxLines * 4, maxLines + 1)
+            let trimDownTo = max(maxLines * 2, maxLines)
+            for handle in handles {
+                guard let reader = StreamReader(fileHandle: handle) else { continue }
+                while let line = reader.nextLine() {
+                    lines.append(line)
+                    if lines.count > trimWhenAbove {
+                        lines.removeFirst(lines.count - trimDownTo)
+                    }
+                }
+            }
+            if lines.count > maxLines {
+                lines = Array(lines.suffix(maxLines))
+            }
+            return lines.joined(separator: "\n")
+        } catch {
+            Log.run.error("fetch log tail failed for \(id): \(error.localizedDescription, privacy: .public)")
+            return ""
+        }
+    }
+
+    nonisolated private static func scheduleAutoRemove(client: ContainerClient, id: String) {
+        Task.detached {
+            while !Task.isCancelled {
+                try? await Task.sleep(for: autoRemovePollCadence)
+                guard let snapshots = try? await client.list() else { continue }
+                guard let snapshot = snapshots.first(where: { $0.id == id }) else {
+                    CraneMutationBus.postContainerMutated()
+                    return
+                }
+                if snapshot.status == .running || snapshot.status == .stopping {
+                    continue
+                }
+                try? await client.delete(id: id)
+                CraneMutationBus.postContainerMutated()
+                return
+            }
+        }
     }
 
     private func applyImageDefaults() {
@@ -396,7 +451,7 @@ class RunContainerViewModel {
             name = suggestedName(for: imageID)
         }
 
-        guard let config = ImagesStore.shared.images.first(where: { $0.id == imageID })?.imageConfiguration?.config else {
+        guard let config = stores.images.images.first(where: { $0.id == imageID })?.imageConfiguration?.config else {
             if !commandWasCustomized {
                 useImageDefaultCommand = false
                 executable = ""
@@ -446,7 +501,7 @@ class RunContainerViewModel {
             .trimmingCharacters(in: CharacterSet(charactersIn: "-."))
         let resolvedBase = base.isEmpty ? "container" : base
 
-        let existingNames = Set(ContainersStore.shared.containers.map(\.id))
+        let existingNames = Set(stores.containers.containers.map(\.id))
         if !existingNames.contains(resolvedBase) {
             return resolvedBase
         }
@@ -532,7 +587,7 @@ class RunContainerViewModel {
                 )
             case .volume:
                 let volumeName = entry.source.trimmed
-                let resolvedVolume = VolumesStore.shared.volumes.first(where: { $0.id == volumeName })?.volume
+                let resolvedVolume = stores.volumes.volumes.first(where: { $0.id == volumeName })?.volume
                 let resolvedSource = resolvedVolume?.source ?? volumeName
                 let resolvedFormat = resolvedVolume?.format ?? "raw"
                 return Filesystem.volume(
@@ -552,10 +607,7 @@ class RunContainerViewModel {
     }
 
     private var parsedEnvironmentLines: [String] {
-        environment
-            .split(separator: "\n")
-            .map { String($0).trimmed }
-            .filter { !$0.isEmpty }
+        validator.parsedEnvironmentLines
     }
 
     private var hasAnyDNSOverride: Bool {
@@ -643,25 +695,25 @@ private struct RunContainerFormError: LocalizedError {
     }
 }
 
-private extension String {
+extension String {
     var trimmed: String {
         trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
 
-private extension PortEntry {
+extension PortEntry {
     var isBlank: Bool {
         hostPort.trimmed.isEmpty && containerPort.trimmed.isEmpty
     }
 }
 
-private extension SocketEntry {
+extension SocketEntry {
     var isBlank: Bool {
         hostPath.trimmed.isEmpty && containerPath.trimmed.isEmpty
     }
 }
 
-private extension MountEntry {
+extension MountEntry {
     var isBlank: Bool {
         switch type {
         case .bind, .volume:

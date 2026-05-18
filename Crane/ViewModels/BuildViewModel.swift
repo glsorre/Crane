@@ -12,6 +12,7 @@ import Foundation
 import Logging
 import NIO
 import Observation
+import os.log
 
 enum BuildStatus: Equatable {
     case idle
@@ -51,9 +52,12 @@ extension ImageBuildSource {
 @MainActor
 @Observable
 class BuildViewModel {
-    static let shared = BuildViewModel()
-
     private let containerClient = ContainerClient()
+    private let images: ImagesStore
+
+    init(images: ImagesStore) {
+        self.images = images
+    }
 
     /// Upper bound for `Builder.build` (gRPC stream); avoids indefinite UI when BuildKit never closes the stream.
     private static let buildInvocationTimeout: Duration = .seconds(45 * 60)
@@ -117,6 +121,7 @@ class BuildViewModel {
             status = .success
             scheduleSuccessBannerDismiss()
         } catch {
+            Log.build.error("build(\(tag)) failed: \(error.localizedDescription, privacy: .public)")
             status = .failed(error.localizedDescription)
         }
     }
@@ -355,7 +360,7 @@ class BuildViewModel {
         contextDirPath: String,
         dockerfileData: Data
     ) async throws {
-        let builder = try Builder(socket: fh, group: threadGroup, logger: Logger(label: "BuildViewModel"))
+        let builder = try Builder(socket: fh, group: threadGroup, logger: Logging.Logger(label: "BuildViewModel"))
         let _ = try await builder.info()
 
         // 3. Export path
@@ -425,7 +430,7 @@ class BuildViewModel {
             _ = try await image.tag(new: normalizedTag)
         }
 
-        _ = try? await ImagesStore.shared.collect()
+        _ = try? await images.collect()
     }
 
     private func shutdownThreadGroupGracefully(_ threadGroup: MultiThreadedEventLoopGroup) async throws {

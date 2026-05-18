@@ -9,7 +9,8 @@ import SwiftUI
 
 struct ImageFetchView: View {
     @Binding var isPresented: Bool
-    @State private var imagesStore = ImagesStore.shared
+    @Environment(\.craneStores) private var stores
+    private var imagesStore: ImagesStore { stores.images }
     @State private var reference: String = ""
 
     private var trimmedReference: String {

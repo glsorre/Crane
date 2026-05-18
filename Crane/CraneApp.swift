@@ -9,11 +9,18 @@ import SwiftUI
 
 @main
 struct CraneApp: App {
+    @State private var stores: CraneStores = {
+        let stores = CraneStores()
+        stores.start()
+        return stores
+    }()
+
     var body: some Scene {
         WindowGroup {
             CraneView()
+                .environment(\.craneStores, stores)
         }
-        
+
         #if os(macOS)
         Settings {
             CraneSettingsView()
@@ -21,4 +28,3 @@ struct CraneApp: App {
         #endif
     }
 }
-

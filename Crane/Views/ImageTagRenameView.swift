@@ -11,7 +11,8 @@ struct ImageTagRenameView: View {
     @Binding var isPresented: Bool
     let sourceReference: String
 
-    @State private var imagesStore = ImagesStore.shared
+    @Environment(\.craneStores) private var stores
+    private var imagesStore: ImagesStore { stores.images }
     @State private var newReference: String = ""
     @State private var mode: Mode = .addTag
 

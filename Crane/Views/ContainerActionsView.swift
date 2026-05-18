@@ -10,7 +10,8 @@ import SwiftUI
 import ContainerResource
 
 struct ContainerActionsView: View {
-    @State private var containersStore = ContainersStore.shared
+    @Environment(\.craneStores) private var stores
+    private var containersStore: ContainersStore { stores.containers }
     var id: String
 
     var body: some View {
@@ -88,7 +89,7 @@ struct ContainerActionsView: View {
         do {
             try ContainerShellLauncher.openInteractiveShell(containerID: containerID)
         } catch {
-            AppViewModel.shared.showError(.containerShellFailed(error.localizedDescription))
+            stores.app.showError(.containerShellFailed(underlying: error))
         }
     }
 }

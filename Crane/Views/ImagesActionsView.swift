@@ -3,6 +3,7 @@ import ContainerizationOCI
 import SwiftUI
 
 struct ImagesActionsView: View {
+    @Environment(\.craneStores) private var stores
     let image: Image
     @SwiftUI.State private var runSheetIsVisible = false
     @SwiftUI.State private var tagSheetIsVisible = false
@@ -25,9 +26,9 @@ struct ImagesActionsView: View {
                         action: {
                             Task {
                                 do {
-                                    try await ImagesStore.shared.removeImage(reference: image.id)
+                                    try await stores.images.removeImage(reference: image.id)
                                 } catch {
-                                    AppViewModel.shared.showError(.imageRemoveFailed(error.localizedDescription))
+                                    stores.app.showError(.imageRemoveFailed(underlying: error))
                                 }
                             }
                         },
@@ -57,7 +58,7 @@ struct ImagesActionsView: View {
             }
         }
         .sheet(isPresented: $runSheetIsVisible) {
-            ContainerRunView(isPresented: $runSheetIsVisible, initialImageID: image.id)
+            ContainerRunView(isPresented: $runSheetIsVisible, initialImageID: image.id, stores: stores)
         }
         .sheet(isPresented: $tagSheetIsVisible) {
             ImageTagRenameView(isPresented: $tagSheetIsVisible, sourceReference: image.id)

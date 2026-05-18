@@ -48,7 +48,9 @@ class CraneVolume: Identifiable, Hashable {
 
 @Observable
 class VolumesStore {
-    static let shared = VolumesStore()
+    private let onError: @MainActor (CraneError) -> Void
+    private let containersForVolumeProvider: () -> [String: [Container]]
+    private let tracker: ConnectionHealthTracker?
 
     var volumes: Set<CraneVolume> = []
     var volumesTask: Task<Void, Never>? = nil
@@ -64,8 +66,14 @@ class VolumesStore {
             .filter { self.searchText.isEmpty || ($0.id.contains(self.searchText)) }
     }
 
-    private init() {
-        self.start()
+    init(
+        onError: @escaping @MainActor (CraneError) -> Void = { _ in },
+        containersForVolume: @escaping () -> [String: [Container]] = { [:] },
+        tracker: ConnectionHealthTracker? = nil
+    ) {
+        self.onError = onError
+        self.containersForVolumeProvider = containersForVolume
+        self.tracker = tracker
     }
 
     deinit {
@@ -78,9 +86,16 @@ class VolumesStore {
 
     func start() {
         guard AppSettings.autoRefresh else { return }
+        let tracker = self.tracker
         let (task, reset) = startAdaptivePolling(
             baseInterval: { AppSettings.refreshInterval },
-            maxInterval: { AppSettings.maxPollingInterval }
+            maxInterval: { AppSettings.maxPollingInterval },
+            isVisible: { PollingVisibility.isVisible(for: .volumes) },
+            onError: { error in
+                Task { @MainActor in
+                    tracker?.recordFailure(resource: .volumes, error: error)
+                }
+            }
         ) {
             try await self.collectWithChangeDetection()
         }
@@ -117,6 +132,10 @@ class VolumesStore {
         }
 
         let newIDs = Set(volumes.map { $0.id })
+        let tracker = self.tracker
+        Task { @MainActor in
+            tracker?.recordSuccess()
+        }
         return previousIDs != newIDs
     }
 
@@ -135,14 +154,14 @@ class VolumesStore {
     }
 
     var hasUnusedVolumes: Bool {
-        let containersForVolume = ContainersStore.shared.containersForVolume
+        let containersForVolume = containersForVolumeProvider()
         return volumes.contains { volume in
             (containersForVolume[volume.id] ?? []).isEmpty
         }
     }
 
     func pruneVolumes() async {
-        let containersForVolume = ContainersStore.shared.containersForVolume
+        let containersForVolume = containersForVolumeProvider()
         let unusedVolumes = volumes.filter { volume in
             (containersForVolume[volume.id] ?? []).isEmpty
         }
@@ -156,10 +175,11 @@ class VolumesStore {
             } catch {
                 endPendingDeletion(volume.id)
                 volume.transiting = false
-                AppViewModel.shared.showError(.volumeRemoveFailed(error.localizedDescription))
+                Log.volumes.error("prune delete failed for \(volume.id): \(error.localizedDescription, privacy: .public)")
+                await onError(.volumeRemoveFailed(underlying: error))
             }
         }
-        RefreshCoordinator.shared.volumeMutated()
+        CraneMutationBus.postVolumeMutated()
     }
 
     func removeVolume(name: String) async {
@@ -172,9 +192,10 @@ class VolumesStore {
         } catch {
             endPendingDeletion(volume.id)
             volume.transiting = false
-            AppViewModel.shared.showError(.volumeRemoveFailed(error.localizedDescription))
+            Log.volumes.error("removeVolume(\(name)) failed: \(error.localizedDescription, privacy: .public)")
+            await onError(.volumeRemoveFailed(underlying: error))
         }
-        RefreshCoordinator.shared.volumeMutated()
+        CraneMutationBus.postVolumeMutated()
     }
 
     func createVolume(name: String) async throws {
@@ -182,6 +203,6 @@ class VolumesStore {
         let volume = try await ClientVolume.create(name: name)
         let volumeModel = CraneVolume(volume: volume)
         volumes.insert(volumeModel)
-        RefreshCoordinator.shared.volumeMutated()
+        CraneMutationBus.postVolumeMutated()
     }
 }

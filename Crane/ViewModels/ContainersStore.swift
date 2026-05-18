@@ -69,11 +69,12 @@ class Container: Identifiable, Hashable {
             }
         } catch {
             self.transiting = false
+            Log.containers.error("start failed for \(self.id): \(error.localizedDescription, privacy: .public)")
             throw error
         }
         try? await Task.sleep(for: .milliseconds(500))
         self.transiting = false
-        RefreshCoordinator.shared.containerMutated()
+        CraneMutationBus.postContainerMutated()
     }
 
     func stop() async throws {
@@ -85,12 +86,13 @@ class Container: Identifiable, Hashable {
             }
         } catch {
             self.transiting = false
+            Log.containers.error("stop failed for \(self.id): \(error.localizedDescription, privacy: .public)")
             throw error
         }
 
         try? await Task.sleep(for: .milliseconds(500))
         self.transiting = false
-        RefreshCoordinator.shared.containerMutated()
+        CraneMutationBus.postContainerMutated()
     }
 
     func restart() async throws {
@@ -107,10 +109,11 @@ class Container: Identifiable, Hashable {
             }
         } catch {
             self.transiting = false
+            Log.containers.error("remove failed for \(self.id): \(error.localizedDescription, privacy: .public)")
             throw error
         }
 
-        RefreshCoordinator.shared.containerMutated()
+        CraneMutationBus.postContainerMutated()
     }
 
     func logs() async throws -> [FileHandle] {
@@ -128,9 +131,9 @@ class Container: Identifiable, Hashable {
 
 @Observable
 class ContainersStore {
-    static let shared = ContainersStore()
-
     private let client = ContainerClient()
+    private let onError: @MainActor (CraneError) -> Void
+    private let tracker: ConnectionHealthTracker?
 
     var containers: Set<Container> = []
     var containersTask: Task<Void, Never>? = nil
@@ -173,8 +176,12 @@ class ContainersStore {
         }, by: { $0.0 }).mapValues { $0.map(\.1) }
     }
 
-    private init() {
-        self.start()
+    init(
+        onError: @escaping @MainActor (CraneError) -> Void = { _ in },
+        tracker: ConnectionHealthTracker? = nil
+    ) {
+        self.onError = onError
+        self.tracker = tracker
     }
 
     deinit {
@@ -187,9 +194,16 @@ class ContainersStore {
 
     func start() {
         guard AppSettings.autoRefresh else { return }
+        let tracker = self.tracker
         let (task, reset) = startAdaptivePolling(
             baseInterval: { AppSettings.refreshInterval },
-            maxInterval: { AppSettings.maxPollingInterval }
+            maxInterval: { AppSettings.maxPollingInterval },
+            isVisible: { PollingVisibility.isVisible(for: .containers) },
+            onError: { error in
+                Task { @MainActor in
+                    tracker?.recordFailure(resource: .containers, error: error)
+                }
+            }
         ) {
             try await self.collectWithChangeDetection()
         }
@@ -234,6 +248,10 @@ class ContainersStore {
         }
 
         let newIDs = Set(containers.map { $0.id })
+        let tracker = self.tracker
+        Task { @MainActor in
+            tracker?.recordSuccess()
+        }
         return previousIDs != newIDs || previousCount != containers.count
     }
 
@@ -247,7 +265,8 @@ class ContainersStore {
         do {
             try await container.start()
         } catch {
-            AppViewModel.shared.showError(.containerStartFailed(error.localizedDescription))
+            Log.containers.error("startContainer(\(id)) failed: \(error.localizedDescription, privacy: .public)")
+            await onError(.containerStartFailed(underlying: error))
         }
     }
 
@@ -256,7 +275,8 @@ class ContainersStore {
         do {
             try await container.stop()
         } catch {
-            AppViewModel.shared.showError(.containerStopFailed(error.localizedDescription))
+            Log.containers.error("stopContainer(\(id)) failed: \(error.localizedDescription, privacy: .public)")
+            await onError(.containerStopFailed(underlying: error))
         }
     }
 
@@ -265,7 +285,8 @@ class ContainersStore {
         do {
             try await container.restart()
         } catch {
-            AppViewModel.shared.showError(.containerRestartFailed(error.localizedDescription))
+            Log.containers.error("restartContainer(\(id)) failed: \(error.localizedDescription, privacy: .public)")
+            await onError(.containerRestartFailed(underlying: error))
         }
     }
 
@@ -295,7 +316,8 @@ class ContainersStore {
             container.transiting = false
             containers.remove(container)
         } catch {
-            AppViewModel.shared.showError(.containerRemoveFailed(error.localizedDescription))
+            Log.containers.error("removeContainer(\(id)) failed: \(error.localizedDescription, privacy: .public)")
+            await onError(.containerRemoveFailed(underlying: error))
         }
     }
 }

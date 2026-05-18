@@ -8,7 +8,8 @@
 import SwiftUI
 
 struct CraneNetworksListView: View {
-    @State private var networksStore = NetworksStore.shared
+    @Environment(\.craneStores) private var stores
+    private var networksStore: NetworksStore { stores.networks }
 
     @State private var createSheetIsVisible = false
 
