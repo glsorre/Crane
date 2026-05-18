@@ -5,6 +5,7 @@ cd "$(dirname "$0")/.."
 
 : "${API_KEY_ID:?API_KEY_ID required}"
 : "${API_ISSUER_ID:?API_ISSUER_ID required}"
+: "${API_KEY_B64:?API_KEY_B64 required}"
 
 APP="build/export/Right Crane.app"
 API_KEY_PATH="${API_KEY_PATH:-/tmp/AuthKey.p8}"
@@ -13,6 +14,9 @@ if [ ! -e "$APP" ]; then
     echo "App not found at $APP" >&2
     exit 1
 fi
+
+echo "$API_KEY_B64" | base64 -d > "$API_KEY_PATH"
+trap 'rm -f "$API_KEY_PATH"' EXIT
 
 VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APP/Contents/Info.plist")
 DMG="build/RightCrane-${VERSION}.dmg"
@@ -43,5 +47,3 @@ xcrun notarytool submit "$DMG" \
 
 xcrun stapler staple "$DMG"
 xcrun stapler validate "$DMG"
-
-rm -f "$API_KEY_PATH"
