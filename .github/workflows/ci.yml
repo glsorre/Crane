@@ -18,7 +18,7 @@ jobs:
         run: ./scripts/lint.sh
 
   build:
-    runs-on: macos-15
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
       - uses: maxim-lobanov/setup-xcode@v1
@@ -27,14 +27,12 @@ jobs:
       - name: Build
         run: ./scripts/build.sh
 
-  # Tests target macOS 26 (Tahoe). GitHub-hosted macos-26 runners are not yet GA;
-  # enable this job once they ship, or run via self-hosted Apple Silicon runner.
   # test:
   #   runs-on: macos-26
   #   steps:
   #     - uses: actions/checkout@v4
   #     - uses: maxim-lobanov/setup-xcode@v1
   #       with:
-  #         xcode-version: latest
+  #         xcode-version: latest-stable
   #     - name: Test
   #       run: ./scripts/test.sh
