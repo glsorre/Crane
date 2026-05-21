@@ -21,9 +21,12 @@ struct CraneVolumesListView: View {
         ZStack {
             List(listItems) { volume in
                 VolumeRowView(volume: volume)
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+                    .padding(.vertical, Spacing.xxs)
             }
             .listStyle(.inset)
-            .contentMargins(.top, Spacing.lg, for: .scrollContent)
+            .safeAreaPadding(.top, Spacing.lg)
 
             if listItems.isEmpty {
                 MainListEmptyState(

@@ -34,19 +34,19 @@ final class RefreshCoordinator {
         let center = NotificationCenter.default
         observers.append(
             center.addObserver(forName: .craneContainerMutated, object: nil, queue: .main) { [weak self] _ in
-                Task { @MainActor in self?.containerMutated() }
+                Task { @MainActor [weak self] in self?.containerMutated() }
             })
         observers.append(
             center.addObserver(forName: .craneImageMutated, object: nil, queue: .main) { [weak self] _ in
-                Task { @MainActor in self?.imageMutated() }
+                Task { @MainActor [weak self] in self?.imageMutated() }
             })
         observers.append(
             center.addObserver(forName: .craneNetworkMutated, object: nil, queue: .main) { [weak self] _ in
-                Task { @MainActor in self?.networkMutated() }
+                Task { @MainActor [weak self] in self?.networkMutated() }
             })
         observers.append(
             center.addObserver(forName: .craneVolumeMutated, object: nil, queue: .main) { [weak self] _ in
-                Task { @MainActor in self?.volumeMutated() }
+                Task { @MainActor [weak self] in self?.volumeMutated() }
             })
     }
 

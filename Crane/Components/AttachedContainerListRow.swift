@@ -16,9 +16,10 @@ struct AttachedContainerListRow: View {
 
     var body: some View {
         HStack(spacing: Spacing.xs) {
-            Circle()
-                .fill(container.isExited ? .secondary : container.snapshot.status.getColor())
-                .frame(width: 8, height: 8)
+            GlowingStatusDot(
+                color: container.isExited ? .secondary : container.snapshot.status.getColor(),
+                isAnimated: !container.isExited && container.snapshot.status == .running
+            )
 
             Text(container.id)
                 .font(.subheadline)

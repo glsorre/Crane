@@ -2,8 +2,6 @@
 //  ContainerDetailsInfoView.swift
 //  Crane
 //
-//  Created by Giuseppe Lucio Sorrentino on 11/11/25.
-//
 
 import ContainerResource
 import SwiftUI
@@ -14,16 +12,18 @@ private struct MetricRow: View {
     let value: String
 
     var body: some View {
-        HStack(spacing: Spacing.xs) {
+        HStack(spacing: Spacing.sm) {
             Label(label, systemImage: icon)
                 .font(.subheadline)
                 .foregroundStyle(Color.accentColor)
-                .frame(width: 120, alignment: .leading)
+                .frame(width: 130, alignment: .leading)
             Text(value)
                 .font(.callout)
-                .monospaced()
+                .monospacedDigit()
+                .foregroundStyle(.primary)
                 .frame(maxWidth: .infinity, alignment: .trailing)
         }
+        .padding(.vertical, Spacing.xs)
     }
 }
 
@@ -35,22 +35,28 @@ struct ContainerDetailsInfoView: View {
         ScrollView {
             VStack(spacing: Spacing.md) {
                 containerDetailsCard
+                
                 if snapshot.status == .running {
-                    metricsCard
+                    metricsDashboard
                 }
             }
             .frame(maxWidth: .infinity)
+            .padding(.horizontal, Spacing.xxs)
         }
     }
 
     private var containerDetailsCard: some View {
         VStack(spacing: Spacing.md) {
+            // Status and Header
             HStack(spacing: Spacing.xs) {
                 Label {
                     Text(snapshot.status.getDescription())
+                        .fontWeight(.semibold)
                 } icon: {
-                    SwiftUI.Image(systemName: snapshot.status == .running ? "circle.fill" : "circle")
-                        .foregroundStyle(snapshot.status.getColor())
+                    GlowingStatusDot(
+                        color: snapshot.status.getColor(),
+                        isAnimated: snapshot.status == .running
+                    )
                 }
                 .font(.subheadline)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -60,12 +66,17 @@ struct ContainerDetailsInfoView: View {
                 Label("image", systemImage: "photo.fill")
                     .font(.subheadline)
                     .foregroundStyle(Color.accentColor)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .frame(width: 80, alignment: .leading)
+                
+                Spacer()
+                
                 Text(snapshot.configuration.image.reference)
                     .font(.callout)
                     .monospaced()
                     .textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .foregroundStyle(.secondary)
             }
 
             Divider()
@@ -77,6 +88,7 @@ struct ContainerDetailsInfoView: View {
                         .foregroundStyle(Color.accentColor)
                     Text("\(snapshot.configuration.resources.cpus) cores")
                         .font(.callout)
+                        .fontWeight(.medium)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -86,6 +98,7 @@ struct ContainerDetailsInfoView: View {
                         .foregroundStyle(Color.accentColor)
                     Text("\(snapshot.configuration.resources.memoryInBytes / 1024 / 1024 / 1024) GiB")
                         .font(.callout)
+                        .fontWeight(.medium)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -96,8 +109,14 @@ struct ContainerDetailsInfoView: View {
         }
         .padding(Spacing.md)
         .frame(maxWidth: .infinity, alignment: .topLeading)
-        .background(RoundedRectangle(cornerRadius: 12).fill(Color(.gray.withAlphaComponent(0.05))))
-        .glassEffect(in: .rect(cornerRadius: 12))
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color(.windowBackgroundColor).opacity(0.4))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+        )
     }
 
     @ViewBuilder
@@ -107,6 +126,7 @@ struct ContainerDetailsInfoView: View {
             VStack(spacing: Spacing.xs) {
                 Label("ips", systemImage: "network")
                     .font(.subheadline)
+                    .fontWeight(.medium)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .foregroundStyle(Color.accentColor)
                 ForEach(snapshot.networks, id: \.hostname) { network in
@@ -121,6 +141,7 @@ struct ContainerDetailsInfoView: View {
             VStack(spacing: Spacing.xs) {
                 Label("ports", systemImage: "arrow.down.left.topright.rectangle.fill")
                     .font(.subheadline)
+                    .fontWeight(.medium)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .foregroundStyle(Color.accentColor)
                 ForEach(snapshot.configuration.publishedPorts, id: \.containerPort) { publishedPort in
@@ -135,6 +156,7 @@ struct ContainerDetailsInfoView: View {
             VStack(spacing: Spacing.xs) {
                 Label("sockets", systemImage: "arrow.down.left.topright.rectangle.fill")
                     .font(.subheadline)
+                    .fontWeight(.medium)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .foregroundStyle(Color.accentColor)
                 ForEach(snapshot.configuration.publishedSockets, id: \.containerPath) { publishedSocket in
@@ -151,6 +173,7 @@ struct ContainerDetailsInfoView: View {
             VStack(spacing: Spacing.xs) {
                 Label("mounts", systemImage: "internaldrive.fill")
                     .font(.subheadline)
+                    .fontWeight(.medium)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .foregroundStyle(Color.accentColor)
                 ForEach(snapshot.configuration.mounts, id: \.destination) { mount in
@@ -161,7 +184,7 @@ struct ContainerDetailsInfoView: View {
         }
     }
 
-    private var metricsCard: some View {
+    private var metricsDashboard: some View {
         VStack(spacing: Spacing.md) {
             Label("Live Metrics", systemImage: "chart.bar.fill")
                 .font(.title3).fontWeight(.semibold)
@@ -170,39 +193,115 @@ struct ContainerDetailsInfoView: View {
             Divider()
 
             if metrics.isAvailable {
-                if let cpuPercent = metrics.cpuPercent {
-                    MetricRow(icon: "gauge.with.needle.fill", label: "CPU", value: String(format: "%.1f%%", cpuPercent))
+                // Side-by-side Progress Gauges
+                HStack(spacing: Spacing.md) {
+                    let cpuVal = min(max((metrics.cpuPercent ?? 0.0) / 100.0, 0.0), 1.0)
+                    MetricGaugeView(
+                        title: "CPU Usage",
+                        value: cpuVal,
+                        displayString: String(format: "%.1f%%", metrics.cpuPercent ?? 0.0),
+                        color: .green
+                    )
+
+                    let memLimit = max(metrics.memoryLimitBytes ?? 1, 1)
+                    let memUsage = metrics.memoryUsageBytes ?? 0
+                    let memRatio = min(max(Double(memUsage) / Double(memLimit), 0.0), 1.0)
+                    MetricGaugeView(
+                        title: "Memory",
+                        value: memRatio,
+                        displayString: String(format: "%.1f%%", memRatio * 100.0),
+                        color: .blue
+                    )
                 }
 
-                if let memUsage = metrics.memoryUsageBytes {
-                    let memValue: String = {
-                        if let memLimit = metrics.memoryLimitBytes {
-                            return "\(DetailsViewModel.formatBytes(memUsage)) / \(DetailsViewModel.formatBytes(memLimit))"
-                        }
-                        return DetailsViewModel.formatBytes(memUsage)
-                    }()
-                    MetricRow(icon: "memorychip.fill", label: "Memory", value: memValue)
+                // Side-by-side Real-time Sparklines
+                HStack(spacing: Spacing.md) {
+                    // CPU Sparkline
+                    VStack(alignment: .leading, spacing: Spacing.xxs) {
+                        Text("CPU History (Live)")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .foregroundStyle(.secondary)
+                        
+                        SparklineChartView(
+                            data: metrics.cpuHistory,
+                            maxBound: 100.0,
+                            strokeColor: .green
+                        )
+                        .frame(height: 70)
+                        .padding(.top, Spacing.xs)
+                    }
+                    .padding(Spacing.sm)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(Color(.controlBackgroundColor).opacity(0.3))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(Color.primary.opacity(0.05), lineWidth: 1)
+                    )
+
+                    // Memory Sparkline
+                    VStack(alignment: .leading, spacing: Spacing.xxs) {
+                        Text("Memory History (Live)")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .foregroundStyle(.secondary)
+
+                        SparklineChartView(
+                            data: metrics.memHistory,
+                            maxBound: 100.0,
+                            strokeColor: .blue
+                        )
+                        .frame(height: 70)
+                        .padding(.top, Spacing.xs)
+                    }
+                    .padding(Spacing.sm)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(Color(.controlBackgroundColor).opacity(0.3))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(Color.primary.opacity(0.05), lineWidth: 1)
+                    )
                 }
 
-                if let rxBytes = metrics.networkRxBytes {
-                    MetricRow(icon: "arrow.down.circle.fill", label: "Network RX", value: DetailsViewModel.formatBytes(rxBytes))
-                }
+                // Lower Info Grid
+                VStack(spacing: 0) {
+                    if let rxBytes = metrics.networkRxBytes {
+                        MetricRow(icon: "arrow.down.circle.fill", label: "Network RX", value: DetailsViewModel.formatBytes(rxBytes))
+                    }
 
-                if let txBytes = metrics.networkTxBytes {
-                    MetricRow(icon: "arrow.up.circle.fill", label: "Network TX", value: DetailsViewModel.formatBytes(txBytes))
-                }
+                    if let txBytes = metrics.networkTxBytes {
+                        Divider()
+                        MetricRow(icon: "arrow.up.circle.fill", label: "Network TX", value: DetailsViewModel.formatBytes(txBytes))
+                    }
 
-                if let readBytes = metrics.blockReadBytes {
-                    MetricRow(icon: "arrow.down.doc.fill", label: "Block Read", value: DetailsViewModel.formatBytes(readBytes))
-                }
+                    if let readBytes = metrics.blockReadBytes {
+                        Divider()
+                        MetricRow(icon: "arrow.down.doc.fill", label: "Block Read", value: DetailsViewModel.formatBytes(readBytes))
+                    }
 
-                if let writeBytes = metrics.blockWriteBytes {
-                    MetricRow(icon: "arrow.up.doc.fill", label: "Block Write", value: DetailsViewModel.formatBytes(writeBytes))
-                }
+                    if let writeBytes = metrics.blockWriteBytes {
+                        Divider()
+                        MetricRow(icon: "arrow.up.doc.fill", label: "Block Write", value: DetailsViewModel.formatBytes(writeBytes))
+                    }
 
-                if let numProcs = metrics.numProcesses {
-                    MetricRow(icon: "list.number", label: "Processes", value: "\(numProcs)")
+                    if let numProcs = metrics.numProcesses {
+                        Divider()
+                        MetricRow(icon: "list.number", label: "Active Processes", value: "\(numProcs)")
+                    }
                 }
+                .padding(.horizontal, Spacing.sm)
+                .background(
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Color(.controlBackgroundColor).opacity(0.3))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(Color.primary.opacity(0.05), lineWidth: 1)
+                )
             } else {
                 ProgressView()
                     .frame(maxWidth: .infinity, alignment: .center)
@@ -211,7 +310,13 @@ struct ContainerDetailsInfoView: View {
         }
         .padding(Spacing.md)
         .frame(maxWidth: .infinity, alignment: .topLeading)
-        .background(RoundedRectangle(cornerRadius: 12).fill(Color(.gray.withAlphaComponent(0.05))))
-        .glassEffect(in: .rect(cornerRadius: 12))
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color(.windowBackgroundColor).opacity(0.4))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+        )
     }
 }

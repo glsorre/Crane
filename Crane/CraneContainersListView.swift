@@ -52,9 +52,12 @@ struct CraneContainersListView: View {
                         ContainerRowView(container: container)
                     }
                     .buttonStyle(.plain)
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+                    .padding(.vertical, Spacing.xxs)
                 }
                 .listStyle(.inset)
-                .contentMargins(.top, Spacing.lg, for: .scrollContent)
+                .safeAreaPadding(.top, Spacing.lg)
 
                 if listItems.isEmpty {
                     MainListEmptyState(

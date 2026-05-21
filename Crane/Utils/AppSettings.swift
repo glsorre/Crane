@@ -28,6 +28,22 @@ enum AppSettings {
             : defaults.bool(forKey: "launchContainerizationFramework")
     }
 
+    static var hasCompletedOnboarding: Bool {
+        get { defaults.bool(forKey: "hasCompletedOnboarding") }
+        set { defaults.set(newValue, forKey: "hasCompletedOnboarding") }
+    }
+
+    private static func boolDefaultingTrue(_ key: String) -> Bool {
+        defaults.object(forKey: key) == nil ? true : defaults.bool(forKey: key)
+    }
+
+    static var notificationsEnabled: Bool { boolDefaultingTrue("notificationsEnabled") }
+    static var notifyOnContainerExit: Bool { boolDefaultingTrue("notifyOnContainerExit") }
+    static var notifyOnImageFetchDone: Bool { boolDefaultingTrue("notifyOnImageFetchDone") }
+    static var notifyOnImageFetchFailed: Bool { boolDefaultingTrue("notifyOnImageFetchFailed") }
+    static var notifyOnBuildDone: Bool { boolDefaultingTrue("notifyOnBuildDone") }
+    static var notifyOnConnectionLost: Bool { boolDefaultingTrue("notifyOnConnectionLost") }
+
     static var persistentContainerIDs: Set<String> {
         get {
             Set(defaults.stringArray(forKey: "persistentContainerIDs") ?? [])

@@ -31,15 +31,26 @@ struct ConnectionStatusPill: View {
             showDetails.toggle()
         } label: {
             HStack(spacing: Spacing.xs) {
-                Circle()
-                    .fill(color)
-                    .frame(width: 8, height: 8)
+                GlowingStatusDot(
+                    color: color,
+                    isAnimated: tracker.health != .lost
+                )
                 Text(label)
                     .font(.caption)
+                    .fontWeight(.medium)
                     .foregroundStyle(.secondary)
-                Spacer(minLength: 0)
             }
-            .contentShape(Rectangle())
+            .padding(.vertical, Spacing.xxs)
+            .padding(.horizontal, Spacing.sm)
+            .background(
+                Capsule()
+                    .fill(Color(.controlBackgroundColor).opacity(0.38))
+            )
+            .overlay(
+                Capsule()
+                    .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+            )
+            .contentShape(Capsule())
         }
         .buttonStyle(.plain)
         .popover(isPresented: $showDetails, arrowEdge: .trailing) {

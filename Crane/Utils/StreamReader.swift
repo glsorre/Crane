@@ -11,7 +11,7 @@
 
 import Foundation
 
-class StreamReader {
+nonisolated class StreamReader {
     let encoding: String.Encoding
     let chunkSize: Int
 

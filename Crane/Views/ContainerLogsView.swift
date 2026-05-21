@@ -26,8 +26,8 @@ struct ContainerLogsView: View {
 
         VStack(spacing: 0) {
             toolbar(stream: stream)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
+                .padding(.horizontal, Spacing.subsection)
+                .padding(.vertical, Spacing.xs)
                 .background(.bar)
 
             Divider()
@@ -47,8 +47,8 @@ struct ContainerLogsView: View {
 
             Divider()
             statusBar(stream: stream)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 4)
+                .padding(.horizontal, Spacing.subsection)
+                .padding(.vertical, Spacing.xxs)
                 .background(.bar)
         }
         .onChange(of: viewModel.currentHandle) { _, newValue in
@@ -158,15 +158,15 @@ struct ContainerLogsView: View {
                 .buttonStyle(.plain)
             }
         }
-        .padding(.horizontal, 6)
-        .padding(.vertical, 3)
+        .padding(.horizontal, Spacing.sm)
+        .padding(.vertical, Spacing.xs)
         .background(
-            RoundedRectangle(cornerRadius: 5)
-                .fill(Color(nsColor: .textBackgroundColor))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 5)
-                        .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 0.5)
-                )
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color(NSColor.controlBackgroundColor))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color(NSColor.separatorColor), lineWidth: 0.5)
         )
         .frame(maxWidth: 260)
     }
@@ -300,8 +300,8 @@ struct ContainerLogsView: View {
             Label(String(localized: "logsJumpToLatest"), systemImage: "chevron.down")
                 .labelStyle(.titleAndIcon)
                 .font(.caption.bold())
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
+                .padding(.horizontal, Spacing.subsection)
+                .padding(.vertical, Spacing.xs)
                 .background(.regularMaterial, in: Capsule())
                 .overlay(Capsule().strokeBorder(Color(nsColor: .separatorColor), lineWidth: 0.5))
                 .shadow(color: .black.opacity(0.15), radius: 4, y: 2)

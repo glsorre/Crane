@@ -6,6 +6,30 @@ import ContainerResource
 import Observation
 import SwiftUI
 
+enum RunFocusField: Hashable {
+    case name
+    case executable
+    case arguments
+    case environment
+    case workingDirectory
+    case user
+    
+    case portHostPort(UUID)
+    case portContainerPort(UUID)
+    
+    case mountSource(UUID)
+    case mountDestination(UUID)
+    
+    case socketHost(UUID)
+    case socketContainer(UUID)
+    
+    case labelKey(UUID)
+    case labelValue(UUID)
+    
+    case sysctlKey(UUID)
+    case sysctlValue(UUID)
+}
+
 struct ContainerRunView: View {
     @Binding var isPresented: Bool
     var initialImageID: String?
@@ -17,6 +41,8 @@ struct ContainerRunView: View {
     private var volumesStore: VolumesStore { stores.volumes }
     @State private var advancedExpanded = false
     @State private var expertExpanded = false
+
+    @FocusState private var focusedField: RunFocusField?
 
     init(isPresented: Binding<Bool>, initialImageID: String? = nil, stores: CraneStores) {
         self._isPresented = isPresented
@@ -53,12 +79,16 @@ struct ContainerRunView: View {
                 Section("Basics") {
                     ContainerRunBasicsSection(
                         viewModel: viewModel,
-                        availableImages: availableImages
+                        availableImages: availableImages,
+                        focusedField: $focusedField
                     )
                 }
 
                 Section("Command & Environment") {
-                    ContainerRunCommandSection(viewModel: viewModel)
+                    ContainerRunCommandSection(
+                        viewModel: viewModel,
+                        focusedField: $focusedField
+                    )
                 }
 
                 Section("Network") {
@@ -69,26 +99,34 @@ struct ContainerRunView: View {
                 }
 
                 Section("Ports") {
-                    ContainerRunPortsSection(viewModel: viewModel)
+                    ContainerRunPortsSection(
+                        viewModel: viewModel,
+                        focusedField: $focusedField
+                    )
                 }
 
                 Section("Storage") {
                     ContainerRunStorageSection(
                         viewModel: viewModel,
-                        availableVolumes: availableVolumes
+                        availableVolumes: availableVolumes,
+                        focusedField: $focusedField
                     )
                 }
 
                 Section {
                     DisclosureGroup("Advanced", isExpanded: $advancedExpanded) {
-                        ContainerRunAdvancedSection(viewModel: viewModel)
-                            .padding(.top, Spacing.subsection)
+                        ContainerRunAdvancedSection(
+                            viewModel: viewModel,
+                            focusedField: $focusedField
+                        )
+                        .padding(.top, Spacing.subsection)
                     }
 
                     DisclosureGroup("Expert", isExpanded: $expertExpanded) {
                         ContainerRunExpertSection(
                             viewModel: viewModel,
-                            availableVolumes: availableVolumes
+                            availableVolumes: availableVolumes,
+                            focusedField: $focusedField
                         )
                         .padding(.top, Spacing.subsection)
                     }
@@ -102,6 +140,7 @@ struct ContainerRunView: View {
                 initialImageID: initialImageID,
                 fallbackImageID: availableImages.first?.id
             )
+            focusedField = .name
         }
         .onChange(of: availableImages.map(\.id)) {
             viewModel.bootstrapSelection(
@@ -115,6 +154,7 @@ struct ContainerRunView: View {
 private struct ContainerRunBasicsSection: View {
     @Bindable var viewModel: RunContainerViewModel
     let availableImages: [Image]
+    var focusedField: FocusState<RunFocusField?>.Binding
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.subsection) {
@@ -130,7 +170,9 @@ private struct ContainerRunBasicsSection: View {
                 }
             }
 
-            TextField("Name", text: nameBinding)
+            TextField("Name", text: nameBinding, prompt: Text("Name"))
+                .focused(focusedField, equals: .name)
+                .premiumTextFieldStyle(isError: viewModel.nameValidationMessage != nil)
 
             Toggle("Keep container after exit", isOn: keepAfterExitBinding)
 
@@ -167,6 +209,7 @@ private struct ContainerRunBasicsSection: View {
 
 private struct ContainerRunCommandSection: View {
     @Bindable var viewModel: RunContainerViewModel
+    var focusedField: FocusState<RunFocusField?>.Binding
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.subsection) {
@@ -194,13 +237,19 @@ private struct ContainerRunCommandSection: View {
                 }
 
                 if !viewModel.useImageDefaultCommand || !viewModel.availableImageHasDefaultCommand {
-                    TextField("Executable", text: executableBinding)
-                    TextField("Arguments", text: argumentsBinding)
+                    TextField("Executable", text: executableBinding, prompt: Text("Executable"))
+                        .focused(focusedField, equals: .executable)
+                        .premiumTextFieldStyle(isError: viewModel.commandValidationMessage != nil)
+                    TextField("Arguments", text: argumentsBinding, prompt: Text("Arguments"))
+                        .focused(focusedField, equals: .arguments)
+                        .premiumTextFieldStyle()
                 }
             }
 
-            TextField("Environment (one KEY=value per line)", text: environmentBinding, axis: .vertical)
+            TextField("Environment (one KEY=value per line)", text: environmentBinding, prompt: Text("Environment (one KEY=value per line)"), axis: .vertical)
                 .lineLimit(4...8)
+                .focused(focusedField, equals: .environment)
+                .premiumTextFieldStyle(isError: viewModel.environmentValidationMessage != nil)
 
             if let message = viewModel.commandValidationMessage {
                 InlineErrorText(message: message)
@@ -264,6 +313,7 @@ private struct ContainerRunNetworkSection: View {
 
 private struct ContainerRunPortsSection: View {
     @Bindable var viewModel: RunContainerViewModel
+    var focusedField: FocusState<RunFocusField?>.Binding
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.subsection) {
@@ -277,12 +327,14 @@ private struct ContainerRunPortsSection: View {
                     port: portBinding(for: port.id),
                     onRemove: {
                         viewModel.ports.removeAll { $0.id == port.id }
-                    }
+                    },
+                    focusedField: focusedField
                 )
             }
 
             Button {
-                viewModel.addPort()
+                let id = viewModel.addPort()
+                focusedField.wrappedValue = .portHostPort(id)
             } label: {
                 Label("Add port", systemImage: "plus")
             }
@@ -310,6 +362,7 @@ private struct ContainerRunPortsSection: View {
 private struct ContainerRunStorageSection: View {
     @Bindable var viewModel: RunContainerViewModel
     let availableVolumes: [CraneVolume]
+    var focusedField: FocusState<RunFocusField?>.Binding
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.subsection) {
@@ -324,20 +377,23 @@ private struct ContainerRunStorageSection: View {
                     availableVolumes: availableVolumes,
                     onRemove: {
                         viewModel.mounts.removeAll { $0.id == mount.id }
-                    }
+                    },
+                    focusedField: focusedField
                 )
             }
 
             HStack(spacing: Spacing.subsection) {
                 Button {
-                    viewModel.addBindMount()
+                    let id = viewModel.addBindMount()
+                    focusedField.wrappedValue = .mountSource(id)
                 } label: {
                     Label("Add folder", systemImage: "folder.badge.plus")
                 }
                 .buttonStyle(.borderless)
 
                 Button {
-                    viewModel.addVolumeMount()
+                    let id = viewModel.addVolumeMount()
+                    focusedField.wrappedValue = .mountDestination(id)
                 } label: {
                     Label("Add volume", systemImage: "externaldrive.badge.plus")
                 }
@@ -372,11 +428,16 @@ private struct ContainerRunStorageSection: View {
 
 private struct ContainerRunAdvancedSection: View {
     @Bindable var viewModel: RunContainerViewModel
+    var focusedField: FocusState<RunFocusField?>.Binding
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.subsection) {
-            TextField("Working directory", text: workingDirectoryBinding)
-            TextField("User", text: userBinding)
+            TextField("Working directory", text: workingDirectoryBinding, prompt: Text("Working directory"))
+                .focused(focusedField, equals: .workingDirectory)
+                .premiumTextFieldStyle()
+            TextField("User", text: userBinding, prompt: Text("User"))
+                .focused(focusedField, equals: .user)
+                .premiumTextFieldStyle()
             Toggle("Allocate TTY", isOn: $viewModel.terminal)
             Toggle("Read-only root filesystem", isOn: $viewModel.readOnly)
             Stepper("runContainerCPUs: \(viewModel.cpus)", value: $viewModel.cpus, in: 1...32)
@@ -403,6 +464,7 @@ private struct ContainerRunAdvancedSection: View {
 private struct ContainerRunExpertSection: View {
     @Bindable var viewModel: RunContainerViewModel
     let availableVolumes: [CraneVolume]
+    var focusedField: FocusState<RunFocusField?>.Binding
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
@@ -410,7 +472,8 @@ private struct ContainerRunExpertSection: View {
                 Text("Extra mounts")
                     .font(.headline)
                 Button {
-                    viewModel.addTmpfsMount()
+                    let id = viewModel.addTmpfsMount()
+                    focusedField.wrappedValue = .mountDestination(id)
                 } label: {
                     Label("Add tmpfs mount", systemImage: "plus")
                 }
@@ -434,12 +497,14 @@ private struct ContainerRunExpertSection: View {
                         socket: socketBinding(for: socket.id),
                         onRemove: {
                             viewModel.sockets.removeAll { $0.id == socket.id }
-                        }
+                        },
+                        focusedField: focusedField
                     )
                 }
 
                 Button {
-                    viewModel.addSocket()
+                    let id = viewModel.addSocket()
+                    focusedField.wrappedValue = .socketHost(id)
                 } label: {
                     Label("Add socket", systemImage: "plus")
                 }
@@ -456,7 +521,13 @@ private struct ContainerRunExpertSection: View {
             VStack(alignment: .leading, spacing: Spacing.subsection) {
                 Text("Labels")
                     .font(.headline)
-                KeyValueListEditor(entries: $viewModel.labels, addLabel: "Add label")
+                KeyValueListEditor(
+                    entries: $viewModel.labels,
+                    addLabel: "Add label",
+                    focusedField: focusedField,
+                    keyFieldConstructor: { .labelKey($0) },
+                    valueFieldConstructor: { .labelValue($0) }
+                )
             }
 
             Divider()
@@ -465,7 +536,13 @@ private struct ContainerRunExpertSection: View {
             VStack(alignment: .leading, spacing: Spacing.subsection) {
                 Text("Sysctls")
                     .font(.headline)
-                KeyValueListEditor(entries: $viewModel.sysctls, addLabel: "Add sysctl")
+                KeyValueListEditor(
+                    entries: $viewModel.sysctls,
+                    addLabel: "Add sysctl",
+                    focusedField: focusedField,
+                    keyFieldConstructor: { .sysctlKey($0) },
+                    valueFieldConstructor: { .sysctlValue($0) }
+                )
             }
 
             Divider()
@@ -474,10 +551,14 @@ private struct ContainerRunExpertSection: View {
             VStack(alignment: .leading, spacing: Spacing.subsection) {
                 Text("DNS")
                     .font(.headline)
-                TextField("Nameservers (comma-separated)", text: $viewModel.dnsNameservers)
-                TextField("Domain", text: $viewModel.dnsDomain)
-                TextField("Search domains (comma-separated)", text: $viewModel.dnsSearchDomains)
-                TextField("Options (comma-separated)", text: $viewModel.dnsOptions)
+                TextField("Nameservers (comma-separated)", text: $viewModel.dnsNameservers, prompt: Text("Nameservers (comma-separated)"))
+                    .premiumTextFieldStyle()
+                TextField("Domain", text: $viewModel.dnsDomain, prompt: Text("Domain"))
+                    .premiumTextFieldStyle()
+                TextField("Search domains (comma-separated)", text: $viewModel.dnsSearchDomains, prompt: Text("Search domains (comma-separated)"))
+                    .premiumTextFieldStyle()
+                TextField("Options (comma-separated)", text: $viewModel.dnsOptions, prompt: Text("Options (comma-separated)"))
+                    .premiumTextFieldStyle()
             }
 
             Divider()
@@ -509,15 +590,18 @@ private struct ContainerRunExpertSection: View {
 private struct PortRowEditor: View {
     @Binding var port: PortEntry
     let onRemove: () -> Void
+    var focusedField: FocusState<RunFocusField?>.Binding
 
     var body: some View {
         HStack(spacing: Spacing.subsection) {
-            TextField("Host", text: $port.hostPort)
-                .textFieldStyle(.plain)
+            TextField("Host", text: $port.hostPort, prompt: Text("Host"))
+                .focused(focusedField, equals: .portHostPort(port.id))
+                .premiumTextFieldStyle()
                 .frame(maxWidth: .infinity)
             Text(":")
-            TextField("Container", text: $port.containerPort)
-                .textFieldStyle(.plain)
+            TextField("Container", text: $port.containerPort, prompt: Text("Container"))
+                .focused(focusedField, equals: .portContainerPort(port.id))
+                .premiumTextFieldStyle()
                 .frame(maxWidth: .infinity)
             Picker("", selection: $port.proto) {
                 Text("TCP").tag(PublishProtocol.tcp)
@@ -539,6 +623,7 @@ private struct MountRowEditor: View {
     @Binding var mount: MountEntry
     let availableVolumes: [CraneVolume]
     let onRemove: () -> Void
+    var focusedField: FocusState<RunFocusField?>.Binding
 
     var body: some View {
         HStack(spacing: Spacing.subsection) {
@@ -549,8 +634,9 @@ private struct MountRowEditor: View {
 
             switch mount.type {
             case .bind:
-                TextField("Host folder", text: $mount.source)
-                    .textFieldStyle(.plain)
+                TextField("Host folder", text: $mount.source, prompt: Text("Host folder"))
+                    .focused(focusedField, equals: .mountSource(mount.id))
+                    .premiumTextFieldStyle()
                     .frame(maxWidth: .infinity)
             case .volume:
                 Picker("Volume", selection: $mount.source) {
@@ -565,8 +651,9 @@ private struct MountRowEditor: View {
                 EmptyView()
             }
 
-            TextField("Destination", text: $mount.destination)
-                .textFieldStyle(.plain)
+            TextField("Destination", text: $mount.destination, prompt: Text("Destination"))
+                .focused(focusedField, equals: .mountDestination(mount.id))
+                .premiumTextFieldStyle()
                 .frame(maxWidth: .infinity)
 
             if mount.type != .tmpfs {
@@ -603,14 +690,17 @@ private struct MountRowEditor: View {
 private struct SocketRowEditor: View {
     @Binding var socket: SocketEntry
     let onRemove: () -> Void
+    var focusedField: FocusState<RunFocusField?>.Binding
 
     var body: some View {
         HStack(spacing: Spacing.subsection) {
-            TextField("Host path", text: $socket.hostPath)
-                .textFieldStyle(.plain)
+            TextField("Host path", text: $socket.hostPath, prompt: Text("Host path"))
+                .focused(focusedField, equals: .socketHost(socket.id))
+                .premiumTextFieldStyle()
                 .frame(maxWidth: .infinity)
-            TextField("Container path", text: $socket.containerPath)
-                .textFieldStyle(.plain)
+            TextField("Container path", text: $socket.containerPath, prompt: Text("Container path"))
+                .focused(focusedField, equals: .socketContainer(socket.id))
+                .premiumTextFieldStyle()
                 .frame(maxWidth: .infinity)
             Button(action: onRemove) {
                 SwiftUI.Image(systemName: "minus.circle.fill")

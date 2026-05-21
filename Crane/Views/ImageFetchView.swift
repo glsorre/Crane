@@ -12,6 +12,7 @@ struct ImageFetchView: View {
     @Environment(\.craneStores) private var stores
     private var imagesStore: ImagesStore { stores.images }
     @State private var reference: String = ""
+    @FocusState private var isReferenceFocused: Bool
 
     private var trimmedReference: String {
         reference.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -57,8 +58,12 @@ struct ImageFetchView: View {
             content: {
                 Section(String(localized: "fetchImageUrl")) {
                     VStack(alignment: .leading, spacing: Spacing.subsection) {
-                        TextField(String(localized: "fetchImageUrl"), text: $reference)
+                        TextField(String(localized: "fetchImageUrl"), text: $reference, prompt: Text(String(localized: "fetchImageUrl")))
                             .font(.system(.body, design: .monospaced))
+                            .focused($isReferenceFocused)
+                            .premiumTextFieldStyle(
+                                isError: referenceInvalidMessage != nil
+                            )
 
                         Text(String(localized: "fetchImageHelper"))
                             .font(.caption)
@@ -88,5 +93,8 @@ struct ImageFetchView: View {
         )
         .frame(width: 520, height: 420)
         .padding(Spacing.md)
+        .onAppear {
+            isReferenceFocused = true
+        }
     }
 }

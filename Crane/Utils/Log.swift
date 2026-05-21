@@ -6,7 +6,7 @@
 import Foundation
 import os.log
 
-enum Log {
+nonisolated enum Log {
     static let subsystem: String = Bundle.main.bundleIdentifier ?? "me.rightright.RightCrane"
 
     static let launch = Logger(subsystem: subsystem, category: "Launch")

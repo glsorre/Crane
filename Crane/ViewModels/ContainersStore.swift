@@ -250,6 +250,11 @@ class ContainersStore {
             } else {
                 containers.remove(container)
             }
+            NotificationsManager.post(
+                .containerExited,
+                title: String(localized: "notifyContainerExitedTitle"),
+                body: String(localized: "notifyContainerExitedBody \(container.id)")
+            )
         }
 
         let newIDs = Set(containers.map { $0.id })
@@ -271,7 +276,7 @@ class ContainersStore {
             try await container.start()
         } catch {
             Log.containers.error("startContainer(\(id)) failed: \(error.localizedDescription, privacy: .public)")
-            await onError(.containerStartFailed(underlying: error))
+            onError(.containerStartFailed(underlying: error))
         }
     }
 
@@ -281,7 +286,7 @@ class ContainersStore {
             try await container.stop()
         } catch {
             Log.containers.error("stopContainer(\(id)) failed: \(error.localizedDescription, privacy: .public)")
-            await onError(.containerStopFailed(underlying: error))
+            onError(.containerStopFailed(underlying: error))
         }
     }
 
@@ -291,7 +296,7 @@ class ContainersStore {
             try await container.restart()
         } catch {
             Log.containers.error("restartContainer(\(id)) failed: \(error.localizedDescription, privacy: .public)")
-            await onError(.containerRestartFailed(underlying: error))
+            onError(.containerRestartFailed(underlying: error))
         }
     }
 
@@ -322,7 +327,7 @@ class ContainersStore {
             containers.remove(container)
         } catch {
             Log.containers.error("removeContainer(\(id)) failed: \(error.localizedDescription, privacy: .public)")
-            await onError(.containerRemoveFailed(underlying: error))
+            onError(.containerRemoveFailed(underlying: error))
         }
     }
 }

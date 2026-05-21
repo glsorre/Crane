@@ -200,10 +200,20 @@ class ImagesStore {
                 image.status = .available
                 images.update(with: image)
                 CraneMutationBus.postImageMutated()
+                NotificationsManager.post(
+                    .imageFetchDone,
+                    title: String(localized: "notifyImageFetchDoneTitle"),
+                    body: String(localized: "notifyImageFetchDoneBody \(normalizedReference)")
+                )
             } catch {
                 images.remove(image)
                 Log.images.error("fetchImage failed for \(normalizedReference): \(error.localizedDescription, privacy: .public)")
-                await onError(.imageFetchFailed(underlying: error))
+                NotificationsManager.post(
+                    .imageFetchFailed,
+                    title: String(localized: "notifyImageFetchFailedTitle"),
+                    body: String(localized: "notifyImageFetchFailedBody \(normalizedReference) \(error.localizedDescription)")
+                )
+                onError(.imageFetchFailed(underlying: error))
             }
         }
     }

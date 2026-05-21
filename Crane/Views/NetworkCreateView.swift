@@ -10,6 +10,7 @@ struct NetworkCreateView: View {
     @Environment(\.craneStores) private var stores
     private var networksStore: NetworksStore { stores.networks }
     @State private var networkID: String = ""
+    @FocusState private var isNameFocused: Bool
 
     private var trimmedID: String {
         networkID.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -54,8 +55,12 @@ struct NetworkCreateView: View {
             content: {
                 Section(String(localized: "Network")) {
                     VStack(alignment: .leading, spacing: Spacing.subsection) {
-                        TextField(String(localized: "networkToCreateName"), text: $networkID)
+                        TextField(String(localized: "networkToCreateName"), text: $networkID, prompt: Text(String(localized: "networkToCreateName")))
                             .font(.system(.body, design: .monospaced))
+                            .focused($isNameFocused)
+                            .premiumTextFieldStyle(
+                                isError: invalidCharactersMessage != nil || duplicateMessage != nil
+                            )
 
                         Text(String(localized: "networkCreateHelper"))
                             .font(.caption)
@@ -92,5 +97,8 @@ struct NetworkCreateView: View {
         )
         .frame(width: 520, height: 480)
         .padding(Spacing.md)
+        .onAppear {
+            isNameFocused = true
+        }
     }
 }
