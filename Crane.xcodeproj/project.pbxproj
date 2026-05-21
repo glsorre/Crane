@@ -14,6 +14,7 @@
 		1A36E7852EC504C00067D8B3 /* ContainerVersion in Frameworks */ = {isa = PBXBuildFile; productRef = 1A36E7842EC504C00067D8B3 /* ContainerVersion */; };
 		1A36E7872EC504C00067D8B3 /* ContainerXPC in Frameworks */ = {isa = PBXBuildFile; productRef = 1A36E7862EC504C00067D8B3 /* ContainerXPC */; };
 		1A36E7892EC504C00067D8B3 /* SocketForwarder in Frameworks */ = {isa = PBXBuildFile; productRef = 1A36E7882EC504C00067D8B3 /* SocketForwarder */; };
+		1A95697F2FBF661300297D31 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 1A95696F2FBF661300297D31 /* Sparkle */; };
 		1AB8D2912EBE73DB00421B16 /* ContainerAPIService in Frameworks */ = {isa = PBXBuildFile; productRef = 1AB8D2902EBE73DB00421B16 /* ContainerAPIService */; };
 		1AB8D2932EBE73DB00421B16 /* ContainerBuild in Frameworks */ = {isa = PBXBuildFile; productRef = 1AB8D2922EBE73DB00421B16 /* ContainerBuild */; };
 		1AB8D2952EBE73DB00421B16 /* ContainerAPIClient in Frameworks */ = {isa = PBXBuildFile; productRef = 1AB8D2942EBE73DB00421B16 /* ContainerAPIClient */; };
@@ -72,6 +73,7 @@
 				1AB8D2992EBE73DB00421B16 /* ContainerImagesService in Frameworks */,
 				1A0BD0032F0E800000000003 /* Highlightr in Frameworks */,
 				1AC0E1012F00000000000001 /* TerminalProgress in Frameworks */,
+				1A95697F2FBF661300297D31 /* Sparkle in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -113,6 +115,7 @@
 				1AB8D27C2EBE72D200421B16 /* Sources */,
 				1AB8D27D2EBE72D200421B16 /* Frameworks */,
 				1AB8D27E2EBE72D200421B16 /* Resources */,
+				1A95698F2FBF661300297D31 /* Inject Sparkle Info.plist keys */,
 			);
 			buildRules = (
 			);
@@ -138,6 +141,7 @@
 				1A36E7882EC504C00067D8B3 /* SocketForwarder */,
 				1A0BD0022F0E800000000002 /* Highlightr */,
 				1AC0E1022F00000000000001 /* TerminalProgress */,
+				1A95696F2FBF661300297D31 /* Sparkle */,
 			);
 			productName = Crane;
 			productReference = 1AB8D2802EBE72D200421B16 /* Right Crane.app */;
@@ -197,6 +201,7 @@
 				1AF136B22EC4DE8800FDF4AC /* XCRemoteSwiftPackageReference "LaunchAtLogin-Modern" */,
 				1A04D5BA2ECB621F00787F31 /* XCRemoteSwiftPackageReference "swift-argument-parser" */,
 				1A0BD0012F0E800000000001 /* XCRemoteSwiftPackageReference "Highlightr" */,
+				1A9569702FBF661300297D31 /* XCRemoteSwiftPackageReference "Sparkle" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 1AB8D2812EBE72D200421B16 /* Products */;
@@ -225,6 +230,29 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		1A95698F2FBF661300297D31 /* Inject Sparkle Info.plist keys */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Inject Sparkle Info.plist keys";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/bash;
+			shellScript = "set -euo pipefail\nPLIST=\"${TARGET_BUILD_DIR}/${INFOPLIST_PATH}\"\nFEED_URL=\"https://github.com/glsorre/Crane/releases/latest/download/appcast.xml\"\nED_KEY=\"TctDbSX8tgspDkG1PlQCLjWWQXRXMogHKWpuyoefuzQ=\"\n/usr/libexec/PlistBuddy -c \"Set :SUFeedURL ${FEED_URL}\" \"${PLIST}\" 2>/dev/null \\\n    || /usr/libexec/PlistBuddy -c \"Add :SUFeedURL string ${FEED_URL}\" \"${PLIST}\"\n/usr/libexec/PlistBuddy -c \"Set :SUPublicEDKey ${ED_KEY}\" \"${PLIST}\" 2>/dev/null \\\n    || /usr/libexec/PlistBuddy -c \"Add :SUPublicEDKey string ${ED_KEY}\" \"${PLIST}\"\necho \"Injected Sparkle keys into ${PLIST}\"\n";
+			showEnvVarsInLog = 0;
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		1AB8D27C2EBE72D200421B16 /* Sources */ = {
@@ -408,6 +436,7 @@
 				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
 				ENABLE_RESOURCE_ACCESS_PRINTING = NO;
 				ENABLE_RESOURCE_ACCESS_USB = NO;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				"EXCLUDED_ARCHS[sdk=macosx*]" = x86_64;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
@@ -459,6 +488,7 @@
 				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
 				ENABLE_RESOURCE_ACCESS_PRINTING = NO;
 				ENABLE_RESOURCE_ACCESS_USB = NO;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				"EXCLUDED_ARCHS[sdk=macosx*]" = x86_64;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
@@ -583,6 +613,14 @@
 				kind = branch;
 			};
 		};
+		1A9569702FBF661300297D31 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.9.2;
+			};
+		};
 		1AB8D28F2EBE73DB00421B16 /* XCRemoteSwiftPackageReference "container" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/apple/container";
@@ -636,6 +674,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 1AB8D28F2EBE73DB00421B16 /* XCRemoteSwiftPackageReference "container" */;
 			productName = SocketForwarder;
+		};
+		1A95696F2FBF661300297D31 /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1A9569702FBF661300297D31 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
 		};
 		1AB8D2902EBE73DB00421B16 /* ContainerAPIService */ = {
 			isa = XCSwiftPackageProductDependency;

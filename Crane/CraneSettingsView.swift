@@ -21,6 +21,8 @@ struct CraneSettingsView: View {
     @AppStorage("notifyOnBuildDone") private var notifyOnBuildDone: Bool = true
     @AppStorage("notifyOnConnectionLost") private var notifyOnConnectionLost: Bool = true
 
+    @EnvironmentObject private var updaterModel: UpdaterModel
+
     var body: some View {
         Form {
             Section("general") {
@@ -50,6 +52,15 @@ struct CraneSettingsView: View {
                 Toggle("notifyOnConnectionLost", isOn: $notifyOnConnectionLost)
                     .disabled(!notificationsEnabled)
             }
+            Section("updates") {
+                Toggle("automaticallyCheckForUpdates", isOn: $updaterModel.automaticallyChecksForUpdates)
+                Toggle("automaticallyDownloadUpdates", isOn: $updaterModel.automaticallyDownloadsUpdates)
+                    .disabled(!updaterModel.automaticallyChecksForUpdates)
+                Button("checkForUpdatesNow") {
+                    updaterModel.checkForUpdates()
+                }
+                .disabled(!updaterModel.canCheckForUpdates)
+            }
             Section("setup") {
                 Button("runSetupAgain") {
                     AppSettings.hasCompletedOnboarding = false
@@ -61,8 +72,4 @@ struct CraneSettingsView: View {
         .frame(minWidth: 420, minHeight: 480)
         .padding(Spacing.sm)
     }
-}
-
-#Preview {
-    CraneSettingsView()
 }
