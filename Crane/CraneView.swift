@@ -33,6 +33,8 @@ struct CraneView: View {
     private var volumesStore: VolumesStore { stores.volumes }
     @State private var launchPhase: LaunchPhase = .idle
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
+    @State private var onboardingViewModel: OnboardingViewModel = OnboardingViewModel()
+    @State private var showOnboarding: Bool = !AppSettings.hasCompletedOnboarding
 
     private var selectedTabBinding: Binding<CraneTab?> {
         Binding(
@@ -123,6 +125,9 @@ struct CraneView: View {
         .alert(String(localized: "craneError"), isPresented: Binding(get: { appViewModel.errorShow }, set: { appViewModel.errorShow = $0 }))
         {
             if appViewModel.error?.fatal == true {
+                Button("retry") {
+                    Task { await runLaunchSequence() }
+                }
                 Button("quit", role: .destructive) { exit(1) }
             } else {
                 Button("refresh") {
@@ -148,7 +153,20 @@ struct CraneView: View {
             }
         }
         .onAppear {
-            Task { await runLaunchSequence() }
+            if !showOnboarding {
+                Task { await runLaunchSequence() }
+            }
+        }
+        .sheet(isPresented: $showOnboarding) {
+            OnboardingView(viewModel: onboardingViewModel) {
+                showOnboarding = false
+                Task { await runLaunchSequence() }
+            }
+            .interactiveDismissDisabled(true)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .craneRunOnboardingAgain)) { _ in
+            onboardingViewModel = OnboardingViewModel()
+            showOnboarding = true
         }
         .onChange(of: scenePhase, initial: true) { _, newPhase in
             let visible = newPhase == .active
@@ -256,6 +274,10 @@ private struct LaunchErrorMessage: View {
                     Text(pingError)
                         .font(.system(.caption, design: .monospaced))
                         .textSelection(.enabled)
+                }
+                if diagnostic.cliPath == nil && !diagnostic.plistFound {
+                    Link("installContainerCLI",
+                         destination: URL(string: "https://github.com/apple/container")!)
                 }
             }
         } else {

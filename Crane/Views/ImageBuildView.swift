@@ -21,6 +21,8 @@ struct ImageBuildView: View {
     @State private var contextFolderHasSecurityScopedAccess = false
     @State private var dockerfileRelativePath: String = "Dockerfile"
     @State private var showFolderImporter = false
+    @State private var showDockerfileImporter = false
+    @FocusState private var isTagFocused: Bool
 
     private enum BuildSourceMode: String, CaseIterable, Identifiable, Equatable {
         case paste
@@ -146,8 +148,12 @@ struct ImageBuildView: View {
 
                 Section(String(localized: "imageTag")) {
                     VStack(alignment: .leading, spacing: Spacing.subsection) {
-                        TextField(String(localized: "imageTag"), text: $tag)
+                        TextField(String(localized: "imageTag"), text: $tag, prompt: Text(String(localized: "imageTag")))
                             .font(.system(.body, design: .monospaced))
+                            .focused($isTagFocused)
+                            .premiumTextFieldStyle(
+                                isError: tagEmptyValidationMessage != nil || tagInvalidValidationMessage != nil
+                            )
 
                         if let message = tagEmptyValidationMessage {
                             InlineErrorText(message: message)
@@ -214,8 +220,17 @@ struct ImageBuildView: View {
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
 
-                            TextField("Dockerfile", text: $dockerfileRelativePath)
-                                .font(.system(.body, design: .monospaced))
+                            HStack(alignment: .center, spacing: Spacing.sm) {
+                                Button(String(localized: "imageBuildChooseDockerfile")) {
+                                    showDockerfileImporter = true
+                                }
+                                .buttonStyle(.bordered)
+
+                                Text(dockerfileRelativePath)
+                                    .font(.system(.body, design: .monospaced))
+                                    .foregroundStyle(.secondary)
+                                    .textSelection(.enabled)
+                            }
                         }
                         .padding(.vertical, Spacing.sm)
                     }
@@ -256,6 +271,7 @@ struct ImageBuildView: View {
                 } else if case .success = buildViewModel.status {
                     buildViewModel.dismissTerminalStatus()
                 }
+                isTagFocused = true
             } else {
                 if buildViewModel.rosettaInstallerAlertPresented {
                     buildViewModel.resolveRosettaInstallerPrompt(.cancel)
@@ -263,6 +279,9 @@ struct ImageBuildView: View {
                 stopSecurityScopedAccessForContextFolder()
                 contextFolderURL = nil
             }
+        }
+        .onAppear {
+            isTagFocused = true
         }
         .onDisappear {
             stopSecurityScopedAccessForContextFolder()
@@ -282,12 +301,58 @@ struct ImageBuildView: View {
                 break
             }
         }
+        .fileImporter(
+            isPresented: $showDockerfileImporter,
+            allowedContentTypes: [.item],
+            allowsMultipleSelection: false
+        ) { result in
+            switch result {
+            case .success(let urls):
+                guard let url = urls.first else { return }
+                handleDockerfileSelected(url)
+            case .failure:
+                break
+            }
+        }
     }
 
     private func stopSecurityScopedAccessForContextFolder() {
         guard contextFolderHasSecurityScopedAccess, let url = contextFolderURL else { return }
         url.stopAccessingSecurityScopedResource()
         contextFolderHasSecurityScopedAccess = false
+    }
+
+    private func handleDockerfileSelected(_ fileURL: URL) {
+        let isSecurityScoped = fileURL.startAccessingSecurityScopedResource()
+        defer {
+            if isSecurityScoped {
+                fileURL.stopAccessingSecurityScopedResource()
+            }
+        }
+
+        if let contextURL = contextFolderURL {
+            let contextPath = contextURL.standardized.path
+            let filePath = fileURL.standardized.path
+
+            if filePath.hasPrefix(contextPath) {
+                // The file is inside the current context directory.
+                // Strip the prefix.
+                var relative = String(filePath.dropFirst(contextPath.count))
+                if relative.hasPrefix("/") {
+                    relative.removeFirst()
+                }
+                dockerfileRelativePath = relative
+                return
+            }
+        }
+
+        // If no context directory is selected, or if the selected file is outside the current context directory:
+        // Set the context directory to the file's parent directory and set the relative path to the filename.
+        stopSecurityScopedAccessForContextFolder()
+        let parentURL = fileURL.deletingLastPathComponent()
+        contextFolderURL = parentURL
+        dockerfileRelativePath = fileURL.lastPathComponent
+        contextFolderHasSecurityScopedAccess = parentURL.startAccessingSecurityScopedResource()
     }
 }
 

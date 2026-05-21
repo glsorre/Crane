@@ -17,9 +17,10 @@ struct ContainerRowView: View {
             title: container.id,
             subtitle: metadataSummary,
             leading: {
-                Circle()
-                    .fill(container.isExited ? .secondary : container.snapshot.status.getColor())
-                    .frame(width: 8, height: 8)
+                GlowingStatusDot(
+                    color: container.isExited ? .secondary : container.snapshot.status.getColor(),
+                    isAnimated: !container.isExited && container.snapshot.status == .running
+                )
             },
             trailing: {
                 ContainerActionsView(id: container.id)

@@ -177,7 +177,7 @@ class VolumesStore {
                 endPendingDeletion(volume.id)
                 volume.transiting = false
                 Log.volumes.error("prune delete failed for \(volume.id): \(error.localizedDescription, privacy: .public)")
-                await onError(.volumeRemoveFailed(underlying: error))
+                onError(.volumeRemoveFailed(underlying: error))
             }
         }
         CraneMutationBus.postVolumeMutated()
@@ -194,7 +194,7 @@ class VolumesStore {
             endPendingDeletion(volume.id)
             volume.transiting = false
             Log.volumes.error("removeVolume(\(name)) failed: \(error.localizedDescription, privacy: .public)")
-            await onError(.volumeRemoveFailed(underlying: error))
+            onError(.volumeRemoveFailed(underlying: error))
         }
         CraneMutationBus.postVolumeMutated()
     }

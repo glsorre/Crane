@@ -5,6 +5,10 @@
 
 import SwiftUI
 
+#if os(macOS)
+import AppKit
+#endif
+
 enum DialogStatus: Equatable {
     case idle
     case working(LocalizedStringKey)
@@ -90,6 +94,7 @@ struct DialogContainer<Content: View, PrimaryLabel: View>: View {
                 }
                 .buttonStyle(.glass)
                 .disabled(status.isWorking)
+                .keyboardShortcut(.cancelAction)
 
                 Spacer()
 
@@ -100,6 +105,7 @@ struct DialogContainer<Content: View, PrimaryLabel: View>: View {
                 }
                 .buttonStyle(.glassProminent)
                 .disabled(!canSubmit || status.isWorking)
+                .keyboardShortcut(.defaultAction)
             }
             .padding(.horizontal, Spacing.md)
             .padding(.vertical, Spacing.md)
@@ -107,6 +113,8 @@ struct DialogContainer<Content: View, PrimaryLabel: View>: View {
         .onChange(of: status) { _, newStatus in
             if newStatus == .success {
                 isPresented = false
+            } else if case .error = newStatus {
+                triggerHapticFeedback()
             }
         }
         .onChange(of: clearErrorTrigger) { _, _ in
@@ -114,6 +122,12 @@ struct DialogContainer<Content: View, PrimaryLabel: View>: View {
                 internalStatus = .idle
             }
         }
+    }
+
+    private func triggerHapticFeedback() {
+        #if os(macOS)
+        NSHapticFeedbackManager.defaultPerformer.perform(.generic, performanceTime: .default)
+        #endif
     }
 
     @ViewBuilder

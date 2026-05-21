@@ -49,7 +49,7 @@ struct ImageRowView: View {
 
             if image.status == .fetching, let progress = image.fetchProgress {
                 fetchProgressView(progress: progress)
-                    .padding(.leading, 28)
+                    .padding(.leading, 20 + Spacing.sm) // Align with ResourceListRow title (icon width of 20 + Spacing.sm spacer)
             }
         }
     }
@@ -91,7 +91,7 @@ struct ImageRowView: View {
                     .monospaced()
             }
         }
-        .padding(.top, 2)
+        .padding(.top, Spacing.xxxs)
     }
 
     private var subtitle: String {

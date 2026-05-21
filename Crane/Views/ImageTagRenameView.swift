@@ -14,6 +14,7 @@ struct ImageTagRenameView: View {
     @Environment(\.craneStores) private var stores
     private var imagesStore: ImagesStore { stores.images }
     @State private var newReference: String = ""
+    @FocusState private var isReferenceFocused: Bool
     @State private var mode: Mode = .addTag
 
     private enum Mode: String, CaseIterable, Identifiable, Equatable {
@@ -73,8 +74,12 @@ struct ImageTagRenameView: View {
 
                 Section(String(localized: "imageTagNewReference")) {
                     VStack(alignment: .leading, spacing: Spacing.subsection) {
-                        TextField(String(localized: "imageTagNewReference"), text: $newReference)
+                        TextField(String(localized: "imageTagNewReference"), text: $newReference, prompt: Text(String(localized: "imageTagNewReference")))
                             .font(.system(.body, design: .monospaced))
+                            .focused($isReferenceFocused)
+                            .premiumTextFieldStyle(
+                                isError: referenceInvalidMessage != nil
+                            )
 
                         if let message = referenceEmptyMessage {
                             InlineErrorText(message: message)
@@ -108,5 +113,8 @@ struct ImageTagRenameView: View {
         .frame(width: 520, height: mode == .rename ? 500 : 440)
         .padding(Spacing.md)
         .animation(.easeInOut(duration: 0.2), value: mode)
+        .onAppear {
+            isReferenceFocused = true
+        }
     }
 }

@@ -16,7 +16,7 @@ import os
 ///
 /// Polling closures call `isVisible(for:)` to combine both axes.
 /// Mutated from the MainActor; read from polling task closures.
-enum PollingVisibility {
+nonisolated enum PollingVisibility {
     private static let sceneState = OSAllocatedUnfairLock(initialState: true)
     private static let activeState = OSAllocatedUnfairLock<PolledResource?>(initialState: .containers)
 

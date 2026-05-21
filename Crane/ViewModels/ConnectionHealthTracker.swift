@@ -42,6 +42,11 @@ final class ConnectionHealthTracker {
             health = .lost
             if prev != .lost {
                 onConnectionLost(.connectionLost(consecutiveFailures: consecutiveFailures))
+                NotificationsManager.post(
+                    .connectionLost,
+                    title: String(localized: "notifyConnectionLostTitle"),
+                    body: String(localized: "notifyConnectionLostBody \(consecutiveFailures)")
+                )
             }
         } else if consecutiveFailures >= degradedThreshold {
             health = .degraded
@@ -49,8 +54,16 @@ final class ConnectionHealthTracker {
     }
 
     func recordSuccess() {
+        let wasLost = health == .lost
         consecutiveFailures = 0
         lastError = nil
         health = .healthy
+        if wasLost {
+            NotificationsManager.post(
+                .connectionRestored,
+                title: String(localized: "notifyConnectionRestoredTitle"),
+                body: String(localized: "notifyConnectionRestoredBody")
+            )
+        }
     }
 }

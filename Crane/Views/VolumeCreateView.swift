@@ -10,6 +10,7 @@ struct VolumeCreateView: View {
     @Environment(\.craneStores) private var stores
     private var volumesStore: VolumesStore { stores.volumes }
     @State private var volumeName: String = ""
+    @FocusState private var isNameFocused: Bool
 
     private var trimmedName: String {
         volumeName.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -54,8 +55,12 @@ struct VolumeCreateView: View {
             content: {
                 Section(String(localized: "Volume")) {
                     VStack(alignment: .leading, spacing: Spacing.subsection) {
-                        TextField(String(localized: "volumeToCreateName"), text: $volumeName)
+                        TextField(String(localized: "volumeToCreateName"), text: $volumeName, prompt: Text(String(localized: "volumeToCreateName")))
                             .font(.system(.body, design: .monospaced))
+                            .focused($isNameFocused)
+                            .premiumTextFieldStyle(
+                                isError: invalidCharactersMessage != nil || duplicateMessage != nil
+                            )
 
                         Text(String(localized: "volumeCreateHelper"))
                             .font(.caption)
@@ -75,5 +80,8 @@ struct VolumeCreateView: View {
         )
         .frame(width: 520, height: 380)
         .padding(Spacing.md)
+        .onAppear {
+            isNameFocused = true
+        }
     }
 }

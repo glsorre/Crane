@@ -7,14 +7,15 @@ import Foundation
 import Observation
 import SwiftUI
 
-extension Notification.Name {
+nonisolated extension Notification.Name {
     static let craneContainerMutated = Notification.Name("craneContainerMutated")
     static let craneImageMutated = Notification.Name("craneImageMutated")
     static let craneNetworkMutated = Notification.Name("craneNetworkMutated")
     static let craneVolumeMutated = Notification.Name("craneVolumeMutated")
+    static let craneRunOnboardingAgain = Notification.Name("craneRunOnboardingAgain")
 }
 
-enum CraneMutationBus {
+nonisolated enum CraneMutationBus {
     static func postContainerMutated() { NotificationCenter.default.post(name: .craneContainerMutated, object: nil) }
     static func postImageMutated() { NotificationCenter.default.post(name: .craneImageMutated, object: nil) }
     static func postNetworkMutated() { NotificationCenter.default.post(name: .craneNetworkMutated, object: nil) }

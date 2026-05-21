@@ -208,24 +208,39 @@ class RunContainerViewModel {
         userWasCustomized = true
     }
 
-    func addPort() {
-        ports.append(PortEntry())
+    @discardableResult
+    func addPort() -> UUID {
+        let entry = PortEntry()
+        ports.append(entry)
+        return entry.id
     }
 
-    func addBindMount() {
-        mounts.append(MountEntry(type: .bind))
+    @discardableResult
+    func addBindMount() -> UUID {
+        let entry = MountEntry(type: .bind)
+        mounts.append(entry)
+        return entry.id
     }
 
-    func addVolumeMount() {
-        mounts.append(MountEntry(type: .volume))
+    @discardableResult
+    func addVolumeMount() -> UUID {
+        let entry = MountEntry(type: .volume)
+        mounts.append(entry)
+        return entry.id
     }
 
-    func addTmpfsMount() {
-        mounts.append(MountEntry(type: .tmpfs))
+    @discardableResult
+    func addTmpfsMount() -> UUID {
+        let entry = MountEntry(type: .tmpfs)
+        mounts.append(entry)
+        return entry.id
     }
 
-    func addSocket() {
-        sockets.append(SocketEntry())
+    @discardableResult
+    func addSocket() -> UUID {
+        let entry = SocketEntry()
+        sockets.append(entry)
+        return entry.id
     }
 
     @MainActor
@@ -366,9 +381,9 @@ class RunContainerViewModel {
         CraneMutationBus.postContainerMutated()
     }
 
-    private static let earlyExitWatchDuration: Duration = .seconds(2)
-    private static let earlyExitWatchCadence: Duration = .milliseconds(250)
-    private static let autoRemovePollCadence: Duration = .seconds(1)
+    nonisolated private static let earlyExitWatchDuration: Duration = .seconds(2)
+    nonisolated private static let earlyExitWatchCadence: Duration = .milliseconds(250)
+    nonisolated private static let autoRemovePollCadence: Duration = .seconds(1)
 
     nonisolated private static func watchForEarlyExit(
         client: ContainerClient,

@@ -21,9 +21,12 @@ struct CraneNetworksListView: View {
         ZStack {
             List(listItems) { network in
                 NetworkRowView(network: network)
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+                    .padding(.vertical, Spacing.xxs)
             }
             .listStyle(.inset)
-            .contentMargins(.top, Spacing.lg, for: .scrollContent)
+            .safeAreaPadding(.top, Spacing.lg)
 
             if listItems.isEmpty {
                 MainListEmptyState(

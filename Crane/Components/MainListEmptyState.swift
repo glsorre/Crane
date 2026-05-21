@@ -16,18 +16,40 @@ struct MainListEmptyState: View {
     }
 
     var body: some View {
-        if isSearching {
-            ContentUnavailableView(
-                "listSearchNoResultsTitle",
-                systemImage: "magnifyingglass",
-                description: Text("listSearchNoResultsDescription")
-            )
-        } else {
-            ContentUnavailableView(
-                emptyTitle,
-                systemImage: systemImage,
-                description: Text(emptyDescription)
-            )
+        VStack(spacing: Spacing.md) {
+            ZStack {
+                // Soft glow background behind the icon
+                Circle()
+                    .fill(Color.accentColor.opacity(0.08))
+                    .frame(width: 80, height: 80)
+                    .blur(radius: 3)
+
+                SwiftUI.Image(systemName: isSearching ? "magnifyingglass" : systemImage)
+                    .font(.system(size: 38))
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [.accentColor, .accentColor.opacity(0.6)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .symbolRenderingMode(.hierarchical)
+            }
+            .padding(.bottom, Spacing.xs)
+
+            Text(isSearching ? "listSearchNoResultsTitle" : emptyTitle)
+                .font(.title3)
+                .fontWeight(.bold)
+                .foregroundStyle(.primary)
+
+            Text(isSearching ? "listSearchNoResultsDescription" : emptyDescription)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .lineSpacing(3)
+                .frame(maxWidth: 280)
         }
+        .padding(Spacing.lg)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
     }
 }

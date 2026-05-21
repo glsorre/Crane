@@ -28,13 +28,19 @@ struct CraneImagesListView: View {
             List {
                 if showsBuildPlaceholder {
                     BuildPlaceholderRow(viewModel: buildViewModel)
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                        .padding(.vertical, Spacing.xxs)
                 }
                 ForEach(listItems, id: \.objectIdentity) { image in
                     ImageRowView(image: image)
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                        .padding(.vertical, Spacing.xxs)
                 }
             }
             .listStyle(.inset)
-            .contentMargins(.top, Spacing.lg, for: .scrollContent)
+            .safeAreaPadding(.top, Spacing.lg)
 
             if listItems.isEmpty && !showsBuildPlaceholder {
                 MainListEmptyState(

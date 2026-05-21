@@ -121,10 +121,20 @@ class BuildViewModel {
 
             try await runBuildKitPipeline(tag: tag, contextDirPath: contextDirPath, dockerfileData: dockerfileData)
             status = .success
+            NotificationsManager.post(
+                .buildDone,
+                title: String(localized: "notifyBuildDoneTitle"),
+                body: String(localized: "notifyBuildDoneBody \(tag)")
+            )
             scheduleSuccessBannerDismiss()
         } catch {
             Log.build.error("build(\(tag)) failed: \(error.localizedDescription, privacy: .public)")
             status = .failed(error.localizedDescription)
+            NotificationsManager.post(
+                .buildFailed,
+                title: String(localized: "notifyBuildFailedTitle"),
+                body: String(localized: "notifyBuildFailedBody \(tag) \(error.localizedDescription)")
+            )
         }
     }
 

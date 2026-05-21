@@ -11,7 +11,7 @@ import ContainerizationOCI
 import Foundation
 import Observation
 
-enum CraneErrorSeverity {
+nonisolated enum CraneErrorSeverity {
     case info
     case warning
     case error

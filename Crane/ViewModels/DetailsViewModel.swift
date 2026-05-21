@@ -95,6 +95,8 @@ class ContainerMetrics {
     var numProcesses: UInt64?
     var cpuPercent: Double?
     var isAvailable: Bool = false
+    var cpuHistory: [Double] = []
+    var memHistory: [Double] = []
 }
 
 @Observable
@@ -140,7 +142,7 @@ class DetailsViewModel {
             }
         } catch {
             Log.logs.error("bootstrap log handles failed for \(self.container.id): \(error.localizedDescription, privacy: .public)")
-            await stores.app.showError(.logStreamFailed(underlying: error))
+            stores.app.showError(.logStreamFailed(underlying: error))
         }
     }
 
@@ -166,7 +168,7 @@ class DetailsViewModel {
                     }
                 } else {
                     // Already initialized: skip to end so streamLogFile doesn't re-emit lines we have.
-                    try? fileHandle.seekToEnd()
+                    _ = try? fileHandle.seekToEnd()
                 }
 
                 if logMetadata.followLogs && !logMetadata.userScrolled {
@@ -185,7 +187,7 @@ class DetailsViewModel {
             } catch {
                 Log.logs.error(
                     "stream handle \(handleIndex) failed for \(self.container.id): \(error.localizedDescription, privacy: .public)")
-                await stores.app.showError(.logStreamFailed(underlying: error))
+                stores.app.showError(.logStreamFailed(underlying: error))
             }
         }
     }
@@ -276,6 +278,8 @@ class DetailsViewModel {
                 self.metrics.isAvailable = false
                 self.previousCPUSampleUsec = nil
                 self.previousCPUSampleTime = nil
+                self.metrics.cpuHistory.removeAll()
+                self.metrics.memHistory.removeAll()
             }
             return false
         }
@@ -316,6 +320,23 @@ class DetailsViewModel {
                 }
             } else {
                 self.metrics.cpuPercent = nil
+            }
+
+            // Update history arrays
+            let cpuPct = self.metrics.cpuPercent ?? 0.0
+            self.metrics.cpuHistory.append(cpuPct)
+            if self.metrics.cpuHistory.count > 30 {
+                self.metrics.cpuHistory.removeFirst()
+            }
+
+            if let memUsage = sample.memoryUsageBytes, let memLimit = sample.memoryLimitBytes, memLimit > 0 {
+                let memPct = (Double(memUsage) / Double(memLimit)) * 100.0
+                self.metrics.memHistory.append(memPct)
+            } else {
+                self.metrics.memHistory.append(0.0)
+            }
+            if self.metrics.memHistory.count > 30 {
+                self.metrics.memHistory.removeFirst()
             }
 
             self.previousCPUSampleUsec = sample.cpuUsageUsec

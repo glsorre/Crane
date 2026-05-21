@@ -162,7 +162,7 @@ class NetworksStore {
             } catch {
                 network.transiting = false
                 Log.networks.error("network delete failed for \(network.id): \(error.localizedDescription, privacy: .public)")
-                await onError(.networkRemoveFailed(underlying: error))
+                onError(.networkRemoveFailed(underlying: error))
             }
         }
         CraneMutationBus.postNetworkMutated()
@@ -176,7 +176,7 @@ class NetworksStore {
             networks.remove(network)
         } catch {
             network.transiting = false
-            await onError(.networkRemoveFailed(underlying: error))
+            onError(.networkRemoveFailed(underlying: error))
         }
         CraneMutationBus.postNetworkMutated()
     }
