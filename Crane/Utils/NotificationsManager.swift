@@ -54,11 +54,7 @@ enum NotificationsManager {
     }
 
     static func currentAuthorizationStatus() async -> UNAuthorizationStatus {
-        await withCheckedContinuation { cont in
-            UNUserNotificationCenter.current().getNotificationSettings { settings in
-                cont.resume(returning: settings.authorizationStatus)
-            }
-        }
+        await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
     }
 
     static func post(_ event: CraneNotificationEvent, title: String, body: String) {
@@ -81,12 +77,12 @@ enum NotificationsManager {
                 content: content,
                 trigger: nil
             )
-            UNUserNotificationCenter.current().add(request) { error in
-                if let error {
-                    Log.launch.error(
-                        "post notification \(event.rawValue, privacy: .public) failed: \(error.localizedDescription, privacy: .public)"
-                    )
-                }
+            do {
+                try await UNUserNotificationCenter.current().add(request)
+            } catch {
+                Log.launch.error(
+                    "post notification \(event.rawValue, privacy: .public) failed: \(error.localizedDescription, privacy: .public)"
+                )
             }
         }
     }
