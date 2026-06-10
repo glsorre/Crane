@@ -5,8 +5,31 @@ cd "$(dirname "$0")/.."
 
 : "${SPARKLE_ED_PRIVATE_KEY:?SPARKLE_ED_PRIVATE_KEY required}"
 
+# Resolve Sparkle version from the SPM pin in the Xcode project.
+# Override with SPARKLE_VERSION env var to skip the parse.
+if [ -z "${SPARKLE_VERSION:-}" ]; then
+    PBXPROJ="Crane.xcodeproj/project.pbxproj"
+    if [ ! -f "$PBXPROJ" ]; then
+        echo "Cannot find $PBXPROJ to resolve Sparkle version" >&2
+        exit 1
+    fi
+    SPARKLE_VERSION=$(awk '
+        /XCRemoteSwiftPackageReference "Sparkle" \*\/ =/ { found=1 }
+        found && match($0, /minimumVersion = [0-9]+\.[0-9]+\.[0-9]+/) {
+            s = substr($0, RSTART, RLENGTH)
+            sub(/minimumVersion = /, "", s)
+            print s
+            exit
+        }
+    ' "$PBXPROJ")
+    if [ -z "$SPARKLE_VERSION" ]; then
+        echo "Could not parse Sparkle version from $PBXPROJ" >&2
+        exit 1
+    fi
+    echo "Resolved Sparkle version from $PBXPROJ: $SPARKLE_VERSION"
+fi
+
 APP="build/export/Right Crane.app"
-SPARKLE_VERSION="${SPARKLE_VERSION:-2.6.4}"
 FEED_BASE_URL="${FEED_BASE_URL:-https://github.com/glsorre/Crane/releases/latest/download}"
 RELEASE_NOTES_BASE_URL="${RELEASE_NOTES_BASE_URL:-https://github.com/glsorre/Crane/releases/tag}"
 
