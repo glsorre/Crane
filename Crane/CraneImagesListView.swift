@@ -89,16 +89,21 @@ private struct BuildPlaceholderRow: View {
     let viewModel: BuildViewModel
 
     var body: some View {
-        ResourceListRow(
-            title: viewModel.currentBuildTag ?? String(localized: "buildPlaceholderTitle"),
-            subtitle: subtitle,
-            leading: {
-                leadingIcon
-            },
-            trailing: {
-                trailingControl
+        VStack(alignment: .leading, spacing: 2) {
+            ResourceListRow(
+                title: viewModel.currentBuildTag ?? String(localized: "buildPlaceholderTitle"),
+                subtitle: subtitle,
+                leading: {
+                    leadingIcon
+                },
+                trailing: {
+                    trailingControl
+                }
+            )
+            if let progress = viewModel.buildProgress, viewModel.status == .building {
+                BuildProgressView(progress: progress)
             }
-        )
+        }
     }
 
     @ViewBuilder
@@ -151,5 +156,43 @@ private struct BuildPlaceholderRow: View {
         case .failed(let message):
             return message
         }
+    }
+}
+
+/// Live progress bar shown beneath a `BuildPlaceholderRow` while
+/// `BuildViewModel.status == .building` and `buildProgress` is non-nil.
+///
+/// Mirrors `ImageRowView.fetchProgressView` so the visual language
+/// for fetch and build progress is identical: linear `ProgressView`
+/// with a bytes caption, and an indeterminate spinner fallback when
+/// `fraction` is unknown.
+///
+/// Backed by `BuildProgress`, which is file-poll approximated from
+/// the export tar written by `Builder.BuildExport` (see
+/// `BuildProgress` and the SDK-gap note in `BuildViewModel` for why
+/// this is not event-driven from `apple/container`).
+private struct BuildProgressView: View {
+    let progress: BuildProgress
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            if let fraction = progress.fraction {
+                ProgressView(value: fraction)
+                    .progressViewStyle(.linear)
+                    .controlSize(.small)
+            } else {
+                // Indeterminate: same visual as `ImageRowView.fetchProgressView`
+                // when the total is still unknown.
+                ProgressView()
+                    .progressViewStyle(.linear)
+                    .controlSize(.small)
+            }
+            if let bytes = progress.bytesDescription {
+                Text(bytes)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.leading, 20 + Spacing.sm) // Align with ResourceListRow title (icon width 20 + Spacing.sm spacer)
     }
 }

@@ -1,4 +1,5 @@
 import ContainerAPIClient
+import ContainerPersistence
 import ContainerResource
 import ContainerizationOCI
 import XCTest
@@ -14,7 +15,11 @@ final class ContainersStoreTests: CraneTestBase {
     func testContainerLifecycle() async throws {
         // Ensure alpine is available
         let reference = "docker.io/library/alpine:latest"
-        _ = try await ClientImage.fetch(reference: reference)
+        let containerSystemConfig = try await ConfigurationLoader.load()
+        _ = try await ClientImage.fetch(
+            reference: reference,
+            containerSystemConfig: containerSystemConfig
+        )
 
         let images = try await ClientImage.list()
         let alpine = try XCTUnwrap(

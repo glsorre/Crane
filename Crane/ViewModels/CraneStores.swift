@@ -32,6 +32,7 @@ final class CraneStores {
     let volumes: VolumesStore
     let refresh: RefreshCoordinator
     let build: BuildViewModel
+    let run: RunContainerRunner
     let connectionHealth: ConnectionHealthTracker
 
     init() {
@@ -67,6 +68,7 @@ final class CraneStores {
         self.volumes = volumes
         self.refresh = refresh
         self.build = BuildViewModel(images: images)
+        self.run = RunContainerRunner()
         self.connectionHealth = connectionHealth
 
         refresh.subscribe()

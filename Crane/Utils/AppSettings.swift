@@ -42,6 +42,7 @@ enum AppSettings {
     static var notifyOnImageFetchDone: Bool { boolDefaultingTrue("notifyOnImageFetchDone") }
     static var notifyOnImageFetchFailed: Bool { boolDefaultingTrue("notifyOnImageFetchFailed") }
     static var notifyOnBuildDone: Bool { boolDefaultingTrue("notifyOnBuildDone") }
+    static var notifyOnRunFailed: Bool { boolDefaultingTrue("notifyOnRunFailed") }
     static var notifyOnConnectionLost: Bool { boolDefaultingTrue("notifyOnConnectionLost") }
 
     static var persistentContainerIDs: Set<String> {

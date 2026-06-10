@@ -70,7 +70,11 @@ struct ContainerRunView: View {
             workingLabel: "runContainer",
             canSubmit: viewModel.canRun,
             perform: {
-                try await viewModel.run()
+                // Fire-and-forget: the runner owns the pipeline on a detached Task,
+                // flips `stores.run.status` for the placeholder row, and the dialog
+                // dismisses immediately so the user doesn't wait for the runtime.
+                await viewModel.start(runner: stores.run)
+                isPresented = false
             },
             primaryLabel: {
                 Label(String(localized: "runContainerRun"), systemImage: "play.fill")
