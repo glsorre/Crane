@@ -4,6 +4,7 @@
 //
 
 import ContainerAPIClient
+import ContainerPersistence
 import ContainerResource
 import Observation
 import SwiftUI
@@ -22,6 +23,7 @@ struct ImageBuildView: View {
     @State private var dockerfileRelativePath: String = "Dockerfile"
     @State private var showFolderImporter = false
     @State private var showDockerfileImporter = false
+    @State private var containerSystemConfig: ContainerSystemConfig?
     @FocusState private var isTagFocused: Bool
 
     private enum BuildSourceMode: String, CaseIterable, Identifiable, Equatable {
@@ -48,8 +50,9 @@ struct ImageBuildView: View {
 
     private var tagInvalidValidationMessage: String? {
         guard !trimmedTag.isEmpty else { return nil }
+        guard let containerSystemConfig else { return nil }
         do {
-            _ = try ClientImage.normalizeReference(trimmedTag)
+            _ = try ClientImage.normalizeReference(trimmedTag, containerSystemConfig: containerSystemConfig)
             return nil
         } catch {
             return String(localized: "imageReferenceInvalid")
@@ -285,6 +288,11 @@ struct ImageBuildView: View {
         }
         .onDisappear {
             stopSecurityScopedAccessForContextFolder()
+        }
+        .task {
+            if containerSystemConfig == nil {
+                containerSystemConfig = try? await ConfigurationLoader.load()
+            }
         }
         .fileImporter(
             isPresented: $showFolderImporter,

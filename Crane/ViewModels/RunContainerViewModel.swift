@@ -10,6 +10,7 @@ import ContainerizationOCI
 import ContainerizationOS
 import Foundation
 import Observation
+import SystemPackage
 import os.log
 
 struct PortEntry: Identifiable {
@@ -275,7 +276,7 @@ class RunContainerViewModel {
         )
 
         config.publishedPorts = try buildPublishedPorts()
-        config.publishedSockets = buildPublishedSockets()
+        config.publishedSockets = try buildPublishedSockets()
         config.mounts = buildMounts()
 
         if let selectedNetworkID = selectedNetworkID?.trimmed, !selectedNetworkID.isEmpty {
@@ -581,7 +582,7 @@ class RunContainerViewModel {
                 throw RunContainerFormError(String(localized: "Ports must be numbers between 1 and 65535."))
             }
 
-            return PublishPort(
+            return try PublishPort(
                 hostAddress: hostAddress,
                 hostPort: hostPort,
                 containerPort: containerPort,
@@ -591,12 +592,12 @@ class RunContainerViewModel {
         }
     }
 
-    private func buildPublishedSockets() -> [PublishSocket] {
-        sockets.compactMap { entry in
+    private func buildPublishedSockets() throws -> [PublishSocket] {
+        try sockets.compactMap { entry -> PublishSocket? in
             guard !entry.isBlank else { return nil }
-            return PublishSocket(
-                containerPath: URL(fileURLWithPath: entry.containerPath.trimmed),
-                hostPath: URL(fileURLWithPath: entry.hostPath.trimmed)
+            return try PublishSocket(
+                containerPath: FilePath(entry.containerPath.trimmed),
+                hostPath: FilePath(entry.hostPath.trimmed)
             )
         }
     }

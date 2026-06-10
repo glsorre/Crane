@@ -60,7 +60,7 @@ Settings scene: `CraneSettingsView` (refresh intervals, theme, launch-at-login).
 
 - **NSViewRepresentable wrappers** for `SelectableLogText` (NSTextView with scroll tracking) and `NumericField` (NSTextField with NumberFormatter)
 - **Log streaming:** `DetailsViewModel` uses `StreamReader` to read container logs line-by-line from FileHandles with offset tracking, supporting multiple log handles per container
-- **Service check on launch:** Verifies `com.apple.container.apiserver` is registered via `launchctl` and performs health ping before showing UI
+- **Service check on launch:** Verifies `com.apple.container.apiserver` is registered via `launchctl` and performs up to 10 health pings (1 s timeout, 500 ms gap, ~15 s total) with live error + attempt counter + Cancel button before showing UI
 
 ### Source Layout
 

@@ -155,7 +155,7 @@ CraneApp (@main)
 2. **Images** — `CraneImagesListView`
 3. **Networks** — `CraneNetworksListView`
 
-On startup, `CraneView` checks that `com.apple.container.apiserver` is registered (via `launchctl print`) and performs a `ClientHealthCheck.ping(timeout: 10s)`. Fatal errors offer a "Quit" button; non-fatal errors offer a "Refresh" button that resets all stores.
+On startup, `CraneView` checks that `com.apple.container.apiserver` is registered (via `launchctl print`) and performs up to 10 health pings (`ClientHealthCheck.ping(timeout: 1s)`) with a 500 ms gap between attempts, surfacing the live `pingError` and an attempt counter to the user (total wait ~15 s; Cancel button available). Fatal errors offer a "Quit" button; non-fatal errors offer a "Refresh" button that resets all stores.
 
 ### 5.2 Containers Tab
 
