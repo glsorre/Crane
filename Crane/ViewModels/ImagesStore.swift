@@ -6,6 +6,7 @@
 //
 
 import ContainerAPIClient
+import ContainerPersistence
 import ContainerResource
 import Containerization
 import ContainerizationOCI
@@ -181,7 +182,8 @@ class ImagesStore {
     }
 
     func fetchImage(reference: String) async throws {
-        let normalizedReference = try ClientImage.normalizeReference(reference)
+        let containerSystemConfig = try await ConfigurationLoader.load()
+        let normalizedReference = try ClientImage.normalizeReference(reference, containerSystemConfig: containerSystemConfig)
         let image = Image(id: normalizedReference)
         self.images.insert(image)
         let progress = image.fetchProgress
@@ -189,6 +191,7 @@ class ImagesStore {
             do {
                 let clientImage = try await ClientImage.fetch(
                     reference: reference,
+                    containerSystemConfig: containerSystemConfig,
                     progressUpdate: { events in
                         await MainActor.run {
                             progress?.apply(events)
@@ -254,8 +257,9 @@ class ImagesStore {
             throw ImageTagError(message: String(localized: "imageTagClientMissing"))
         }
 
-        let normalizedNew = try ClientImage.normalizeReference(newReference)
-        let normalizedSource = try ClientImage.normalizeReference(sourceReference)
+        let containerSystemConfig = try await ConfigurationLoader.load()
+        let normalizedNew = try ClientImage.normalizeReference(newReference, containerSystemConfig: containerSystemConfig)
+        let normalizedSource = try ClientImage.normalizeReference(sourceReference, containerSystemConfig: containerSystemConfig)
 
         guard normalizedNew != normalizedSource else {
             throw ImageTagError(message: String(localized: "imageTagSameReference"))

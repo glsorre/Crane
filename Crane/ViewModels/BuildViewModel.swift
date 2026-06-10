@@ -6,6 +6,7 @@
 import ContainerAPIClient
 import ContainerBuild
 import ContainerImagesServiceClient
+import ContainerPersistence
 import ContainerResource
 import ContainerizationOCI
 import Foundation
@@ -391,7 +392,8 @@ class BuildViewModel {
         try FileManager.default.createDirectory(at: tempExportURL, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: tempExportURL) }
 
-        let normalizedTag = try ClientImage.normalizeReference(tag)
+        let containerSystemConfig = try await ConfigurationLoader.load()
+        let normalizedTag = try ClientImage.normalizeReference(tag, containerSystemConfig: containerSystemConfig)
 
         var export = try Builder.BuildExport(from: "type=oci")
         export.destination = tempExportURL.appendingPathComponent("out.tar")
@@ -416,7 +418,8 @@ class BuildViewModel {
             exports: [export],
             cacheIn: [],
             cacheOut: [],
-            pull: true
+            pull: true,
+            containerSystemConfig: containerSystemConfig
         )
 
         status = .building

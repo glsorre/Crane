@@ -1863,6 +1863,28 @@
         }
       }
     },
+    "launchPhaseAttemptCount": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld / %2$lld"
+          }
+        }
+      }
+    },
+    "pingHardTimeout": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "API server did not respond in time."
+          }
+        }
+      }
+    },
     "launchPhaseWaitingForRegistration": {
       "extractionState": "manual",
       "localizations": {

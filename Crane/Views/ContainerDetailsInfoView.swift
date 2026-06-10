@@ -5,6 +5,7 @@
 
 import ContainerResource
 import SwiftUI
+import SystemPackage
 
 private struct MetricRow: View {
     let icon: String
@@ -161,7 +162,7 @@ struct ContainerDetailsInfoView: View {
                     .foregroundStyle(Color.accentColor)
                 ForEach(snapshot.configuration.publishedSockets, id: \.containerPath) { publishedSocket in
                     PublishedPathLabel(
-                        hostPath: publishedSocket.hostPath.absoluteString, containerPath: publishedSocket.containerPath.absoluteString
+                        hostPath: publishedSocket.hostPath.string, containerPath: publishedSocket.containerPath.string
                     )
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }

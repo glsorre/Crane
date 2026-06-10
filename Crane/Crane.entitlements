@@ -4,7 +4,6 @@
 <dict>
 	<key>com.apple.security.application-groups</key>
 	<array>
-		<string>com.apple.container.apiserver</string>
 		<string>com.apple.container</string>
 	</array>
 </dict>

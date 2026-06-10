@@ -19,11 +19,11 @@ class Network: Identifiable, Hashable {
         lhs.id == rhs.id
     }
 
-    static func == (lhs: Network, rhs: NetworkState) -> Bool {
+    static func == (lhs: Network, rhs: NetworkResource) -> Bool {
         lhs.id == rhs.id
     }
 
-    static func == (lhs: NetworkState, rhs: Network) -> Bool {
+    static func == (lhs: NetworkResource, rhs: Network) -> Bool {
         lhs.id == rhs.id
     }
 
@@ -32,16 +32,16 @@ class Network: Identifiable, Hashable {
     }
 
     var id: String
-    var network: NetworkState
+    var network: NetworkResource
     var transiting: Bool
 
-    init(network: NetworkState) {
+    init(network: NetworkResource) {
         self.id = network.id
         self.network = network
         self.transiting = false
     }
 
-    func update(network: NetworkState) {
+    func update(network: NetworkResource) {
         self.network = network
     }
 }
@@ -114,11 +114,11 @@ class NetworksStore {
         let currentNetworks = try await networkClient.list()
         var currentNetworksSet: Set<Network> = Set()
 
-        for networkState in currentNetworks {
-            let newNetwork = Network(network: networkState)
+        for networkResource in currentNetworks {
+            let newNetwork = Network(network: networkResource)
             currentNetworksSet.insert(newNetwork)
             if let network = networks.first(where: { $0.id == newNetwork.id }) {
-                network.update(network: networkState)
+                network.update(network: networkResource)
             }
             networks.insert(newNetwork)
         }
@@ -184,9 +184,9 @@ class NetworksStore {
     func createNetwork(id: String) async throws {
         let network = try await networkClient.create(
             configuration: try .init(
-                id: id,
+                name: id,
                 mode: NetworkMode.nat,
-                pluginInfo: NetworkPluginInfo(plugin: "container-network-vmnet")
+                plugin: "container-network-vmnet"
             )
         )
         let networkModel = Network(network: network)

@@ -19,11 +19,11 @@ class CraneVolume: Identifiable, Hashable {
         lhs.id == rhs.id
     }
 
-    static func == (lhs: CraneVolume, rhs: Volume) -> Bool {
+    static func == (lhs: CraneVolume, rhs: VolumeConfiguration) -> Bool {
         lhs.id == rhs.name
     }
 
-    static func == (lhs: Volume, rhs: CraneVolume) -> Bool {
+    static func == (lhs: VolumeConfiguration, rhs: CraneVolume) -> Bool {
         lhs.name == rhs.id
     }
 
@@ -32,16 +32,16 @@ class CraneVolume: Identifiable, Hashable {
     }
 
     var id: String
-    var volume: Volume
+    var volume: VolumeConfiguration
     var transiting: Bool
 
-    init(volume: Volume) {
+    init(volume: VolumeConfiguration) {
         self.id = volume.name
         self.volume = volume
         self.transiting = false
     }
 
-    func update(volume: Volume) {
+    func update(volume: VolumeConfiguration) {
         self.volume = volume
     }
 }

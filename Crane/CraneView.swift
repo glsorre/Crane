@@ -23,6 +23,45 @@ enum LaunchPhase: Equatable {
     case waitingForHealth
 }
 
+/// Maximum time the launch health-ping loop blocks the UI on a non-responding apiserver.
+/// Total wait ≈ `healthPingAttempts × (healthPingTimeout + healthPingGap)`.
+private let healthPingAttempts = 10
+private let healthPingTimeout: Duration = .seconds(1)
+private let healthPingGap: Duration = .milliseconds(500)
+
+/// Hard outer timeout wrapper. `ClientHealthCheck.ping(timeout:)` only enforces a
+/// deadline on connection setup, not on the XPC reply — if the apiserver process is
+/// registered with launchd but never replies (hung kernel, broken handler), the inner
+/// timeout never fires and the call blocks indefinitely. Racing the call against a
+/// sleep here guarantees the health loop always makes progress.
+private enum HardTimeoutError: LocalizedError {
+    case timeout
+    var errorDescription: String? { String(localized: "pingHardTimeout") }
+}
+
+private func withHardTimeout<T: Sendable>(
+    _ timeout: Duration,
+    _ operation: @escaping @Sendable () async throws -> T
+) async throws -> T {
+    try await withThrowingTaskGroup(of: T.self) { group in
+        group.addTask { try await operation() }
+        group.addTask {
+            try await Task.sleep(for: timeout)
+            throw HardTimeoutError.timeout
+        }
+        do {
+            guard let result = try await group.next() else {
+                throw CancellationError()
+            }
+            group.cancelAll()
+            return result
+        } catch {
+            group.cancelAll()
+            throw error
+        }
+    }
+}
+
 struct CraneView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.craneStores) private var stores
@@ -35,6 +74,10 @@ struct CraneView: View {
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
     @State private var onboardingViewModel: OnboardingViewModel = OnboardingViewModel()
     @State private var showOnboarding: Bool = !AppSettings.hasCompletedOnboarding
+    @State private var healthAttempt: Int = 0
+    @State private var lastPingError: String?
+    @State private var launchTask: Task<Void, Never>?
+    @State private var launchDiagnostic: LaunchDiagnostic = .empty
 
     private var selectedTabBinding: Binding<CraneTab?> {
         Binding(
@@ -126,7 +169,7 @@ struct CraneView: View {
         {
             if appViewModel.error?.fatal == true {
                 Button("retry") {
-                    Task { await runLaunchSequence() }
+                    launchTask = Task { await runLaunchSequence() }
                 }
                 Button("quit", role: .destructive) { exit(1) }
             } else {
@@ -147,6 +190,27 @@ struct CraneView: View {
                         .controlSize(.large)
                     Text(launchPhaseLabel)
                         .foregroundStyle(.secondary)
+                    if launchPhase == .waitingForHealth {
+                        Text(String(format: String(localized: "launchPhaseAttemptCount"), healthAttempt, healthPingAttempts))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                        if let err = lastPingError, !err.isEmpty {
+                            Text(err)
+                                .font(.system(.caption, design: .monospaced))
+                                .foregroundStyle(.tertiary)
+                                .lineLimit(3)
+                                .multilineTextAlignment(.center)
+                                .textSelection(.enabled)
+                                .padding(.horizontal, Spacing.lg)
+                        }
+                        Button(String(localized: "cancel"), role: .cancel) {
+                            launchTask?.cancel()
+                            launchPhase = .idle
+                            appViewModel.showError(.notRunning(diagnostic: launchDiagnostic))
+                        }
+                        .padding(.top, Spacing.xs)
+                    }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(.background)
@@ -154,13 +218,13 @@ struct CraneView: View {
         }
         .onAppear {
             if !showOnboarding {
-                Task { await runLaunchSequence() }
+                launchTask = Task { await runLaunchSequence() }
             }
         }
         .sheet(isPresented: $showOnboarding) {
             OnboardingView(viewModel: onboardingViewModel) {
                 showOnboarding = false
-                Task { await runLaunchSequence() }
+                launchTask = Task { await runLaunchSequence() }
             }
             .interactiveDismissDisabled(true)
         }
@@ -224,20 +288,29 @@ struct CraneView: View {
         }
 
         launchPhase = .waitingForHealth
+        launchDiagnostic = diagnostic
+        healthAttempt = 0
+        lastPingError = nil
         Log.launch.info("Service registered, waiting for API server…")
         var healthy = false
-        var lastPingError: String?
-        for _ in 0..<60 {
+        for _ in 0..<healthPingAttempts {
+            if Task.isCancelled { break }
             do {
-                _ = try await ClientHealthCheck.ping(timeout: .seconds(2))
+                _ = try await withHardTimeout(healthPingTimeout) {
+                    try await ClientHealthCheck.ping(timeout: healthPingTimeout)
+                }
                 healthy = true
+                healthAttempt = 0
+                lastPingError = nil
                 break
             } catch {
+                healthAttempt += 1
                 lastPingError = error.localizedDescription
-                try? await Task.sleep(for: .milliseconds(500))
+                try? await Task.sleep(for: healthPingGap)
             }
         }
         diagnostic.pingError = healthy ? nil : lastPingError
+        launchDiagnostic = diagnostic
 
         launchPhase = .idle
         if !healthy {

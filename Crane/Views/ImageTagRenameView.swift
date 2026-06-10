@@ -4,6 +4,7 @@
 //
 
 import ContainerAPIClient
+import ContainerPersistence
 import ContainerResource
 import SwiftUI
 
@@ -14,6 +15,7 @@ struct ImageTagRenameView: View {
     @Environment(\.craneStores) private var stores
     private var imagesStore: ImagesStore { stores.images }
     @State private var newReference: String = ""
+    @State private var containerSystemConfig: ContainerSystemConfig?
     @FocusState private var isReferenceFocused: Bool
     @State private var mode: Mode = .addTag
 
@@ -33,8 +35,9 @@ struct ImageTagRenameView: View {
 
     private var referenceInvalidMessage: String? {
         guard !trimmedNew.isEmpty else { return nil }
+        guard let containerSystemConfig else { return nil }
         do {
-            _ = try ClientImage.normalizeReference(trimmedNew)
+            _ = try ClientImage.normalizeReference(trimmedNew, containerSystemConfig: containerSystemConfig)
             return nil
         } catch {
             return String(localized: "imageReferenceInvalid")
@@ -115,6 +118,11 @@ struct ImageTagRenameView: View {
         .animation(.easeInOut(duration: 0.2), value: mode)
         .onAppear {
             isReferenceFocused = true
+        }
+        .task {
+            if containerSystemConfig == nil {
+                containerSystemConfig = try? await ConfigurationLoader.load()
+            }
         }
     }
 }

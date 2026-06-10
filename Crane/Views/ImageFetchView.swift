@@ -4,6 +4,7 @@
 //
 
 import ContainerAPIClient
+import ContainerPersistence
 import ContainerResource
 import SwiftUI
 
@@ -12,6 +13,7 @@ struct ImageFetchView: View {
     @Environment(\.craneStores) private var stores
     private var imagesStore: ImagesStore { stores.images }
     @State private var reference: String = ""
+    @State private var containerSystemConfig: ContainerSystemConfig?
     @FocusState private var isReferenceFocused: Bool
 
     private var trimmedReference: String {
@@ -24,8 +26,9 @@ struct ImageFetchView: View {
 
     private var referenceInvalidMessage: String? {
         guard !trimmedReference.isEmpty else { return nil }
+        guard let containerSystemConfig else { return nil }
         do {
-            _ = try ClientImage.normalizeReference(trimmedReference)
+            _ = try ClientImage.normalizeReference(trimmedReference, containerSystemConfig: containerSystemConfig)
             return nil
         } catch {
             return String(localized: "imageReferenceInvalid")
@@ -34,7 +37,8 @@ struct ImageFetchView: View {
 
     private var normalizedReference: String? {
         guard !trimmedReference.isEmpty else { return nil }
-        return try? ClientImage.normalizeReference(trimmedReference)
+        guard let containerSystemConfig else { return nil }
+        return try? ClientImage.normalizeReference(trimmedReference, containerSystemConfig: containerSystemConfig)
     }
 
     private var canFetch: Bool {
@@ -95,6 +99,11 @@ struct ImageFetchView: View {
         .padding(Spacing.md)
         .onAppear {
             isReferenceFocused = true
+        }
+        .task {
+            if containerSystemConfig == nil {
+                containerSystemConfig = try? await ConfigurationLoader.load()
+            }
         }
     }
 }
