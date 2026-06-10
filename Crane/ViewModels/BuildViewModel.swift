@@ -74,6 +74,19 @@ class BuildViewModel {
     /// Tag of the build currently running (or last finished). Drives the background banner label.
     var currentBuildTag: String?
 
+    /// Live build progress, observed by the placeholder row in
+    /// `CraneImagesListView`. Set to a fresh `BuildProgress` when a
+    /// build starts; cleared when the user dismisses the terminal
+    /// status. See `BuildProgress` and the SDK-gap note on
+    /// `runBuildKitClientSession` for why this is file-poll based
+    /// rather than event-driven.
+    var buildProgress: BuildProgress?
+
+    /// Background task that polls the export-tar file size to feed
+    /// `buildProgress`. Owned here (not on `BuildProgress`) so we can
+    /// cancel it deterministically when the build leaves `.building`.
+    private var buildProgressPollTask: Task<Void, Never>?
+
     /// Shown when the builder VM needs Linux Rosetta; user can install it or continue with QEMU (`build.rosetta` off).
     var rosettaInstallerAlertPresented = false
 
@@ -108,6 +121,12 @@ class BuildViewModel {
         currentBuildTag = tag
         status = .startingBuilder
 
+        // Fresh progress for this build. Cleared by `dismissTerminalStatus`
+        // or overwritten on the next `build(...)` call.
+        let progress = BuildProgress()
+        progress.phase = .preparing
+        buildProgress = progress
+
         do {
             let buildPaths = try await Task.detached(priority: .userInitiated) {
                 try Self.prepareBuildPaths(source: source)
@@ -122,6 +141,10 @@ class BuildViewModel {
 
             try await runBuildKitPipeline(tag: tag, contextDirPath: contextDirPath, dockerfileData: dockerfileData)
             status = .success
+            // Freeze the progress to the final size so the row shows 100% briefly before the auto-dismiss.
+            if !progress.isFinalised, let current = buildProgress?.currentSize {
+                progress.finalise(totalSize: current)
+            }
             NotificationsManager.post(
                 .buildDone,
                 title: String(localized: "notifyBuildDoneTitle"),
@@ -129,6 +152,11 @@ class BuildViewModel {
             )
             scheduleSuccessBannerDismiss()
         } catch {
+            // Build failed before sealing the tar (or in `runBuildKitPipeline` before the poll started).
+            // `buildProgress` is left in place so the row shows whatever partial size was observed;
+            // the poll task is stopped inside `runBuildKitClientSession` / `runBuildKitPipeline` on
+            // their respective error paths.
+            stopExportTarSizePoll()
             Log.build.error("build(\(tag)) failed: \(error.localizedDescription, privacy: .public)")
             status = .failed(error.localizedDescription)
             NotificationsManager.post(
@@ -145,11 +173,14 @@ class BuildViewModel {
             if case .success = status {
                 status = .idle
                 currentBuildTag = nil
+                buildProgress = nil
             }
             return
         }
         status = .idle
         currentBuildTag = nil
+        stopExportTarSizePoll()
+        buildProgress = nil
     }
 
     private func scheduleSuccessBannerDismiss() {
@@ -423,27 +454,49 @@ class BuildViewModel {
         )
 
         status = .building
+        buildProgress?.phase = .building
+
+        // Start polling the export tar's on-disk size. `apple/container`'s
+        // `Builder.build(_:)` does not expose a `progressUpdate` callback
+        // (only `ClientImage.fetch(_:)` does), so we approximate live
+        // progress by `stat`-ing the tar. The poll stops via `defer` below
+        // regardless of how the build exits, so the task does not leak
+        // across the success / throw / cancel paths.
+        if let tarURL = export.destination {
+            startExportTarSizePoll(at: tarURL)
+        }
+        defer { stopExportTarSizePoll() }
+
         let buildKitBuilder = builder
         let buildKitConfig = config
-        try await withThrowingTaskGroup(of: Void.self) { group in
-            group.addTask {
-                try await Task.detached(priority: .userInitiated) {
-                    try await buildKitBuilder.build(buildKitConfig)
-                }.value
+        do {
+            try await withThrowingTaskGroup(of: Void.self) { group in
+                group.addTask {
+                    try await Task.detached(priority: .userInitiated) {
+                        try await buildKitBuilder.build(buildKitConfig)
+                    }.value
+                }
+                group.addTask {
+                    try await Task.sleep(for: Self.buildInvocationTimeout)
+                    throw NSError(
+                        domain: "Build",
+                        code: 11,
+                        userInfo: [NSLocalizedDescriptionKey: String(localized: "imageBuildTimedOut")]
+                    )
+                }
+                try await group.next()
+                group.cancelAll()
             }
-            group.addTask {
-                try await Task.sleep(for: Self.buildInvocationTimeout)
-                throw NSError(
-                    domain: "Build",
-                    code: 11,
-                    userInfo: [NSLocalizedDescriptionKey: String(localized: "imageBuildTimedOut")]
-                )
-            }
-            try await group.next()
-            group.cancelAll()
+        } catch {
+            // The poll is already cancelled by the `defer` above. Re-throw
+            // so the outer `build(...)` records the failure and surfaces
+            // `buildProgress` (with whatever partial size was observed) to
+            // the placeholder row.
+            throw error
         }
 
         status = .unpacking
+        buildProgress?.phase = .unpacking
         guard let dest = export.destination else {
             throw NSError(domain: "Build", code: 1, userInfo: [NSLocalizedDescriptionKey: "Export destination missing"])
         }
@@ -466,5 +519,59 @@ class BuildViewModel {
                 }
             }
         }
+    }
+
+    // MARK: - Build progress (file-poll approximation)
+
+    /// Polling cadence for the export-tar file size. 500 ms gives a
+    /// smooth-feeling progress bar on local builds without producing
+    /// meaningful filesystem overhead (`FileManager.attributesOfItem`
+    /// is a single `stat` syscall).
+    private static let exportTarPollInterval: Duration = .milliseconds(500)
+
+    /// Starts a detached `Task` that polls the file size of the export
+    /// tar at `url` and feeds it into `buildProgress`. The task is
+    /// stored on `self` so `stopExportTarSizePoll()` can cancel it
+    /// deterministically. If a previous poll is still running (e.g.
+    /// a build was started while another was in-flight), it is
+    /// cancelled first — a build is a single user-initiated operation
+    /// and the placeholder row can only show one progress at a time.
+    ///
+    /// SDK gap: `Builder.build(_:)` does not accept a `progressUpdate`
+    /// parameter; only `ClientImage.fetch(_:)` does. See the doc
+    /// comment on `BuildProgress` for the full rationale.
+    private func startExportTarSizePoll(at url: URL) {
+        stopExportTarSizePoll()
+        let task = Task { [weak self] in
+            while !Task.isCancelled {
+                let size: Int64
+                do {
+                    let attrs = try FileManager.default.attributesOfItem(atPath: url.path)
+                    if let n = attrs[.size] as? NSNumber {
+                        size = n.int64Value
+                    } else {
+                        size = 0
+                    }
+                } catch {
+                    // File may not exist yet (just-after-mkdir) or have
+                    // been cleaned up (build failed). Treat as 0 and
+                    // keep polling; the `defer` in `runBuildKitClientSession`
+                    // will cancel us.
+                    size = 0
+                }
+                await MainActor.run { [weak self] in
+                    self?.buildProgress?.updateCurrentSize(size)
+                }
+                try? await Task.sleep(for: Self.exportTarPollInterval)
+            }
+        }
+        buildProgressPollTask = task
+    }
+
+    /// Cancels the running poll task (if any) and clears the
+    /// reference. Idempotent: safe to call when no poll is active.
+    private func stopExportTarSizePoll() {
+        buildProgressPollTask?.cancel()
+        buildProgressPollTask = nil
     }
 }

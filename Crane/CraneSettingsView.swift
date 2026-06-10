@@ -19,6 +19,7 @@ struct CraneSettingsView: View {
     @AppStorage("notifyOnImageFetchDone") private var notifyOnImageFetchDone: Bool = true
     @AppStorage("notifyOnImageFetchFailed") private var notifyOnImageFetchFailed: Bool = true
     @AppStorage("notifyOnBuildDone") private var notifyOnBuildDone: Bool = true
+    @AppStorage("notifyOnRunFailed") private var notifyOnRunFailed: Bool = true
     @AppStorage("notifyOnConnectionLost") private var notifyOnConnectionLost: Bool = true
 
     @EnvironmentObject private var updaterModel: UpdaterModel
@@ -48,6 +49,8 @@ struct CraneSettingsView: View {
                 Toggle("notifyOnImageFetchFailed", isOn: $notifyOnImageFetchFailed)
                     .disabled(!notificationsEnabled)
                 Toggle("notifyOnBuildDone", isOn: $notifyOnBuildDone)
+                    .disabled(!notificationsEnabled)
+                Toggle("notifyOnRunFailed", isOn: $notifyOnRunFailed)
                     .disabled(!notificationsEnabled)
                 Toggle("notifyOnConnectionLost", isOn: $notifyOnConnectionLost)
                     .disabled(!notificationsEnabled)

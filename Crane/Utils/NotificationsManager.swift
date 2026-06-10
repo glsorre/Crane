@@ -17,6 +17,7 @@ enum CraneNotificationEvent: String {
     case imageFetchFailed
     case buildDone
     case buildFailed
+    case runFailed
     case connectionLost
     case connectionRestored
 
@@ -24,7 +25,7 @@ enum CraneNotificationEvent: String {
     /// because the user typically tabs away while they finish.
     var notifyEvenWhenActive: Bool {
         switch self {
-        case .imageFetchDone, .imageFetchFailed, .buildDone, .buildFailed: return true
+        case .imageFetchDone, .imageFetchFailed, .buildDone, .buildFailed, .runFailed: return true
         default: return false
         }
     }
@@ -35,6 +36,7 @@ enum CraneNotificationEvent: String {
         case .imageFetchDone: return AppSettings.notifyOnImageFetchDone
         case .imageFetchFailed: return AppSettings.notifyOnImageFetchFailed
         case .buildDone, .buildFailed: return AppSettings.notifyOnBuildDone
+        case .runFailed: return AppSettings.notifyOnRunFailed
         case .connectionLost, .connectionRestored: return AppSettings.notifyOnConnectionLost
         }
     }

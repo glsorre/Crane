@@ -244,9 +244,40 @@ class RunContainerViewModel {
         return entry.id
     }
 
+    /// Hands the form snapshot to the store-scoped runner, which fires
+    /// the create+bootstrap+start+watch pipeline on a detached `Task` and
+    /// updates `stores.run.status` for the containers list placeholder.
+    /// Returns immediately so the dialog can dismiss without waiting for
+    /// the runtime to bring the container up.
     @MainActor
-    // swiftlint:disable:next function_body_length
-    func run() async throws {
+    func start(runner: RunContainerRunner) async {
+        do {
+            let request = try buildRunRequest()
+            runner.start(
+                configuration: request.configuration,
+                name: request.name,
+                autoRemove: request.autoRemove
+            )
+        } catch {
+            // Validation/image errors caught here are rare (the dialog's
+            // Run button is gated on `canRun`), but if they happen we
+            // surface them through the same status the runner uses so
+            // the placeholder row can render the message.
+            Log.run.error("start(runner:) failed: \(error.localizedDescription, privacy: .public)")
+            let fallbackName = name.trimmed.isEmpty ? String(localized: "runContainer") : name.trimmed
+            runner.recordImmediateFailure(
+                name: fallbackName,
+                message: error.localizedDescription
+            )
+        }
+    }
+
+    /// Resolves the form into a fully-built `ContainerConfiguration`
+    /// plus the inputs the runner needs to know about (`name`,
+    /// `autoRemove`). Throws when validation or image resolution fails
+    /// (the caller is expected to have gated the UI on `canRun`).
+    @MainActor
+    func buildRunRequest() throws -> (configuration: ContainerConfiguration, name: String, autoRemove: Bool) {
         if let validationMessage {
             throw RunContainerFormError(validationMessage)
         }
@@ -258,21 +289,11 @@ class RunContainerViewModel {
             throw RunContainerFormError(String(localized: "No image selected or image not available"))
         }
 
-        let processConfig: ProcessConfiguration
         let containerName = name.trimmed
-        var config: ContainerConfiguration
-        // Runtime auto-remove is disabled so Crane can inspect early exits before
-        // the container disappears. The user toggle is honored by Crane-side
-        // bookkeeping (AppSettings.persistentContainerIDs) plus a watcher task
-        // that performs the deletion after a clean exit.
-        let options = ContainerCreateOptions(autoRemove: false)
-        let containerClient = ContainerClient()
-
-        processConfig = try buildProcessConfiguration()
-        config = ContainerConfiguration(
+        var config = ContainerConfiguration(
             id: containerName,
             image: clientImage.description,
-            process: processConfig
+            process: try buildProcessConfiguration()
         )
 
         config.publishedPorts = try buildPublishedPorts()
@@ -325,131 +346,7 @@ class RunContainerViewModel {
         config.virtualization = virtualization
         config.ssh = ssh
 
-        try await containerClient.create(
-            configuration: config,
-            options: options,
-            kernel: try await ClientKernel.getDefaultKernel(for: .current)
-        )
-
-        if !autoRemove {
-            AppSettings.addPersistentContainerID(containerName)
-        }
-
-        do {
-            try await withTimeout {
-                let io = try ProcessIO.create(tty: true, interactive: false, detach: true)
-                defer {
-                    _ = try? io.close()
-                }
-                let process = try await containerClient.bootstrap(id: containerName, stdio: io.stdio)
-                try await process.start()
-            }
-        } catch {
-            Log.run.error("bootstrap/start failed for \(containerName): \(error.localizedDescription, privacy: .public)")
-            AppSettings.removePersistentContainerID(containerName)
-            CraneMutationBus.postContainerMutated()
-            throw error
-        }
-
-        let exitedDuringWatch = await Self.watchForEarlyExit(
-            client: containerClient,
-            id: containerName
-        )
-
-        if exitedDuringWatch {
-            let tail = await Self.fetchLogTail(
-                client: containerClient,
-                id: containerName,
-                maxLines: 40
-            )
-            AppSettings.removePersistentContainerID(containerName)
-            try? await containerClient.delete(id: containerName)
-            CraneMutationBus.postContainerMutated()
-
-            let baseMessage = String(
-                localized: "runContainerExitedEarly",
-                defaultValue: "Container exited shortly after starting. Check the command, arguments, and environment."
-            )
-            let combined = tail.isEmpty ? baseMessage : "\(baseMessage)\n\n\(tail)"
-            Log.run.error("container \(containerName) exited within watch window")
-            throw RunContainerFormError(combined)
-        }
-
-        if autoRemove {
-            Self.scheduleAutoRemove(client: containerClient, id: containerName)
-        }
-
-        CraneMutationBus.postContainerMutated()
-    }
-
-    nonisolated private static let earlyExitWatchDuration: Duration = .seconds(2)
-    nonisolated private static let earlyExitWatchCadence: Duration = .milliseconds(250)
-    nonisolated private static let autoRemovePollCadence: Duration = .seconds(1)
-
-    nonisolated private static func watchForEarlyExit(
-        client: ContainerClient,
-        id: String
-    ) async -> Bool {
-        let deadline = ContinuousClock.now.advanced(by: earlyExitWatchDuration)
-        while ContinuousClock.now < deadline {
-            try? await Task.sleep(for: earlyExitWatchCadence)
-            guard let snapshots = try? await client.list() else { continue }
-            guard let snapshot = snapshots.first(where: { $0.id == id }) else {
-                return true
-            }
-            if snapshot.status != .running {
-                return true
-            }
-        }
-        return false
-    }
-
-    nonisolated private static func fetchLogTail(
-        client: ContainerClient,
-        id: String,
-        maxLines: Int
-    ) async -> String {
-        do {
-            let handles = try await client.logs(id: id)
-            var lines: [String] = []
-            let trimWhenAbove = max(maxLines * 4, maxLines + 1)
-            let trimDownTo = max(maxLines * 2, maxLines)
-            for handle in handles {
-                guard let reader = StreamReader(fileHandle: handle) else { continue }
-                while let line = reader.nextLine() {
-                    lines.append(line)
-                    if lines.count > trimWhenAbove {
-                        lines.removeFirst(lines.count - trimDownTo)
-                    }
-                }
-            }
-            if lines.count > maxLines {
-                lines = Array(lines.suffix(maxLines))
-            }
-            return lines.joined(separator: "\n")
-        } catch {
-            Log.run.error("fetch log tail failed for \(id): \(error.localizedDescription, privacy: .public)")
-            return ""
-        }
-    }
-
-    nonisolated private static func scheduleAutoRemove(client: ContainerClient, id: String) {
-        Task.detached {
-            while !Task.isCancelled {
-                try? await Task.sleep(for: autoRemovePollCadence)
-                guard let snapshots = try? await client.list() else { continue }
-                guard let snapshot = snapshots.first(where: { $0.id == id }) else {
-                    CraneMutationBus.postContainerMutated()
-                    return
-                }
-                if snapshot.status == .running || snapshot.status == .stopping {
-                    continue
-                }
-                try? await client.delete(id: id)
-                CraneMutationBus.postContainerMutated()
-                return
-            }
-        }
+        return (configuration: config, name: containerName, autoRemove: autoRemove)
     }
 
     // swiftlint:disable:next cyclomatic_complexity

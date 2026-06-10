@@ -1,4 +1,5 @@
 import ContainerAPIClient
+import ContainerPersistence
 import ContainerResource
 import XCTest
 
@@ -18,7 +19,10 @@ final class ImagesStoreTests: CraneTestBase {
         try await images.fetchImage(reference: reference)
 
         // Verify present
-        let normalizedRef = try ClientImage.normalizeReference(reference)
+        let normalizedRef = try ClientImage.normalizeReference(
+            reference,
+            containerSystemConfig: try await ConfigurationLoader.load()
+        )
         let found = await MainActor.run { images.images.contains { $0.id == normalizedRef } }
         XCTAssertTrue(found, "Image should be in store after fetch")
 
