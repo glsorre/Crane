@@ -5,6 +5,7 @@
 
 import AppKit
 import Foundation
+import SwiftUI
 
 enum LogLineFormatter {
     // Pattern is a compile-time constant; the throw can never fire at runtime.
@@ -49,15 +50,13 @@ enum LogLineFormatter {
     }
 
     static func color(for level: LogLevel?) -> NSColor {
-        switch level {
-        case .fatal: return .systemRed
-        case .error: return .systemRed
-        case .warn: return .systemOrange
-        case .info: return .controlTextColor
-        case .debug: return .secondaryLabelColor
-        case .trace: return .tertiaryLabelColor
-        case .none: return .controlTextColor
-        }
+        color(for: level, theme: .default, colorScheme: .light)
+    }
+
+    /// Color for a log level using a specific theme and the current system color scheme.
+    static func color(for level: LogLevel?, theme: LogTheme, colorScheme: ColorScheme) -> NSColor {
+        let palette = (colorScheme == .dark) ? theme.darkPalette() : theme.lightPalette()
+        return palette.color(for: level)
     }
 
     static func displayName(for level: LogLevel) -> String {

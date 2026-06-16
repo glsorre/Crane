@@ -22,6 +22,12 @@ struct CraneSettingsView: View {
     @AppStorage("notifyOnRunFailed") private var notifyOnRunFailed: Bool = true
     @AppStorage("notifyOnConnectionLost") private var notifyOnConnectionLost: Bool = true
 
+    @AppStorage("logTheme.dark") private var logThemeDark: String = LogTheme.monokai.rawValue
+    @AppStorage("logTheme.light") private var logThemeLight: String = LogTheme.default.rawValue
+
+    @AppStorage("terminalApp") private var terminalApp: String = TerminalApp.systemDefault.rawValue
+    @AppStorage("terminalCustomCommand") private var terminalCustomCommand: String = "open -a Terminal {script}"
+
     @EnvironmentObject private var updaterModel: UpdaterModel
 
     var body: some View {
@@ -29,6 +35,18 @@ struct CraneSettingsView: View {
             Section("general") {
                 LaunchAtLogin.Toggle(String(localized: "launchAtLogin"))
                 Toggle("launchContainerizationService", isOn: $launchContainerizationFramework)
+            }
+            Section("terminal") {
+                Picker("terminalApp", selection: $terminalApp) {
+                    ForEach(TerminalApp.allCases) { app in
+                        Text(app.displayName).tag(app.rawValue)
+                    }
+                }
+                if terminalApp == TerminalApp.custom.rawValue {
+                    TextField("terminalCustomCommand", text: $terminalCustomCommand)
+                        .textFieldStyle(.roundedBorder)
+                        .font(.system(.body, design: .monospaced))
+                }
             }
             Section("autoRefresh") {
                 Toggle("autoRefresh", isOn: $autoRefresh)
@@ -38,6 +56,18 @@ struct CraneSettingsView: View {
                 }
                 LabeledContent("maxIdleInterval") {
                     NumericField(value: $maxPollingInterval).frame(width: 80)
+                }
+            }
+            Section("logTheme") {
+                Picker("logThemeDark", selection: $logThemeDark) {
+                    ForEach(LogTheme.allCases) { theme in
+                        Text(theme.displayName).tag(theme.rawValue)
+                    }
+                }
+                Picker("logThemeLight", selection: $logThemeLight) {
+                    ForEach(LogTheme.allCases) { theme in
+                        Text(theme.displayName).tag(theme.rawValue)
+                    }
                 }
             }
             Section("notifications") {
