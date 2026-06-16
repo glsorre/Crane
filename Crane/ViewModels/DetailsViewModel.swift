@@ -10,7 +10,6 @@ import ContainerResource
 import ContainerizationOCI
 import Foundation
 import Observation
-import SwiftUI
 import os.log
 
 enum DetailsTab: String, CaseIterable {
@@ -63,6 +62,14 @@ class ContainerLogStream: Identifiable {
     var fontSize: CGFloat = 12
     var matchCount: Int = 0
     var currentMatchIndex: Int = 0
+
+    // Theme selection. The settings view writes to `UserDefaults` via `@AppStorage`;
+    // `ContainerLogsView` observes the same keys via `@AppStorage` and passes the
+    // raw values down to `SelectableLogText`, which forwards them to its
+    // Coordinator. The Coordinator bakes them into `configSignature` and into
+    // the per-line color resolution, so a Picker change triggers a full rebuild.
+    static let defaultThemeDark: String = LogTheme.monokai.rawValue
+    static let defaultThemeLight: String = LogTheme.default.rawValue
 
     func append(message: String) {
         let line = ContainerLogLine(id: nextLogId, message: message)

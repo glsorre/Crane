@@ -1,3 +1,4 @@
+import SwiftUI
 import XCTest
 
 @testable import Crane
@@ -50,5 +51,25 @@ final class LogLineFormatterTests: XCTestCase {
         // Just verify it produces an HH:mm:ss.SSS-shaped string
         let prefix = LogLineFormatter.timestampPrefix(for: Date())
         XCTAssertEqual(prefix.count, 12)  // "HH:mm:ss.SSS"
+    }
+
+    // MARK: - Theme-aware color
+
+    func testColorForThemeAndScheme() {
+        let monokaiLightFatal = LogLineFormatter.color(for: .fatal, theme: .monokai, colorScheme: .light)
+        let monokaiDarkFatal = LogLineFormatter.color(for: .fatal, theme: .monokai, colorScheme: .dark)
+        XCTAssertEqual(monokaiLightFatal, LogTheme.monokai.lightPalette().fatal)
+        XCTAssertEqual(monokaiDarkFatal, LogTheme.monokai.darkPalette().fatal)
+    }
+
+    func testColorForNilLevel() {
+        let c = LogLineFormatter.color(for: nil, theme: .dracula, colorScheme: .dark)
+        XCTAssertEqual(c, LogTheme.dracula.darkPalette().info)
+    }
+
+    func testColorChangesWithScheme() {
+        let lightWarn = LogLineFormatter.color(for: .warn, theme: .solarized, colorScheme: .light)
+        let darkWarn = LogLineFormatter.color(for: .warn, theme: .solarized, colorScheme: .dark)
+        XCTAssertNotEqual(lightWarn, darkWarn)  // Solarized has distinct warn colors per mode
     }
 }

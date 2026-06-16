@@ -8,6 +8,13 @@ import SwiftUI
 
 struct SelectableLogText: NSViewRepresentable {
     var stream: ContainerLogStream
+    var colorScheme: ColorScheme = .light
+    // Live theme raw values, passed down from `ContainerLogsView`'s @AppStorage.
+    // Including them in the representable's parameters forces SwiftUI to call
+    // `updateNSView` when the Picker changes (the values flow into the
+    // Coordinator's `configSignature` to trigger a full rebuild).
+    var themeDark: String = ContainerLogStream.defaultThemeDark
+    var themeLight: String = ContainerLogStream.defaultThemeLight
 
     func makeNSView(context: Context) -> NSScrollView {
         let textView = LogTextView(frame: .zero)
@@ -18,7 +25,6 @@ struct SelectableLogText: NSViewRepresentable {
         textView.usesFontPanel = false
         textView.usesFindPanel = false
         textView.textContainerInset = NSSize(width: 10, height: 10)
-        textView.backgroundColor = .textBackgroundColor
         textView.drawsBackground = true
         textView.textContainer?.lineFragmentPadding = 0
         textView.textContainer?.widthTracksTextView = true
@@ -32,7 +38,6 @@ struct SelectableLogText: NSViewRepresentable {
         scrollView.autohidesScrollers = true
         scrollView.borderType = .noBorder
         scrollView.drawsBackground = true
-        scrollView.backgroundColor = .textBackgroundColor
 
         scrollView.contentView.postsBoundsChangedNotifications = true
         NotificationCenter.default.addObserver(
@@ -44,6 +49,10 @@ struct SelectableLogText: NSViewRepresentable {
 
         context.coordinator.textView = textView
         context.coordinator.scrollView = scrollView
+        context.coordinator.colorScheme = colorScheme
+        context.coordinator.themeDark = themeDark
+        context.coordinator.themeLight = themeLight
+        context.coordinator.applyBackground()
         context.coordinator.render(stream: stream, fullRebuild: true)
 
         return scrollView
@@ -51,15 +60,22 @@ struct SelectableLogText: NSViewRepresentable {
 
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
         context.coordinator.parentStream = stream
+        context.coordinator.colorScheme = colorScheme
+        context.coordinator.themeDark = themeDark
+        context.coordinator.themeLight = themeLight
+        context.coordinator.applyBackground()
         context.coordinator.render(stream: stream, fullRebuild: false)
     }
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(stream: stream)
+        Coordinator(stream: stream, themeDark: themeDark, themeLight: themeLight)
     }
 
     final class Coordinator: NSObject {
         var parentStream: ContainerLogStream
+        var colorScheme: ColorScheme = .light
+        var themeDark: String = ContainerLogStream.defaultThemeDark
+        var themeLight: String = ContainerLogStream.defaultThemeLight
         weak var textView: LogTextView?
         weak var scrollView: NSScrollView?
 
@@ -73,12 +89,41 @@ struct SelectableLogText: NSViewRepresentable {
         private var lastSearchSignature: String = ""
         private var lastCurrentMatch: Int = -1
 
-        init(stream: ContainerLogStream) {
+        init(stream: ContainerLogStream, themeDark: String = ContainerLogStream.defaultThemeDark, themeLight: String = ContainerLogStream.defaultThemeLight) {
             self.parentStream = stream
+            self.themeDark = themeDark
+            self.themeLight = themeLight
+            super.init()
+            // Observe UserDefaults directly. This is the most reliable trigger for
+            // a theme re-render: it works regardless of whether SwiftUI's
+            // @AppStorage propagation reaches this view, and it bypasses the
+            // NSViewRepresentable diffing that may skip updateNSView when the
+            // representable's struct value is unchanged.
+            NotificationCenter.default.addObserver(
+                self,
+                selector: #selector(userDefaultsDidChange(_:)),
+                name: UserDefaults.didChangeNotification,
+                object: nil
+            )
         }
 
         deinit {
             NotificationCenter.default.removeObserver(self)
+        }
+
+        @objc private func userDefaultsDidChange(_ notification: Notification) {
+            // Read live from UserDefaults on the main thread; render is not
+            // thread-safe (it touches NSTextStorage).
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                let newDark = UserDefaults.standard.string(forKey: "logTheme.dark") ?? ContainerLogStream.defaultThemeDark
+                let newLight = UserDefaults.standard.string(forKey: "logTheme.light") ?? ContainerLogStream.defaultThemeLight
+                guard newDark != self.themeDark || newLight != self.themeLight else { return }
+                self.themeDark = newDark
+                self.themeLight = newLight
+                self.applyBackground()
+                self.render(stream: self.parentStream, fullRebuild: false)
+            }
         }
 
         // MARK: - Public render entrypoint
@@ -103,7 +148,7 @@ struct SelectableLogText: NSViewRepresentable {
 
             // swiftlint:disable line_length
             let configSignature =
-                "\(stream.showTimestamps)|\(stream.showLineNumbers)|\(stream.fontSize)|\(stream.levelFilter.map { $0.rawValue }.sorted().joined(separator: ","))"
+                "\(stream.showTimestamps)|\(stream.showLineNumbers)|\(stream.fontSize)|\(stream.levelFilter.map { $0.rawValue }.sorted().joined(separator: ","))|\(themeDark)|\(themeLight)|\(colorScheme == .dark ? "dark" : "light")"
             // swiftlint:enable line_length
             let configChanged = configSignature != lastConfigSignature
 
@@ -184,6 +229,19 @@ struct SelectableLogText: NSViewRepresentable {
             }
         }
 
+        // MARK: - Background
+
+        /// Resolve the current theme's background color and apply it to both the
+        /// text view and the scroll view. Cheap (two property sets); safe to call
+        /// on every render.
+        func applyBackground() {
+            let raw = (colorScheme == .dark) ? themeDark : themeLight
+            let theme = LogTheme(rawValue: raw) ?? .default
+            let palette = (colorScheme == .dark) ? theme.darkPalette() : theme.lightPalette()
+            textView?.backgroundColor = palette.background
+            scrollView?.backgroundColor = palette.background
+        }
+
         // MARK: - Filtering
 
         private func passesFilter(_ line: ContainerLogLine, stream: ContainerLogStream) -> Bool {
@@ -223,12 +281,13 @@ struct SelectableLogText: NSViewRepresentable {
             }
 
             let body = line.message + "\n"
+            let resolvedTheme = LogTheme(rawValue: (colorScheme == .dark) ? themeDark : themeLight) ?? .default
             parts.append(
                 NSAttributedString(
                     string: body,
                     attributes: [
                         .font: font,
-                        .foregroundColor: LogLineFormatter.color(for: line.level),
+                        .foregroundColor: LogLineFormatter.color(for: line.level, theme: resolvedTheme, colorScheme: colorScheme),
                     ]))
 
             let location = storage.length

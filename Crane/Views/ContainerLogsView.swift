@@ -9,6 +9,12 @@ import UniformTypeIdentifiers
 
 struct ContainerLogsView: View {
     @Bindable var viewModel: DetailsViewModel
+    @Environment(\.colorScheme) private var colorScheme
+    // Register observation so the view re-renders when the theme pickers change.
+    // The Coordinator reads the live values from UserDefaults directly; these
+    // exist solely to make SwiftUI re-render the logs view on a Picker change.
+    @AppStorage("logTheme.dark") private var logThemeDark: String = ContainerLogStream.defaultThemeDark
+    @AppStorage("logTheme.light") private var logThemeLight: String = ContainerLogStream.defaultThemeLight
     @State private var showClearConfirm: Bool = false
 
     private var stream: ContainerLogStream {
@@ -33,8 +39,13 @@ struct ContainerLogsView: View {
             Divider()
 
             ZStack(alignment: .bottomTrailing) {
-                SelectableLogText(stream: stream)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                SelectableLogText(
+                    stream: stream,
+                    colorScheme: colorScheme,
+                    themeDark: logThemeDark,
+                    themeLight: logThemeLight
+                )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
 
                 if stream.userScrolled && stream.followLogs {
                     jumpToLatestButton(stream: stream)
