@@ -52,6 +52,9 @@
     "0/0" : {
 
     },
+    "12:34:5%lld" : {
+
+    },
     "A container with this name already exists." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2035,6 +2038,17 @@
         }
       }
     },
+    "logThemeCardAria" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ log theme"
+          }
+        }
+      }
+    },
     "logThemeDark" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2046,6 +2060,17 @@
         }
       }
     },
+    "logThemeDarkHeader" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dark"
+          }
+        }
+      }
+    },
     "logThemeLight" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2053,6 +2078,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Light mode"
+          }
+        }
+      }
+    },
+    "logThemeLightHeader" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Light"
           }
         }
       }
@@ -3809,6 +3845,9 @@
         }
       }
     },
+    "Settings…" : {
+
+    },
     "setup" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -4145,6 +4184,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@ is not installed."
+          }
+        }
+      }
+    },
+    "terminalCardHelp" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open shells in %@"
+          }
+        }
+      }
+    },
+    "terminalCustomBadge" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Custom"
           }
         }
       }

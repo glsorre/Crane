@@ -39,18 +39,12 @@ struct ConnectionStatusPill: View {
                     .font(.caption)
                     .fontWeight(.medium)
                     .foregroundStyle(.secondary)
+                Spacer(minLength: 0)
             }
-            .padding(.vertical, Spacing.xxs)
+            .padding(.vertical, Spacing.xs)
             .padding(.horizontal, Spacing.sm)
-            .background(
-                Capsule()
-                    .fill(Color(.controlBackgroundColor).opacity(0.38))
-            )
-            .overlay(
-                Capsule()
-                    .stroke(Color.primary.opacity(0.08), lineWidth: 1)
-            )
-            .contentShape(Capsule())
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .popover(isPresented: $showDetails, arrowEdge: .trailing) {

@@ -70,10 +70,17 @@ final class LogThemeTests: XCTestCase {
         XCTAssertEqual(LogTheme.default.darkPalette().background, NSColor.textBackgroundColor)
     }
 
-    func testSolarizedBackgroundsDifferByMode() {
-        XCTAssertNotEqual(
-            LogTheme.solarized.lightPalette().background,
-            LogTheme.solarized.darkPalette().background
-        )
+    func testAllThemesHaveDistinctLightAndDarkBackgrounds() {
+        // The `.default` theme is intentionally system-driven and may render
+        // the same dynamic background in both modes; every other theme must
+        // expose a real dark/light contrast.
+        for theme in LogTheme.allCases where theme != .default {
+            let light = theme.lightPalette().background
+            let dark = theme.darkPalette().background
+            XCTAssertNotEqual(
+                light, dark,
+                "Light and dark backgrounds must differ for \(theme.rawValue)"
+            )
+        }
     }
 }
