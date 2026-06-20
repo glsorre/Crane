@@ -33,18 +33,20 @@ struct CraneApp: App {
         WindowGroup {
             CraneView()
                 .environment(\.craneStores, stores)
+                .environmentObject(updaterModel)
         }
         .commands {
             CommandGroup(after: .appInfo) {
                 CheckForUpdatesView(updaterModel: updaterModel)
             }
-        }
-
-        #if os(macOS)
-            Settings {
-                CraneSettingsView()
-                    .environmentObject(updaterModel)
+            // `⌘,` should switch the main window to the Settings tab
+            // (the standard macOS Settings… menu item). Items placed
+            // in `.appSettings` get the `⌘,` shortcut automatically.
+            CommandGroup(replacing: .appSettings) {
+                Button("Settings…") {
+                    AppViewModel.shared.selectedTab = .settings
+                }
             }
-        #endif
+        }
     }
 }

@@ -36,7 +36,7 @@ final class CraneStores {
     let connectionHealth: ConnectionHealthTracker
 
     init() {
-        let app = AppViewModel()
+        let app = AppViewModel.shared
         let onError: @MainActor (CraneError) -> Void = { [weak app] err in
             app?.showError(err)
         }

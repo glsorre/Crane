@@ -150,6 +150,7 @@ enum CraneTab: Hashable {
     case images
     case networks
     case volumes
+    case settings
 
     var polledResource: PolledResource {
         switch self {
@@ -157,12 +158,16 @@ enum CraneTab: Hashable {
         case .images: return .images
         case .networks: return .networks
         case .volumes: return .volumes
+        // Settings has no polled resource of its own. Treat it as containers so the
+        // last viewed resource list keeps polling and shows fresh data on return.
+        case .settings: return .containers
         }
     }
 }
 
 @Observable
 class AppViewModel {
+    static let shared = AppViewModel()
     var selectedTab: CraneTab = .containers
     var selectedContainerID: Container.ID?
     var containerDetailNavigationRequest: Int = 0
@@ -184,6 +189,11 @@ class AppViewModel {
     func showContainersList() {
         selectedTab = .containers
         clearContainerSelection()
+    }
+
+    func showSettings() {
+        clearContainerSelection()
+        selectedTab = .settings
     }
 
     func clearContainerSelection() {

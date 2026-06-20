@@ -99,6 +99,8 @@ struct CraneView: View {
             return Binding(get: { stores.networks.searchText }, set: { stores.networks.searchText = $0 })
         case .volumes:
             return Binding(get: { stores.volumes.searchText }, set: { stores.volumes.searchText = $0 })
+        case .settings:
+            return Binding(get: { "" }, set: { _ in })
         }
     }
 
@@ -106,24 +108,54 @@ struct CraneView: View {
         !(appViewModel.selectedTab == .containers && appViewModel.selectedContainerID != nil)
     }
 
+    /// Sidebar-row styled button for the Settings tab, rendered inside the
+    /// sidebar's bottom `safeAreaInset` so it sits flush against the
+    /// connection status pill and shares the same horizontal padding.
+    @ViewBuilder
+    private var sidebarSettingsRow: some View {
+        let isSelected = appViewModel.selectedTab == .settings
+        Button {
+            appViewModel.selectedTab = .settings
+        } label: {
+            Label("settings", systemImage: "gearshape")
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, Spacing.sm)
+                .padding(.vertical, Spacing.xs)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .background {
+            if isSelected {
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(Color.accentColor.opacity(0.25))
+                    .padding(.horizontal, Spacing.xxs)
+            }
+        }
+        .accessibilityAddTraits(isSelected ? [.isSelected, .isButton] : .isButton)
+    }
+
     private var splitViewContent: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
             List(selection: selectedTabBinding) {
-                Label("containers", systemImage: "shippingbox.fill")
-                    .tag(CraneTab.containers)
-                Label("images", systemImage: "photo.fill")
-                    .tag(CraneTab.images)
-                Label("networks", systemImage: "network")
-                    .tag(CraneTab.networks)
-                Label("volumes", systemImage: "externaldrive.fill")
-                    .tag(CraneTab.volumes)
+                Section {
+                    Label("containers", systemImage: "shippingbox.fill")
+                        .tag(CraneTab.containers)
+                    Label("images", systemImage: "photo.fill")
+                        .tag(CraneTab.images)
+                    Label("networks", systemImage: "network")
+                        .tag(CraneTab.networks)
+                    Label("volumes", systemImage: "externaldrive.fill")
+                        .tag(CraneTab.volumes)
+                }
             }
             .listStyle(.sidebar)
             .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 260)
             .safeAreaInset(edge: .bottom) {
-                ConnectionStatusPill(tracker: stores.connectionHealth, stores: stores)
-                    .padding(.horizontal, Spacing.sm)
-                    .padding(.vertical, Spacing.xs)
+                VStack(spacing: 0) {
+                    Divider()
+                    sidebarSettingsRow
+                    ConnectionStatusPill(tracker: stores.connectionHealth, stores: stores)
+                }
             }
         } detail: {
             Group {
@@ -136,6 +168,8 @@ struct CraneView: View {
                     CraneNetworksListView()
                 case .volumes:
                     CraneVolumesListView()
+                case .settings:
+                    CraneSettingsView()
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
