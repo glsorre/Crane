@@ -49,7 +49,20 @@ enum LogTheme: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 
     var displayName: String {
-        String(localized: "logTheme.\(rawValue)")
+        switch self {
+        case .default: return String(localized: "logTheme.default")
+        case .solarized: return String(localized: "logTheme.solarized")
+        case .monokai: return String(localized: "logTheme.monokai")
+        case .oneDark: return String(localized: "logTheme.oneDark")
+        case .dracula: return String(localized: "logTheme.dracula")
+        case .gruvbox: return String(localized: "logTheme.gruvbox")
+        case .oneLight: return String(localized: "logTheme.oneLight")
+        case .nord: return String(localized: "logTheme.nord")
+        case .catppuccin: return String(localized: "logTheme.catppuccin")
+        case .tokyoNight: return String(localized: "logTheme.tokyoNight")
+        case .ayu: return String(localized: "logTheme.ayu")
+        case .github: return String(localized: "logTheme.github")
+        }
     }
 
     /// Palette rendered in light mode.

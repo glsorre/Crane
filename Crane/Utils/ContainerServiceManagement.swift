@@ -16,8 +16,8 @@ struct StartServiceResult {
 
 private func startContainerServiceViaCLI(cliURL: URL) async -> StartServiceResult {
     Log.serviceHelper.info("Starting container services via CLI at \(cliURL.path, privacy: .public)")
-    let (status, output) = await runProcessCollectingOutput(
-        executableURL: cliURL,
+    let (status, output) = await runContainerCLI(
+        cliURL: cliURL,
         arguments: ["system", "start", "--disable-kernel-install"]
     )
     let stderr = output.isEmpty ? nil : output

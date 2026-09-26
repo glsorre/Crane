@@ -27,7 +27,18 @@ enum TerminalApp: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 
     var displayName: String {
-        String(localized: "terminal.\(rawValue)")
+        switch self {
+        case .systemDefault: return String(localized: "terminal.systemDefault")
+        case .terminal: return String(localized: "terminal.terminal")
+        case .iterm2: return String(localized: "terminal.iterm2")
+        case .warp: return String(localized: "terminal.warp")
+        case .ghostty: return String(localized: "terminal.ghostty")
+        case .alacritty: return String(localized: "terminal.alacritty")
+        case .kitty: return String(localized: "terminal.kitty")
+        case .wezterm: return String(localized: "terminal.wezterm")
+        case .hyper: return String(localized: "terminal.hyper")
+        case .custom: return String(localized: "terminal.custom")
+        }
     }
 
     /// Bundle identifier for the app. Returns `nil` for `.custom` (no app).

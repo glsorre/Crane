@@ -39,13 +39,12 @@ struct CraneApp: App {
             CommandGroup(after: .appInfo) {
                 CheckForUpdatesView(updaterModel: updaterModel)
             }
-            // `⌘,` should switch the main window to the Settings tab
-            // (the standard macOS Settings… menu item). Items placed
-            // in `.appSettings` get the `⌘,` shortcut automatically.
+            // `⌘,` should switch the main window to the Settings tab.
             CommandGroup(replacing: .appSettings) {
                 Button("Settings…") {
-                    AppViewModel.shared.selectedTab = .settings
+                    AppViewModel.shared.showSettings()
                 }
+                .keyboardShortcut(",", modifiers: .command)
             }
         }
     }

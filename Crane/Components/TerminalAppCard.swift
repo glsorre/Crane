@@ -35,7 +35,6 @@ struct TerminalAppCard: View {
             iconView
                 .frame(width: Self.iconSize, height: Self.iconSize)
             nameLabel
-            customBadge
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, Spacing.sm)
@@ -53,20 +52,6 @@ struct TerminalAppCard: View {
             .fontWeight(.medium)
             .lineLimit(1)
             .truncationMode(.tail)
-    }
-
-    @ViewBuilder
-    private var customBadge: some View {
-        if app == .custom {
-            Text("terminalCustomBadge")
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 2)
-                .background(
-                    Capsule().fill(Color.secondary.opacity(0.12))
-                )
-        }
     }
 
     private var cardBackground: some View {
