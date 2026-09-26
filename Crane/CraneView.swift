@@ -203,14 +203,15 @@ struct CraneView: View {
         {
             if appViewModel.error?.fatal == true {
                 Button("retry") {
-                    launchTask = Task { await runLaunchSequence() }
+                    let task: Task<Void, Never> = Task { await runLaunchSequence() }
+                    launchTask = task
                 }
                 Button("quit", role: .destructive) { exit(1) }
             } else {
                 Button("refresh") {
                     Task {
                         appViewModel.showContainersList()
-                        try await stores.resetAll()
+                        try? await stores.resetAll()
                     }
                 }
             }
@@ -252,13 +253,15 @@ struct CraneView: View {
         }
         .onAppear {
             if !showOnboarding {
-                launchTask = Task { await runLaunchSequence() }
+                let task: Task<Void, Never> = Task { await runLaunchSequence() }
+                launchTask = task
             }
         }
         .sheet(isPresented: $showOnboarding) {
             OnboardingView(viewModel: onboardingViewModel) {
                 showOnboarding = false
-                launchTask = Task { await runLaunchSequence() }
+                let task: Task<Void, Never> = Task { await runLaunchSequence() }
+                launchTask = task
             }
             .interactiveDismissDisabled(true)
         }
@@ -277,6 +280,47 @@ struct CraneView: View {
         .onChange(of: appViewModel.selectedTab, initial: true) { _, newTab in
             stores.activateTab(newTab.polledResource)
         }
+    }
+
+    @MainActor
+    private func waitForServiceRegistration(label: String, domain: String) async -> LaunchctlState {
+        var registrationState = launchctlState(label: label, domain: domain)
+        if registrationState.loaded { return registrationState }
+
+        for _ in 0..<30 {
+            try? await Task.sleep(for: .milliseconds(500))
+            registrationState = launchctlState(label: label, domain: domain)
+            if registrationState.loaded { break }
+        }
+        return registrationState
+    }
+
+    @MainActor
+    private func waitForServiceHealth(diagnostic: inout LaunchDiagnostic) async -> Bool {
+        healthAttempt = 0
+        lastPingError = nil
+
+        var healthy = false
+        for _ in 0..<healthPingAttempts {
+            if Task.isCancelled { break }
+            do {
+                _ = try await withHardTimeout(healthPingTimeout) {
+                    try await ClientHealthCheck.ping(timeout: healthPingTimeout)
+                }
+                healthy = true
+                healthAttempt = 0
+                lastPingError = nil
+                break
+            } catch {
+                healthAttempt += 1
+                lastPingError = error.localizedDescription
+                try? await Task.sleep(for: healthPingGap)
+            }
+        }
+
+        diagnostic.pingError = healthy ? nil : lastPingError
+        launchDiagnostic = diagnostic
+        return healthy
     }
 
     @MainActor
@@ -302,15 +346,7 @@ struct CraneView: View {
             Log.launch.info("startContainerService() returned success=\(result.success)")
 
             launchPhase = .waitingForRegistration
-            for _ in 0..<30 {
-                try? await Task.sleep(for: .milliseconds(500))
-                registrationState = launchctlState(label: serviceLabel, domain: domain)
-                if registrationState.loaded {
-                    diagnostic.serviceRegistered = true
-                    diagnostic.launchctlPrintOutput = registrationState.rawOutput
-                    break
-                }
-            }
+            registrationState = await waitForServiceRegistration(label: serviceLabel, domain: domain)
             diagnostic.serviceRegistered = registrationState.loaded
             diagnostic.launchctlPrintOutput = registrationState.rawOutput
         }
@@ -323,32 +359,38 @@ struct CraneView: View {
 
         launchPhase = .waitingForHealth
         launchDiagnostic = diagnostic
-        healthAttempt = 0
-        lastPingError = nil
         Log.launch.info("Service registered, waiting for API server…")
-        var healthy = false
-        for _ in 0..<healthPingAttempts {
-            if Task.isCancelled { break }
-            do {
-                _ = try await withHardTimeout(healthPingTimeout) {
-                    try await ClientHealthCheck.ping(timeout: healthPingTimeout)
-                }
-                healthy = true
-                healthAttempt = 0
-                lastPingError = nil
-                break
-            } catch {
-                healthAttempt += 1
-                lastPingError = error.localizedDescription
-                try? await Task.sleep(for: healthPingGap)
+        var healthy = await waitForServiceHealth(diagnostic: &diagnostic)
+
+        if !healthy && AppSettings.launchContainerizationService {
+            launchPhase = .startingService
+            Log.launch.info("API server unhealthy, retrying container service start…")
+            let result = await startContainerService()
+            diagnostic.cliPath = result.cliPath ?? diagnostic.cliPath
+            diagnostic.startAttemptStderr = result.stderr
+            diagnostic.plistFound = result.plistFound
+            Log.launch.info("Retry startContainerService() returned success=\(result.success)")
+
+            launchPhase = .waitingForRegistration
+            registrationState = await waitForServiceRegistration(label: serviceLabel, domain: domain)
+            diagnostic.serviceRegistered = registrationState.loaded
+            diagnostic.launchctlPrintOutput = registrationState.rawOutput
+
+            if diagnostic.serviceRegistered {
+                launchPhase = .waitingForHealth
+                launchDiagnostic = diagnostic
+                Log.launch.info("Retry start complete, waiting for API server…")
+                healthy = await waitForServiceHealth(diagnostic: &diagnostic)
             }
         }
-        diagnostic.pingError = healthy ? nil : lastPingError
-        launchDiagnostic = diagnostic
 
         launchPhase = .idle
         if !healthy {
-            appViewModel.showError(.notRunning(diagnostic: diagnostic))
+            appViewModel.showError(
+                diagnostic.serviceRegistered
+                    ? .notRunning(diagnostic: diagnostic)
+                    : .notRegistered(diagnostic: diagnostic)
+            )
         }
     }
 }

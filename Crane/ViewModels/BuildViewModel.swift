@@ -412,7 +412,7 @@ class BuildViewModel {
         contextDirPath: String,
         dockerfileData: Data
     ) async throws {
-        let builder = try Builder(socket: fh, group: threadGroup, logger: Logging.Logger(label: "BuildViewModel"))
+        let builder = try await Builder(socket: fh, group: threadGroup, logger: Logging.Logger(label: "BuildViewModel"))
         _ = try await builder.info()
 
         // 3. Export path
@@ -436,6 +436,7 @@ class BuildViewModel {
             contentStore: RemoteContentStoreClient(),
             buildArgs: [],
             secrets: [:],
+            ssh: "",
             contextDir: contextDirPath,
             dockerfile: dockerfileData,
             dockerignore: nil,
