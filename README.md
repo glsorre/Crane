@@ -1,3 +1,7 @@
+**Archived** on 15 November 2026. This project is no longer maintained. *rightright.me* has stopped its activities and I've moved on to other work. The code stays here for reference. More at [glsorre.com](www.glsorre.com).
+
+---
+
 # Apple Containers, with a real UI
 
 Apple's `container` tool brings lightweight, native containerization to macOS — but it ships CLI-only. Crane fills the gap: a polished, purpose-built app that makes container management visual, fast, and Mac-native.
